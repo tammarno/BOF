@@ -510,3 +510,58 @@ body {
 .log-item.ai-action {
   color: #f472b6; /* สีชมพูอ่อนสำหรับ Log ของ AI เพื่อให้สังเกตง่าย */
 }
+/* ==========================================
+   ระบบกล่องแสดงคำอธิบายการ์ดเมื่อเอาเมาส์ชี้ (Card Tooltip)
+   ========================================== */
+.card-tooltip {
+  position: fixed;
+  z-index: 9999;
+  width: 270px;
+  background: rgba(17, 19, 28, 0.96);
+  border: 2px solid #38bdf8;
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: #f8fafc;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.85);
+  pointer-events: none; /* ป้องกันไม่ให้กล่องบังการคลิกเมาส์ */
+  display: none;
+  backdrop-filter: blur(4px);
+}
+
+.tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #334155;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+}
+
+.tooltip-name {
+  font-weight: bold;
+  font-size: 15px;
+  color: #fbbf24;
+}
+
+.tooltip-type {
+  font-size: 11px;
+  background: #1e293b;
+  padding: 2px 8px;
+  border-radius: 10px;
+  color: #94a3b8;
+  border: 1px solid #475569;
+}
+
+.tooltip-stats {
+  font-size: 13px;
+  font-weight: bold;
+  color: #4ade80;
+  margin-bottom: 8px;
+}
+
+.tooltip-desc {
+  font-size: 13px;
+  color: #e2e8f0;
+  line-height: 1.5;
+  white-space: pre-line;
+}
