@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>My Card Game - Visual & Dice Edition</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="game-container">
+    <!-- โซนของ AI (ด้านบน) -->
+    <div class="side-zone">
+      <div style="font-size: 13px; color: #94a3b8;">
+        🤖 <b>AI Opponent</b> | การ์ดบนมือ: <span id="ai-hand-count">0</span> ใบ
+      </div>
+      <div class="field-row">
+        <div class="info-box leader-box" id="ai-leader-box">
+          <div style="font-size: 11px;">👑 AI Leader</div>
+          <img id="ai-leader-img" class="leader-art" src="" alt="AI Leader">
+          <div id="ai-leader-name" style="font-weight:bold; font-size:12px;">-</div>
+          <div class="hp-badge">HP: <span id="ai-leader-hp">6</span> / 6</div>
+        </div>
+
+        <div class="board-slots" id="ai-board">
+          <div class="slot" data-slot="0">ช่อง 1</div>
+          <div class="slot" data-slot="1">ช่อง 2</div>
+          <div class="slot" data-slot="2">ช่อง 3</div>
+        </div>
+
+        <div class="pile-group">
+          <div class="info-box deck-box">
+            <div>📚 Deck</div>
+            <h2 id="ai-deck-count">20</h2>
+          </div>
+          <div class="info-box grave-box">
+            <div>🪦 Graveyard</div>
+            <h2 id="ai-grave-count">0</h2>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- แถบสถานะกลางกระดาน -->
+    <div class="center-bar">
+      <div>
+        <strong id="turn-indicator">Turn 1 (Player)</strong> | 
+        Phase: <span id="phase-indicator" style="color: #38bdf8; font-weight: bold;">Mulligan</span>
+      </div>
+      <div class="quota-badges">
+        <span id="normal-spell-quota">Normal Spell: 0 / 1</span>
+        <span id="reaction-spell-quota">Reaction Spell: 0 / 1</span>
+      </div>
+      <div>
+        <button class="btn" id="btn-next-phase" disabled>⚔️ เข้าสู่ Battle Phase</button>
+        <button class="btn" id="btn-end-turn" style="background:#dc2626;" disabled>⏭️ จบเทิร์น</button>
+	<button class="btn" id="btn-open-deck" style="background:#8b5cf6;">🃏 จัดเด็ค</button>
+      </div>
+    </div>
+
+    <!-- แถบแจ้งเตือนการเล่น -->
+    <!-- แถบประวัติการกระทำย้อนหลัง (Battle Log) -->
+    <div class="action-log-container">
+      <div class="action-log-title">📜 ประวัติการกระทำย้อนหลัง (Battle Log)</div>
+      <div class="action-log-scrollbox" id="action-log-scrollbox">
+        <div class="log-item">🎲 ยินดีต้อนรับ! กรุณาเลือกเปลี่ยนการ์ด Mulligan เพื่อเริ่มเกม</div>
+      </div>
+    </div>
+
+    <!-- โซนของผู้เล่น (ด้านล่าง) -->
+    <div class="side-zone">
+      <div class="field-row">
+        <div class="info-box leader-box" id="player-leader-box">
+          <div style="font-size: 11px;">👑 Player Leader</div>
+          <img id="player-leader-img" class="leader-art" src="" alt="Player Leader">
+          <div id="player-leader-name" style="font-weight:bold; font-size:12px;">-</div>
+          <div class="hp-badge">HP: <span id="player-leader-hp">6</span> / 6</div>
+        </div>
+
+        <div class="board-slots" id="player-board">
+          <div class="slot" data-slot="0">ช่อง 1</div>
+          <div class="slot" data-slot="1">ช่อง 2</div>
+          <div class="slot" data-slot="2">ช่อง 3</div>
+        </div>
+
+        <div class="pile-group">
+          <div class="info-box deck-box">
+            <div>📚 Deck</div>
+            <h2 id="player-deck-count">20</h2>
+          </div>
+          <div class="info-box grave-box">
+            <div>🪦 Graveyard</div>
+            <h2 id="player-grave-count">0</h2>
+          </div>
+        </div>
+      </div>
+
+      <div style="font-size: 13px; color: #94a3b8;">✋ <b>การ์ดบนมือของคุณ:</b></div>
+      <div class="hand-row" id="player-hand"></div>
+    </div>
+  </div>
+
+  <!-- หน้าต่าง Mulligan -->
+  <div class="modal-overlay" id="mulligan-modal">
+    <div class="modal-box">
+      <h2>🔄 Mulligan: เลือกเปลี่ยนการ์ดเริ่มต้น</h2>
+      <p style="color:#94a3b8; margin-top:6px;">
+        คลิกเลือกการ์ดที่ต้องการเปลี่ยนได้ <b>สูงสุด 2 ใบ</b>
+      </p>
+      <div class="mulligan-cards" id="mulligan-card-list"></div>
+      <p id="mulligan-selected-text" style="margin-bottom: 15px;">เลือกแล้ว: 0 / 2 ใบ</p>
+      <button class="btn" id="btn-confirm-mulligan">ยืนยันและเริ่มเกม</button>
+    </div>
+  </div>
+
+  <!-- หน้าต่าง Intercept -->
+  <div class="modal-overlay" id="intercept-modal" style="display: none;">
+    <div class="modal-box">
+      <h2>🛡️ Intercept: ป้องกันการโจมตีใส่ Leader!</h2>
+      <p id="intercept-desc" style="color:#fbbf24; margin-top:8px;">
+        เลือก Monster ที่ Stand อยู่เพื่อรับการโจมตีแทน หรือกดไม่ป้องกัน
+      </p>
+      <div class="intercept-options" id="intercept-card-list"></div>
+      <button class="btn" id="btn-skip-intercept" style="background:#dc2626;">ไม่ป้องกัน (Leader เสีย 1 HP)</button>
+    </div>
+  </div>
+
+  <!-- หน้าต่างแอนิเมชันทอยลูกเต๋า D6 (สำหรับ Reaction Spell) -->
+  <div class="modal-overlay" id="dice-modal" style="display: none;">
+    <div class="dice-box">
+      <h3 id="dice-title" style="color: #e9d5ff;">🎲 ทอยลูกเต๋า D6 (Reaction Spell)</h3>
+      <p style="font-size: 12px; color: #cbd5e1; margin-top: 4px;">ต้องการแต้ม 4 - 6 เพื่อแสดงผลเอฟเฟกต์</p>
+      <div class="dice-cube" id="dice-cube">?</div>
+      <p id="dice-result-text" style="font-weight: bold; min-height: 22px; color: #fbbf24;">กำลังทอยลูกเต๋า...</p>
+    </div>
+  </div>
+<!-- หน้าต่างจัดเด็ค (Deck Builder 21 ใบ: Leader 1 + Main Deck 20) -->
+  <div class="modal-overlay" id="deck-builder-modal" style="display: none;">
+    <div class="deck-builder-box">
+      <div class="deck-builder-header">
+        <div>
+          <h2>🃏 จัดเด็คของคุณ (กติกา 21 ใบ)</h2>
+          <p style="font-size: 13px; color: #94a3b8;">
+            เลือก Leader 1 ใบ และการ์ดในเด็ค 20 ใบ (ชื่อซ้ำได้สูงสุด 2 ใบ)
+          </p>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span id="deck-status-text" style="font-weight: bold; color: #4ade80; margin-right: 8px;">
+            Leader: 1/1 | Deck: 20/20
+          </span>
+          <button class="btn" id="btn-reset-deck" style="background:#475569;">ล้างเด็ค</button>
+          <button class="btn" id="btn-default-deck" style="background:#0284c7;">เด็คเริ่มต้น</button>
+          <button class="btn" id="btn-save-start" style="background:#16a34a;">✅ บันทึกและเริ่มเกม</button>
+        </div>
+      </div>
+
+      <div class="deck-section-title">👑 1. คลิกเลือก Leader (1 ใบ):</div>
+      <div class="card-pool-grid" id="leader-pool-list"></div>
+
+      <div class="deck-section-title">
+        ⚔️ 2. คลิกการ์ดเพื่อเพิ่ม/ลดใน Main Deck (คลิกเพื่อเพิ่ม 1 -> 2 ใบ, คลิกซ้ำเมื่อเต็ม 2 ใบเพื่อเอาออก):
+      </div>
+      <div class="card-pool-grid" id="main-pool-list"></div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>

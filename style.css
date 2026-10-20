@@ -1,0 +1,512 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+
+body {
+  background: #12131a;
+  color: #f0f0f0;
+  display: flex;
+  justify-content: center;
+  padding: 10px;
+}
+
+.game-container {
+  width: 100%;
+  max-width: 1000px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* โซนผู้เล่นและ AI */
+.side-zone {
+  background: #1c1e29;
+  border: 1px solid #2e3244;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.field-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+/* กล่อง Leader, Deck, Graveyard */
+.info-box {
+  width: 120px;
+  height: 150px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 8px;
+  font-size: 13px;
+}
+
+.leader-box {
+  background: linear-gradient(135deg, #4b1d3f, #2a1024);
+  border: 2px solid #e06c9f;
+}
+
+.hp-badge {
+  margin-top: 8px;
+  background: #d92648;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 15px;
+}
+
+.pile-group {
+  display: flex;
+  gap: 10px;
+}
+
+.deck-box {
+  background: #232738;
+  border: 2px dashed #5b658a;
+}
+
+.grave-box {
+  background: #1f1b24;
+  border: 2px dashed #7a5c8a;
+}
+
+/* กระดาน 3 ช่อง */
+.board-slots {
+  display: flex;
+  gap: 15px;
+}
+
+.slot {
+  width: 125px;
+  height: 165px;
+  background: #151722;
+  border: 2px solid #353b52;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+/* แถบกลางกระดาน */
+.center-bar {
+  background: #26293b;
+  padding: 10px 20px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #3d435e;
+}
+
+.quota-badges span {
+  background: #191b26;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-right: 8px;
+  border: 1px solid #454d6b;
+}
+
+.btn {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn:hover { background: #2563eb; }
+.btn:disabled { background: #4b5563; cursor: not-allowed; }
+
+/* การ์ดบนมือและบนสนาม */
+.hand-row {
+  min-height: 170px;
+  background: #161822;
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.card {
+  width: 115px;
+  height: 155px;
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  user-select: none;
+  font-size: 12px;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+}
+
+.card.Monster { background: #2b261f; border: 2px solid #d97706; }
+.card.NormalSpell { background: #172a24; border: 2px solid #10b981; }
+.card.ReactionSpell { background: #281a2e; border: 2px solid #a855f7; }
+
+.card-type { font-size: 10px; opacity: 0.8; text-transform: uppercase; }
+.card-name { font-weight: bold; font-size: 13px; margin: 4px 0; }
+.card-power {
+  background: #b45309;
+  text-align: center;
+  padding: 3px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+.card-desc { font-size: 11px; color: #cbd5e1; line-height: 1.2; }
+
+/* สถานะ Rest (วางการ์ดแนวนอน) */
+.card.Rest {
+  transform: rotate(90deg);
+  opacity: 0.75;
+}
+
+/* หน้าต่าง Modal (Mulligan) */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.modal-box {
+  background: #1e2130;
+  border: 2px solid #4f587a;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 750px;
+  width: 95%;
+  text-align: center;
+}
+
+.mulligan-cards {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+
+.card.selected-mulligan {
+  outline: 3px solid #ef4444;
+  transform: translateY(-8px);
+  position: relative;
+}
+
+.card.selected-mulligan::after {
+  content: "เปลี่ยนใบนี้";
+  position: absolute;
+  bottom: -22px;
+  left: 0;
+  right: 0;
+  color: #f87171;
+  font-weight: bold;
+  font-size: 11px;
+}
+/* ไฮไลต์การ์ดบนมือที่กำลังคลิกเลือก */
+.card.selected-hand {
+  outline: 3px solid #38bdf8;
+  transform: translateY(-12px);
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
+}
+
+/* ไฮไลต์ช่องกระดานที่สามารถวาง Monster ลงไปได้ */
+.slot.valid-target {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.15);
+  cursor: pointer;
+}
+
+/* แถบข้อความแจ้งเตือนเหตุการณ์ & ผลทอยลูกเต๋า D6 */
+.action-log {
+  background: #111827;
+  border: 1px solid #374151;
+  color: #fbbf24;
+  padding: 8px 14px;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: bold;
+}
+/* ไฮไลต์ Monster ที่กำลังเลือกสั่งโจมตี */
+.card.selected-attacker {
+  outline: 3px solid #f59e0b;
+  box-shadow: 0 0 18px rgba(245, 158, 11, 0.8);
+}
+
+/* ไฮไลต์เป้าหมายที่สามารถโจมตีได้ (Monster หรือ Leader อีกฝ่าย) */
+.attack-target {
+  outline: 3px dashed #ef4444 !important;
+  cursor: crosshair !important;
+  animation: pulseTarget 1s infinite alternate;
+}
+
+@keyframes pulseTarget {
+  from { box-shadow: 0 0 5px rgba(239, 68, 68, 0.4); }
+  to { box-shadow: 0 0 18px rgba(239, 68, 68, 0.9); }
+}
+
+.intercept-options {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+/* ==========================================
+   ส่วนแสดงผลรูปภาพการ์ด (Card Artwork)
+   ========================================== */
+.card {
+  width: 120px;
+  height: 170px;
+  padding: 6px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3px;
+}
+
+.card {
+  width: 125px;
+  height: 175px;
+  padding: 6px;
+  position: relative;
+  overflow: hidden;
+  justify-content: flex-end; /* ดันชื่อและค่าพลังลงไปด้านล่าง */
+}
+
+.card-art {
+  position: absolute;
+  inset: 0; /* ขยายรูปให้เต็มใบการ์ด 100% */
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: none;
+  z-index: 0;
+}
+
+.card-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+
+/* ทำแถบเงาดำด้านล่างเพื่อให้ยังอ่านชื่อการ์ดและค่า Power ชัดเจน */
+.card-header, .card-name, .card-power, .card-desc {
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+}
+
+.card-name {
+  background: rgba(0, 0, 0, 0.65);
+  padding: 2px 4px;
+  border-radius: 4px;
+  text-align: center;
+}
+.leader-art {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #f472b6;
+  margin: 4px 0;
+  background: #1e1b2e;
+}
+
+/* ==========================================
+   หน้าต่างแอนิเมชันทอยลูกเต๋า D6
+   ========================================== */
+.dice-box {
+  background: #1e2130;
+  border: 2px solid #a855f7;
+  border-radius: 16px;
+  padding: 28px;
+  width: 340px;
+  text-align: center;
+  box-shadow: 0 0 30px rgba(168, 85, 247, 0.5);
+}
+
+.dice-cube {
+  width: 90px;
+  height: 90px;
+  margin: 20px auto;
+  background: linear-gradient(135deg, #ffffff, #cbd5e1);
+  color: #1e1b4b;
+  border-radius: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 48px;
+  font-weight: 900;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6), inset 0 -4px 8px rgba(0,0,0,0.2);
+  border: 3px solid #94a3b8;
+}
+
+.dice-cube.rolling {
+  animation: shakeDice 0.15s infinite;
+  background: linear-gradient(135deg, #f3e8ff, #d8b4fe);
+  border-color: #a855f7;
+}
+
+.dice-cube.success {
+  background: linear-gradient(135deg, #dcfce7, #4ade80);
+  border-color: #16a34a;
+  color: #064e3b;
+  transform: scale(1.12);
+  transition: transform 0.2s;
+}
+
+.dice-cube.fail {
+  background: linear-gradient(135deg, #fee2e2, #f87171);
+  border-color: #dc2626;
+  color: #7f1d1d;
+}
+
+@keyframes shakeDice {
+  0% { transform: rotate(-12deg) scale(1.05); }
+  50% { transform: rotate(12deg) scale(0.95); }
+  100% { transform: rotate(-12deg) scale(1.05); }
+}
+/* ==========================================
+   หน้าต่างจัดเด็ค (Deck Builder UI)
+   ========================================== */
+.deck-builder-box {
+  background: #161824;
+  border: 2px solid #4f587a;
+  border-radius: 14px;
+  padding: 20px;
+  max-width: 960px;
+  width: 96%;
+  max-height: 92vh;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.deck-builder-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #2e3244;
+  padding-bottom: 12px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.deck-section-title {
+  font-size: 15px;
+  font-weight: bold;
+  color: #38bdf8;
+  margin: 12px 0 8px 0;
+}
+
+.card-pool-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: #11131c;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #282c3e;
+}
+
+.pool-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.count-badge {
+  background: #1e293b;
+  color: #f8fafc;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid #475569;
+}
+
+.count-badge.maxed {
+  background: #065f46;
+  border-color: #10b981;
+  color: #a7f3d0;
+}
+
+.card.selected-leader {
+  outline: 3px solid #ec4899;
+  box-shadow: 0 0 18px rgba(236, 72, 153, 0.75);
+}
+/* ==========================================
+   ระบบ Battle Log ย้อนหลัง
+   ========================================== */
+.action-log-container {
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.action-log-title {
+  font-size: 12px;
+  color: #94a3b8;
+  border-bottom: 1px solid #1f2937;
+  padding-bottom: 4px;
+  font-weight: bold;
+}
+
+.action-log-scrollbox {
+  max-height: 90px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  scroll-behavior: smooth;
+}
+
+.log-item {
+  font-size: 13px;
+  color: #fbbf24;
+  line-height: 1.3;
+}
+
+.log-item.ai-action {
+  color: #f472b6; /* สีชมพูอ่อนสำหรับ Log ของ AI เพื่อให้สังเกตง่าย */
+}
