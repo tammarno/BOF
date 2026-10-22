@@ -1,433 +1,88 @@
 /* ============================================================================
-   หมวดที่ 1: ฐานข้อมูลการ์ดทั้งหมด (CARD DATABASE - เด็คจิต, เด็คเหนือ, เด็ควันสิ้นโลก)
+   สารบัญหมวดหมู่โค้ดในไฟล์ game.js
+   ----------------------------------------------------------------------------
+   หมวดที่ 1: ฐานข้อมูลการ์ดทั้งหมด (CARD DATABASE & DEFAULT DECKS)
+   หมวดที่ 2: ระบบจัดการกองการ์ด และการคำนวณค่าพลัง (DECK & POWER CALCULATION)
+   หมวดที่ 3: สถานะเกม ระบบ Log และหน้าต่างเปิดดูโซนต่างๆ (STATE, LOGS & ZONES)
+   หมวดที่ 4: ความสามารถกดใช้ของ Leader และ Monster บนสนาม (ACTIVATED ABILITIES)
+   หมวดที่ 5: ระบบการ์ดเวทมนตร์ (SPELL CARDS)
+   หมวดที่ 6: ระบบจัดการเทิร์นและการคลิกกระดาน (TURN & CLICK HANDLERS)
+   หมวดที่ 7: ระบบการต่อสู้และ Intercept (COMBAT SYSTEM)
+   หมวดที่ 8: ระบบปัญญาประดิษฐ์และปุ่มเปลี่ยนเฟส (AI LOGIC & PHASES)
+   หมวดที่ 9: ระบบแสดงคำอธิบายการ์ดและวาดหน้าจอกระดาน (TOOLTIP & RENDER UI)
+   หมวดที่ 10: ระบบหน้าต่างจัดเด็ค (DECK BUILDER)
+   หมวดที่ 11: ระบบควบคุมหน้าล็อบบี้หลักและดวลออนไลน์ (LOBBY & MULTIPLAYER PVP)
    ============================================================================ */
-const CARD_DATABASE = [
-  // ==================== LEADER (ทั้ง 3 เด็ค) ====================
-  {
-    id: 'L01',
-    name: 'มายฮีโร่ เดจิต',
-    type: 'Leader',
-    maxHp: 6,
-    image: 'images/เด็คจิต/1.png',
-    ability: 'LEADER_DEJIT_BUFF',
-    desc: 'สั่งใช้งาน/1 เทิร์น: เลือกยูนิทฝั่งเรา 1 ตัว เพิ่มพลังโจมตี +1 จนจบเทิร์น'
-  },
-  {
-    id: 'L02',
-    name: 'ขุนเหนือ',
-    type: 'Leader',
-    maxHp: 6,
-    image: 'images/เด็คเหนือ/1.png',
-    ability: 'LEADER_KHUN_NUEA',
-    desc: 'ออโต้: เมื่อเข้าเทิร์น นำ "ไพร่ชาวนาเหนือ" จากกองหรือนรกไม่เกิน 1 ใบขึ้นมือ\nต่อเนื่อง: ถ้ามี "เหนือ" 3 ใบบนสนาม "เหนือ" ทุกใบบนสนามเราพลังโจมตี +1'
-  },
-  {
-    id: 'L03',
-    name: 'วันสิ้นโลก',
-    type: 'Leader',
-    maxHp: 6,
-    image: 'images/วันสิ้นโลก/1.png',
-    ability: 'LEADER_DOOMSDAY',
-    desc: 'ออโต้: เมื่อเข้าเทิร์น คอลการ์ดยูนิตจากนรก 1 ใบลงสนาม โดยที่พลังโจมตีพื้นฐานต้องไม่เกิน 2'
-  },
-
-  // ==================== MONSTER & SPELL: เด็คจิต ====================
-  {
-    id: 'M01',
-    name: 'บาคุจิต',
-    type: 'Monster',
-    power: 2,
-    image: 'images/เด็คจิต/2.png',
-    ability: 'BAKU_SKILL',
-    desc: 'ต่อเนื่อง: ถ้ามีโทโดโรจิตบนสนามเรา พลัง +1\nออโต้: เมื่อลงสนาม เลือกทำลายยูนิทอีกฝ่าย 1 ใบ'
-  },
-  {
-    id: 'M02',
-    name: 'โทโดโรจิต',
-    type: 'Monster',
-    power: 1,
-    image: 'images/เด็คจิต/3.png',
-    ability: 'TODORO_SKILL',
-    desc: 'สั่งใช้งาน1/เทิร์น: ทิ้งมือ 1 ใบ โม่กองอีกฝ่าย 1 ใบ\nสั่งใช้งาน2/เทิร์น: นำบาคุจิตจากนรกขึ้นมือ 1 ใบ'
-  },
-  {
-    id: 'M03',
-    name: 'ออลจิต',
-    type: 'Monster',
-    power: 2,
-    image: 'images/เด็คจิต/4.png',
-    ability: 'ALL_JIT_HAND_INTERCEPT',
-    desc: 'เมื่อลีดเดอร์ถูกโจมตี: อัญเชิญใบนี้จากมือลงสนาม และเปลี่ยนเป้าหมายโจมตีมาที่ใบนี้แทน'
-  },
-  {
-    id: 'M04',
-    name: 'ออลฟอจิต',
-    type: 'Monster',
-    power: 3,
-    image: 'images/เด็คจิต/5.png',
-    ability: 'ALL_FOR_JIT_GRAVE',
-    cannotNormalSummon: true,
-    desc: 'ห้ามอัญเชิญปกติ | จากนรก/1 เกม (เมื่อลีดเดอร์ถูกตีและ HP<=2): อัญเชิญใบนี้และทำลายยูนิททุกใบบนสนาม'
-  },
-  {
-    id: 'M05',
-    name: 'เอ็นเดจิต',
-    type: 'Monster',
-    power: 2,
-    image: 'images/เด็คจิต/6.png',
-    ability: 'ENDE_SKILL',
-    desc: 'สั่งใช้งาน: พลังโจมตียูนิทนี้ +2 และเมื่อจบเทิร์น ทำลายการ์ดใบนี้'
-  },
-  {
-    id: 'M06',
-    name: 'ฮออ์กส์ฟีม',
-    type: 'Monster',
-    power: 2,
-    image: 'images/เด็คจิต/7.png',
-    ability: 'HAWKS_SKILL',
-    desc: 'สั่งใช้งาน: ลดพลังใบนี้ -2 นำเอ็นเดจิตจากกอง/นรกขึ้นมือ\nออโต้: เมื่อเอ็นเดจิตใช้สกิล ใบนี้พลัง +2'
-  },
-  {
-    id: 'S01',
-    name: 'โอ็ยใครเหยียบตีน!!!',
-    type: 'NormalSpell',
-    effect: 'SPELL_DISCARD_DESTROY',
-    image: 'images/เด็คจิต/8.png',
-    desc: 'ทิ้งการ์ดบนมือ 1 ใบ เลือกทำลายยูนิทฝั่งตรงข้าม 1 ใบ'
-  },
-  {
-    id: 'S02',
-    name: 'เชี่ย หุ้นตก',
-    type: 'NormalSpell',
-    effect: 'SPELL_DEBUFF_ALL_3',
-    image: 'images/เด็คจิต/9.png',
-    desc: 'ลดพลังโจมตีของยูนิทฝั่งตรงข้ามทุกใบลง 3 หน่วย จนจบเทิร์น'
-  },
-  {
-    id: 'S03',
-    name: 'หนึ่งเดียวเพื่อทุกสิ่ง',
-    type: 'NormalSpell',
-    effect: 'SPELL_REST_1_HEAL_1',
-    image: 'images/เด็คจิต/10.png',
-    desc: 'Rest ยูนิทที่ Stand อยู่ฝั่งเรา 1 ใบ แล้วเพิ่มพลังชีวิตลีดเดอร์เรา +1'
-  },
-  {
-    id: 'S04',
-    name: 'ทุกสิ่งเพื่อหนึ่งเดียว',
-    type: 'NormalSpell',
-    effect: 'SPELL_REST_2_GRANT_BURN',
-    image: 'images/เด็คจิต/11.png',
-    desc: 'Rest ยูนิทฝั่งเรา 2 ใบ เลือกยูนิทเรา 1 ใบได้รับออโต้: เมื่อตีทำลายยูนิทสำเร็จ ทำดาเมจลีดเดอร์อีกฝ่าย 1'
-  },
-
-  // ==================== MONSTER & SPELL: เด็คเหนือ ====================
-  {
-    id: 'NM01',
-    name: 'ไพร่ชาวนาเหนือ',
-    type: 'Monster',
-    power: 1,
-    image: 'images/เด็คเหนือ/2.png',
-    ability: 'PEASANT_HAND_SKILL',
-    desc: 'สั่งใช้จากบนมือ: ส่งใบนี้ลงนรกและเลือก 1 อย่าง:\n1) อัญเชิญ "สายลับไพร่เหนือ" จากกองหรือนรกลงสนามอีกฝ่าย\n2) นำการ์ด "ทหาร" 1 ใบจากกองขึ้นมือ'
-  },
-  {
-    id: 'NM02',
-    name: 'ทหารหลวงเหนือ',
-    type: 'Monster',
-    power: 2,
-    image: 'images/เด็คเหนือ/3.png',
-    ability: 'ROYAL_GUARD_SKILL',
-    desc: 'สั่งใช้จากบนมือ: ส่ง "ไพร่ชาวนาเหนือ" 1 ใบบนมือลงนรกเพื่ออัญเชิญจุติใบนี้ (พลัง +1)\nจุติ: หากมี "ทหารเกณฑ์เหนือ" บนสนามเรา อัญเชิญ "ทหาร" 1 ใบจากกอง/นรกลงสนามทันที'
-  },
-  {
-    id: 'NM03',
-    name: 'ทหารพรานเหนือ',
-    type: 'Monster',
-    power: 1,
-    image: 'images/เด็คเหนือ/4.png',
-    ability: 'RANGER_SKILL',
-    desc: 'สั่งใช้จากบนมือ: ส่ง "ไพร่ชาวนาเหนือ" ลงนรกแล้วอัญเชิญใบนี้ลงสนาม (พลัง +1)\nสั่งใช้/เทิร์นละครั้ง: เลือกยูนิท 1 ใบ ถ้าเป็นฝั่งเราพลัง +1 ถ้าเป็นฝั่งตรงข้ามพลัง -1'
-  },
-  {
-    id: 'NM04',
-    name: 'ทหารเกณฑ์เหนือ',
-    type: 'Monster',
-    power: 1,
-    image: 'images/เด็คเหนือ/5.png',
-    ability: 'CONSCRIPT_SKILL',
-    desc: 'ออโต้: เมื่อลงสนาม พลัง +1\nต่อเนื่อง: พลังโจมตี +1 ตามจำนวน "ทหาร" ใบอื่นบนสนามเรา\nคำสั่งเสีย: เมื่อถูกทำลาย นำการ์ดที่มีคำว่า "ไพร่" 1 ใบจากนรกขึ้นมือ'
-  },
-  {
-    id: 'NM05',
-    name: 'สายลับไพร่เหนือ',
-    type: 'Monster',
-    power: 0,
-    image: 'images/เด็คเหนือ/6.png',
-    ability: 'SPY_SKILL',
-    isSpy: true,
-    desc: 'สายลับ: อัญเชิญการ์ดใบนี้ลงบนสนามฝ่ายตรงข้าม\nคำสั่งเสีย: ลงนรกฝ่ายตรงข้าม และฝ่ายตรงข้ามจั่วการ์ด 1 ใบ'
-  },
-  {
-    id: 'NS01',
-    name: 'หมอไพร่เหนือ',
-    type: 'NormalSpell',
-    effect: 'SPELL_RECOVER_PHRAI',
-    image: 'images/เด็คเหนือ/7.png',
-    desc: 'นำการ์ดที่มีคำว่า "ไพร่" 1 ใบจากนรกขึ้นมือ'
-  },
-  {
-    id: 'NS02',
-    name: 'หมอสนามเหนือ',
-    type: 'NormalSpell',
-    effect: 'SPELL_RECOVER_SOLDIER',
-    image: 'images/เด็คเหนือ/8.png',
-    desc: 'นำการ์ดที่มีคำว่า "ทหาร" 1 ใบจากนรกขึ้นมือ'
-  },
-  {
-    id: 'NS03',
-    name: 'ระเบิดปูพรม',
-    type: 'NormalSpell',
-    effect: 'SPELL_CARPET_BOMB',
-    image: 'images/เด็คเหนือ/9.png',
-    desc: 'แสดงผลตามยูนิท "ทหาร" บนสนามเรา:\n- ทหารเกณฑ์เหนือ: ยูนิท "เหนือ" ทุกใบพลัง +1 จนจบเทิร์น\n- ทหารพรานเหนือ: ทำลายยูนิทอีกฝ่าย 1 ใบ\n- ทหารหลวงเหนือ: ยูนิทเราทุกใบไม่ถูกทำลายจนเริ่มเทิร์นถัดไป'
-  },
-  {
-    id: 'NS04',
-    name: 'หน่วยข่าวกรอง',
-    type: 'NormalSpell',
-    effect: 'SPELL_RECOVER_SPELL',
-    image: 'images/เด็คเหนือ/10.png',
-    desc: 'นำการ์ดเวทจากในนรกขึ้นมือ 1 ใบ'
-  },
-  {
-    id: 'NS05',
-    name: 'จีวรบิน',
-    type: 'NormalSpell',
-    effect: 'SPELL_BOUNCE_ENEMY',
-    image: 'images/เด็คเหนือ/11.png',
-    desc: 'เลือกยูนิทฝั่งตรงข้าม 1 ใบ นำการ์ดใบนั้นกลับขึ้นมือเจ้าของ'
-  },
-
-  // ==================== MONSTER & SPELL: เด็ควันสิ้นโลก ====================
-  {
-    id: 'DM01',
-    name: 'โอนามิ ผู้ทำลายโลก',
-    type: 'Monster',
-    power: 2,
-    maxCopies: 2,
-    image: 'images/วันสิ้นโลก/2.png',
-    ability: 'ONAMI_SKILL',
-    desc: 'คู่หู: เมื่ออยู่คู่กับ "โรเซเลีย" พลังโจมตี +2 ตลอดเทิร์นเราและอีกฝ่าย\nสั่งใช้งาน/1 เทิร์น: ทิ้งการ์ดมือ 1 ใบ อัญเชิญ "โรเซเลีย" จากกองหรือนรก 1 ใบลงสนาม แล้วสับกอง'
-  },
-  {
-    id: 'DM02',
-    name: 'โรเซเลีย',
-    type: 'Monster',
-    power: 3,
-    maxCopies: 2,
-    image: 'images/วันสิ้นโลก/3.png',
-    ability: 'ROSELIA_SKILL',
-    desc: 'คู่หู: เมื่ออยู่คู่กับโอนามิ สามารถ Rest ใบนี้เพื่อจั่ว 1 ใบได้\nออโต้: เมื่อลงสนามด้วยสกิลของโอนามิ จะไม่โดนความสามารถการ์ดอีกฝ่ายจนจบเทิร์น\nออโต้: เมื่อถูกทำลายจากการต่อสู้ จั่ว 1 ใบ'
-  },
-  {
-    id: 'DM03',
-    name: 'มายอา',
-    type: 'Monster',
-    power: 2,
-    maxCopies: 1,
-    image: 'images/วันสิ้นโลก/4.png',
-    ability: 'MAYA_SKILL',
-    desc: '[ใส่ได้ 1 ใบ] ต่อเนื่อง: ตราบที่มี "ซึรุรุ" บนสนามเรา ยูนิทนี้ไม่ตกเป็นเป้าหมายการโจมตี\n1 เกม: เมื่ออีกฝ่ายโจมตี เปิดท็อปการ์ด 1 ใบ ถ้าเป็น "โซเนบุ" อีกฝ่ายจบเทิร์นทันที'
-  },
-  {
-    id: 'DM04',
-    name: 'เดบิรุน',
-    type: 'Monster',
-    power: 2,
-    maxCopies: 1,
-    image: 'images/วันสิ้นโลก/5.png',
-    ability: 'DEBIRUN_SKILL',
-    desc: '[ใส่ได้ 1 ใบ] ออโต้: เมื่อเข้าเทิร์น ค้นหาการ์ดเวทจากกองหรือนรกขึ้นมือแล้วบังคับใช้งาน แต่ถ้าไม่สามารถใช้งานได้ ชุบยูนิตจากนรกได้ 1 ใบ'
-  },
-  {
-    id: 'DM05',
-    name: 'ซึรุรุ',
-    type: 'Monster',
-    power: 1,
-    maxCopies: 1,
-    image: 'images/วันสิ้นโลก/6.png',
-    ability: 'TSURURU_SKILL',
-    desc: '[ใส่ได้ 1 ใบ] ออโต้: เมื่อการ์ดใบนี้ถูกทิ้งจากสกิลของ "โอนามิ ผู้ทำลายโลก" อีกฝ่ายต้องทิ้งมือ 1 ใบ'
-  },
-  {
-    id: 'DM06',
-    name: 'โซเนบุ',
-    type: 'Monster',
-    power: 3,
-    maxCopies: 1,
-    image: 'images/วันสิ้นโลก/7.png',
-    ability: 'SONEBU_SKILL',
-    desc: '[ใส่ได้ 1 ใบ] ออโต้: เมื่อยูนิตนี้โจมตี ถ้าอีกฝ่ายใช้เวทรีแอค ทั้ง 2 ฝ่ายทอยเต๋า ใครน้อยกว่าชนะและสกิลเวทนั้นไร้ผล'
-  },
-  {
-    id: 'DM07',
-    name: 'แอชชี่ล่า',
-    type: 'Monster',
-    power: 2,
-    maxCopies: 1,
-    image: 'images/วันสิ้นโลก/8.png',
-    ability: 'ASHILA_SKILL',
-    desc: '[ใส่ได้ 1 ใบ] สั่งใช้งานจากบนมือ: ถ้ายูนิตฝ่ายเราถูกทำลาย 2 ใบขึ้นไปในเทิร์นนี้ คอลใบนี้ลงสนามและพลังโจมตี +2 จนจบเทิร์น'
-  },
-  {
-    id: 'DM08',
-    name: 'เอมิ',
-    type: 'Monster',
-    power: 1,
-    maxCopies: 1,
-    image: 'images/วันสิ้นโลก/9.png',
-    ability: 'EMI_SKILL',
-    desc: '[ใส่ได้ 1 ใบ] ออโต้: ถ้าบนสนามเรามี "เดบิรุน" พลังโจมตี +1 และสามารถทิ้งการ์ดมือ 3 ใบเพื่อ Stand โจมตีอีกครั้งได้'
-  },
-
-  // --- การ์ดอนาคต (DM09 - DM14): ห้ามอัญเชิญแบบปกติ ต้องส่งร่างต้นไปมิติมืดเท่านั้น ---
-  {
-    id: 'DM09',
-    name: 'ผู้รักษาความฝัน มายอา',
-    type: 'Monster',
-    power: 2,
-    maxCopies: 1,
-    cannotNormalSummon: true,
-    image: 'images/วันสิ้นโลก/10.png',
-    ability: 'FUTURE_MAYA',
-    futureBaseId: 'DM03',
-    futureBaseName: 'มายอา',
-    desc: '[ใส่ได้ 1 ใบ | ห้ามอัญเชิญปกติ | อนาคต: มายอา]\nส่ง "มายอา" บนสนามไปมิติมืดแล้วคอลใบนี้: พลัง +1 และเปิดท็อปกอง ถ้าเป็นเวท บังคับ Rest ยูนิตอีกฝ่าย 1 ใบ (จบเทิร์นลงนรกและคอลมายอากลับมา)'
-  },
-  {
-    id: 'DM10',
-    name: 'เดบิรุน เดอะ ฟิวเจอร์',
-    type: 'Monster',
-    power: 2,
-    maxCopies: 1,
-    cannotNormalSummon: true,
-    image: 'images/วันสิ้นโลก/11.png',
-    ability: 'FUTURE_DEBIRUN',
-    futureBaseId: 'DM04',
-    futureBaseName: 'เดบิรุน',
-    desc: '[ใส่ได้ 1 ใบ | ห้ามอัญเชิญปกติ | อนาคต: เดบิรุน]\nส่ง "เดบิรุน" บนสนามไปมิติมืดแล้วคอลใบนี้: นำยูนิตอื่นบนสนามเรา 1 ใบขึ้นมือ จากนั้นเปิดท็อปกอง ถ้าเป็นยูนิตคอลลงสนามโดยสกิลไม่ทำงาน ถ้าเป็นเวทนำขึ้นมือ'
-  },
-  {
-    id: 'DM11',
-    name: 'เด็กสาวขนมหวาน ซึรุรุ',
-    type: 'Monster',
-    power: 2,
-    maxCopies: 1,
-    cannotNormalSummon: true,
-    image: 'images/วันสิ้นโลก/12.png',
-    ability: 'FUTURE_TSURURU',
-    futureBaseId: 'DM05',
-    futureBaseName: 'ซึรุรุ',
-    desc: '[ใส่ได้ 1 ใบ | ห้ามอัญเชิญปกติ | อนาคต: ซึรุรุ]\nส่ง "ซึรุรุ" บนสนามไปมิติมืดแล้วคอลใบนี้: คอล "มายอา" จากนรก 1 ใบลงสนามและเพิ่มพลังให้มายอา +1 (จบเทิร์นลงนรกและคอลซึรุรุกลับมา)'
-  },
-  {
-    id: 'DM12',
-    name: 'นักล่าปีศาจ โซเนบุ',
-    type: 'Monster',
-    power: 2,
-    maxCopies: 1,
-    cannotNormalSummon: true,
-    image: 'images/วันสิ้นโลก/13.png',
-    ability: 'FUTURE_SONEBU',
-    futureBaseId: 'DM06',
-    futureBaseName: 'โซเนบุ',
-    desc: '[ใส่ได้ 1 ใบ | ห้ามอัญเชิญปกติ | อนาคต: โซเนบุ]\nส่ง "โซเนบุ" บนสนามไปมิติมืดแล้วคอลใบนี้: อีกฝ่ายเลือกทิ้งมือ 1 ใบ หรือทำลายยูนิตบนสนาม 1 ใบ ถ้าไม่ทำ ยูนิตนี้พลัง +1'
-  },
-  {
-    id: 'DM13',
-    name: 'ยอดนักดาบ แอชชี่ล่า',
-    type: 'Monster',
-    power: 3,
-    maxCopies: 1,
-    cannotNormalSummon: true,
-    image: 'images/วันสิ้นโลก/14.png',
-    ability: 'FUTURE_ASHILA',
-    futureBaseId: 'DM07',
-    futureBaseName: 'แอชชี่ล่า',
-    desc: '[ใส่ได้ 1 ใบ | ห้ามอัญเชิญปกติ | อนาคต: แอชชี่ล่า]\nส่ง "แอชชี่ล่า" บนสนามไปมิติมืดแล้วคอลใบนี้: การ์ดทุกใบบนสนามอีกฝ่ายพลังโจมตี -1 จนจบเทิร์น (จบเทิร์นลงนรกและคอลแอชชี่ล่ากลับมา)'
-  },
-  {
-    id: 'DM14',
-    name: 'สุดยอดเอไอ เอมิ',
-    type: 'Monster',
-    power: 1,
-    maxCopies: 1,
-    cannotNormalSummon: true,
-    image: 'images/วันสิ้นโลก/15.png',
-    ability: 'FUTURE_EMI',
-    futureBaseId: 'DM08',
-    futureBaseName: 'เอมิ',
-    desc: '[ใส่ได้ 1 ใบ | ห้ามอัญเชิญปกติ | อนาคต: เอมิ]\nส่ง "เอมิ" บนสนามไปมิติมืดแล้วคอลใบนี้: บังคับอีกฝ่ายนำการ์ดบนสนาม 1 ใบขึ้นมือแล้วคอลใบอื่นลงมาแทน ถ้าไม่มีเราจั่ว 1 ใบ'
-  },
-
-  // --- เวทมนตร์เด็ควันสิ้นโลก ---
-  {
-    id: 'DS01',
-    name: 'เบิกเนตรแห่งแสง',
-    type: 'NormalSpell',
-    maxCopies: 2,
-    effect: 'SPELL_LIGHT_AWAKEN',
-    image: 'images/วันสิ้นโลก/16.png',
-    desc: 'จั่วการ์ด 1 ใบ แต่ถ้าในนรกเรามีการ์ด 5 ใบขึ้นไป จั่ว 2 ใบแทน และเพิ่มพลังโจมตี +1 ให้ยูนิตบนสนามเรา 1 ใบ'
-  },
-  {
-    id: 'DS02',
-    name: 'พวกเราจะช่วยเอง',
-    type: 'ReactionSpell',
-    maxCopies: 2,
-    effect: 'SPELL_WE_WILL_HELP',
-    image: 'images/วันสิ้นโลก/17.png',
-    desc: 'เมื่ออีกฝ่ายโจมตี: นำการ์ดยูนิต (ที่ไม่ใช่เวท) 5 ใบในนรกเรากลับเข้ากองและสับกอง แล้วยกเลิกการโจมตีนั้นทันที'
-  }
-];
-
-const DEFAULT_DECK_LIST = [
-  'M01', 'M01', 'M02', 'M02', 'M03', 'M03', 'M04', 'M04', 'M05', 'M05',
-  'M06', 'M06', 'S01', 'S01', 'S02', 'S02', 'S03', 'S03', 'S04', 'S04'
-];
-
-const DEFAULT_NUEA_DECK_LIST = [
-  'NM01', 'NM01', 'NM02', 'NM02', 'NM03', 'NM03', 'NM04', 'NM04', 'NM05', 'NM05',
-  'NS01', 'NS01', 'NS02', 'NS02', 'NS03', 'NS03', 'NS04', 'NS04', 'NS05', 'NS05'
-];
-
-const DEFAULT_DOOMSDAY_DECK_LIST = [
-  'DM01', 'DM01', 'DM02', 'DM02',
-  'DM03', 'DM04', 'DM05', 'DM06', 'DM07', 'DM08',
-  'DM09', 'DM10', 'DM11', 'DM12', 'DM13', 'DM14',
-  'DS01', 'DS01', 'DS02', 'DS02'
-];
 
 
 /* ============================================================================
-   หมวดที่ 2: ฟังก์ชันตรวจสอบเผ่า/คำสำคัญ การย้ายโซน และการคำนวณค่าพลัง
+   หมวดที่ 1: ฐานข้อมูลการ์ดทั้งหมด (CARD DATABASE - เด็คจิต, เด็คเหนือ, เด็ควันสิ้นโลก)
    ============================================================================ */
-function isNueaCard(card) {
-  return card && card.name && card.name.includes('เหนือ');
-}
+const CARD_DATABASE = [
+  // ==================== LEADER ====================
+  { id: 'L01', name: 'มายฮีโร่ เดจิต', type: 'Leader', maxHp: 6, image: 'images/เด็คจิต/1.png', ability: 'LEADER_DEJIT_BUFF', desc: 'สั่งใช้งาน/1 เทิร์น: เลือกยูนิทฝั่งเรา 1 ตัว เพิ่มพลังโจมตี +1 จนจบเทิร์น' },
+  { id: 'L02', name: 'ขุนเหนือ', type: 'Leader', maxHp: 6, image: 'images/เด็คเหนือ/1.png', ability: 'LEADER_KHUN_NUEA', desc: 'ออโต้: เมื่อเข้าเทิร์น นำ "ไพร่ชาวนาเหนือ" จากกองหรือนรกไม่เกิน 1 ใบขึ้นมือ\nต่อเนื่อง: ถ้ามี "เหนือ" 3 ใบบนสนาม "เหนือ" ทุกใบบนสนามเราพลังโจมตี +1' },
+  { id: 'L03', name: 'วันสิ้นโลก', type: 'Leader', maxHp: 6, image: 'images/วันสิ้นโลก/1.png', ability: 'LEADER_DOOMSDAY', desc: 'ออโต้: เมื่อเข้าเทิร์น คอลการ์ดยูนิตจากนรก 1 ใบลงสนาม โดยที่พลังโจมตีพื้นฐานต้องไม่เกิน 2' },
 
-function isSoldierCard(card) {
-  return card && card.name && card.name.includes('ทหาร');
-}
+  // ==================== MONSTER & SPELL: เด็คจิต ====================
+  { id: 'M01', name: 'บาคุจิต', type: 'Monster', power: 2, image: 'images/เด็คจิต/2.png', ability: 'BAKU_SKILL', desc: 'ต่อเนื่อง: ถ้ามีโทโดโรจิตบนสนามเรา พลัง +1\nออโต้: เมื่อลงสนาม เลือกทำลายยูนิทอีกฝ่าย 1 ใบ' },
+  { id: 'M02', name: 'โทโดโรจิต', type: 'Monster', power: 1, image: 'images/เด็คจิต/3.png', ability: 'TODORO_SKILL', desc: 'สั่งใช้งาน1/เทิร์น: ทิ้งมือ 1 ใบ โม่กองอีกฝ่าย 1 ใบ\nสั่งใช้งาน2/เทิร์น: นำบาคุจิตจากนรกขึ้นมือ 1 ใบ' },
+  { id: 'M03', name: 'ออลจิต', type: 'Monster', power: 2, image: 'images/เด็คจิต/4.png', ability: 'ALL_JIT_HAND_INTERCEPT', desc: 'เมื่อลีดเดอร์ถูกโจมตี: อัญเชิญใบนี้จากมือลงสนาม และเปลี่ยนเป้าหมายโจมตีมาที่ใบนี้แทน' },
+  { id: 'M04', name: 'ออลฟอจิต', type: 'Monster', power: 3, image: 'images/เด็คจิต/5.png', ability: 'ALL_FOR_JIT_GRAVE', cannotNormalSummon: true, desc: 'ห้ามอัญเชิญปกติ | จากนรก/1 เกม (เมื่อลีดเดอร์ถูกตีและ HP<=2): อัญเชิญใบนี้และทำลายยูนิททุกใบบนสนาม' },
+  { id: 'M05', name: 'เอ็นเดจิต', type: 'Monster', power: 2, image: 'images/เด็คจิต/6.png', ability: 'ENDE_SKILL', desc: 'สั่งใช้งาน: พลังโจมตียูนิทนี้ +2 และเมื่อจบเทิร์น ทำลายการ์ดใบนี้' },
+  { id: 'M06', name: 'ฮออ์กส์ฟีม', type: 'Monster', power: 2, image: 'images/เด็คจิต/7.png', ability: 'HAWKS_SKILL', desc: 'สั่งใช้งาน: ลดพลังใบนี้ -2 นำเอ็นเดจิตจากกอง/นรกขึ้นมือ\nออโต้: เมื่อเอ็นเดจิตใช้สกิล ใบนี้พลัง +2' },
+  { id: 'S01', name: 'โอ็ยใครเหยียบตีน!!!', type: 'NormalSpell', effect: 'SPELL_DISCARD_DESTROY', image: 'images/เด็คจิต/8.png', desc: 'ทิ้งการ์ดบนมือ 1 ใบ เลือกทำลายยูนิทฝั่งตรงข้าม 1 ใบ' },
+  { id: 'S02', name: 'เชี่ย หุ้นตก', type: 'NormalSpell', effect: 'SPELL_DEBUFF_ALL_3', image: 'images/เด็คจิต/9.png', desc: 'ลดพลังโจมตีของยูนิทฝั่งตรงข้ามทุกใบลง 3 หน่วย จนจบเทิร์น' },
+  { id: 'S03', name: 'หนึ่งเดียวเพื่อทุกสิ่ง', type: 'NormalSpell', effect: 'SPELL_REST_1_HEAL_1', image: 'images/เด็คจิต/10.png', desc: 'Rest ยูนิทที่ Stand อยู่ฝั่งเรา 1 ใบ แล้วเพิ่มพลังชีวิตลีดเดอร์เรา +1' },
+  { id: 'S04', name: 'ทุกสิ่งเพื่อหนึ่งเดียว', type: 'NormalSpell', effect: 'SPELL_REST_2_GRANT_BURN', image: 'images/เด็คจิต/11.png', desc: 'Rest ยูนิทฝั่งเรา 2 ใบ เลือกยูนิทเรา 1 ใบได้รับออโต้: เมื่อตีทำลายยูนิทสำเร็จ ทำดาเมจลีดเดอร์อีกฝ่าย 1' },
 
-function isPhraiCard(card) {
-  return card && card.name && card.name.includes('ไพร่');
-}
+  // ==================== MONSTER & SPELL: เด็คเหนือ ====================
+  { id: 'NM01', name: 'ไพร่ชาวนาเหนือ', type: 'Monster', power: 1, image: 'images/เด็คเหนือ/2.png', ability: 'PEASANT_HAND_SKILL', desc: 'สั่งใช้จากบนมือ: ส่งใบนี้ลงนรกและเลือก 1 อย่าง:\n1) อัญเชิญ "สายลับไพร่เหนือ" จากกองหรือนรกลงสนามอีกฝ่าย\n2) นำการ์ด "ทหาร" 1 ใบจากกองขึ้นมือ' },
+  { id: 'NM02', name: 'ทหารหลวงเหนือ', type: 'Monster', power: 2, image: 'images/เด็คเหนือ/3.png', ability: 'ROYAL_GUARD_SKILL', desc: 'สั่งใช้จากบนมือ: ส่ง "ไพร่ชาวนาเหนือ" 1 ใบบนมือลงนรกเพื่ออัญเชิญจุติใบนี้ (พลัง +1)\nจุติ: หากมี "ทหารเกณฑ์เหนือ" บนสนามเรา อัญเชิญ "ทหาร" 1 ใบจากกอง/นรกลงสนามทันที' },
+  { id: 'NM03', name: 'ทหารพรานเหนือ', type: 'Monster', power: 1, image: 'images/เด็คเหนือ/4.png', ability: 'RANGER_SKILL', desc: 'สั่งใช้จากบนมือ: ส่ง "ไพร่ชาวนาเหนือ" ลงนรกแล้วอัญเชิญใบนี้ลงสนาม (พลัง +1)\nสั่งใช้/เทิร์นละครั้ง: เลือกยูนิท 1 ใบ ถ้าเป็นฝั่งเราพลัง +1 ถ้าเป็นฝั่งตรงข้ามพลัง -1' },
+  { id: 'NM04', name: 'ทหารเกณฑ์เหนือ', type: 'Monster', power: 1, image: 'images/เด็คเหนือ/5.png', ability: 'CONSCRIPT_SKILL', desc: 'ออโต้: เมื่อลงสนาม พลัง +1\nต่อเนื่อง: พลังโจมตี +1 ตามจำนวน "ทหาร" ใบอื่นบนสนามเรา\nคำสั่งเสีย: เมื่อถูกทำลาย นำการ์ดที่มีคำว่า "ไพร่" 1 ใบจากนรกขึ้นมือ' },
+  { id: 'NM05', name: 'สายลับไพร่เหนือ', type: 'Monster', power: 0, image: 'images/เด็คเหนือ/6.png', ability: 'SPY_SKILL', isSpy: true, desc: 'สายลับ: อัญเชิญการ์ดใบนี้ลงบนสนามฝ่ายตรงข้าม\nคำสั่งเสีย: ลงนรกฝ่ายตรงข้าม และฝ่ายตรงข้ามจั่วการ์ด 1 ใบ' },
+  { id: 'NS01', name: 'หมอไพร่เหนือ', type: 'NormalSpell', effect: 'SPELL_RECOVER_PHRAI', image: 'images/เด็คเหนือ/7.png', desc: 'นำการ์ดที่มีคำว่า "ไพร่" 1 ใบจากนรกขึ้นมือ' },
+  { id: 'NS02', name: 'หมอสนามเหนือ', type: 'NormalSpell', effect: 'SPELL_RECOVER_SOLDIER', image: 'images/เด็คเหนือ/8.png', desc: 'นำการ์ดที่มีคำว่า "ทหาร" 1 ใบจากนรกขึ้นมือ' },
+  { id: 'NS03', name: 'ระเบิดปูพรม', type: 'NormalSpell', effect: 'SPELL_CARPET_BOMB', image: 'images/เด็คเหนือ/9.png', desc: 'แสดงผลตามยูนิท "ทหาร" บนสนามเรา:\n- ทหารเกณฑ์เหนือ: ยูนิท "เหนือ" ทุกใบพลัง +1 จนจบเทิร์น\n- ทหารพรานเหนือ: ทำลายยูนิทอีกฝ่าย 1 ใบ\n- ทหารหลวงเหนือ: ยูนิทเราทุกใบไม่ถูกทำลายจนเริ่มเทิร์นถัดไป' },
+  { id: 'NS04', name: 'หน่วยข่าวกรอง', type: 'NormalSpell', effect: 'SPELL_RECOVER_SPELL', image: 'images/เด็คเหนือ/10.png', desc: 'นำการ์ดเวทจากในนรกขึ้นมือ 1 ใบ' },
+  { id: 'NS05', name: 'จีวรบิน', type: 'NormalSpell', effect: 'SPELL_BOUNCE_ENEMY', image: 'images/เด็คเหนือ/11.png', desc: 'เลือกยูนิทฝั่งตรงข้าม 1 ใบ นำการ์ดใบนั้นกลับขึ้นมือเจ้าของ' },
 
-function getCardMaxCopies(cardTemplate) {
-  if (!cardTemplate) return 2;
-  return cardTemplate.maxCopies !== undefined ? cardTemplate.maxCopies : 2;
-}
+  // ==================== MONSTER & SPELL: เด็ควันสิ้นโลก ====================
+  { id: 'DM01', name: 'โอนามิ ผู้ทำลายโลก', type: 'Monster', power: 2, maxCopies: 2, image: 'images/วันสิ้นโลก/2.png', ability: 'ONAMI_SKILL', desc: 'คู่หู: เมื่ออยู่คู่กับ "โรเซเลีย" พลังโจมตี +2 ตลอดเทิร์นเราและอีกฝ่าย\nสั่งใช้งาน/1 เทิร์น: ทิ้งการ์ดมือ 1 ใบ อัญเชิญ "โรเซเลีย" จากกองหรือนรก 1 ใบลงสนาม แล้วสับกอง' },
+  { id: 'DM02', name: 'โรเซเลีย', type: 'Monster', power: 3, maxCopies: 2, image: 'images/วันสิ้นโลก/3.png', ability: 'ROSELIA_SKILL', desc: 'คู่หู: เมื่ออยู่คู่กับโอนามิ สามารถ Rest ใบนี้เพื่อจั่ว 1 ใบได้\nออโต้: เมื่อลงสนามด้วยสกิลของโอนามิ จะไม่โดนความสามารถการ์ดอีกฝ่ายจนจบเทิร์น\nออโต้: เมื่อถูกทำลายจากการต่อสู้ จั่ว 1 ใบ' },
+  { id: 'DM03', name: 'มายอา', type: 'Monster', power: 2, maxCopies: 1, image: 'images/วันสิ้นโลก/4.png', ability: 'MAYA_SKILL', desc: '[ใส่ได้ 1 ใบ] ต่อเนื่อง: ตราบที่มี "ซึรุรุ" บนสนามเรา ยูนิทนี้ไม่ตกเป็นเป้าหมายการโจมตี\n1 เกม: เมื่ออีกฝ่ายโจมตี เปิดท็อปการ์ด 1 ใบ ถ้าเป็น "โซเนบุ" อีกฝ่ายจบเทิร์นทันที' },
+  { id: 'DM04', name: 'เดบิรุน', type: 'Monster', power: 2, maxCopies: 1, image: 'images/วันสิ้นโลก/5.png', ability: 'DEBIRUN_SKILL', desc: '[ใส่ได้ 1 ใบ] ออโต้: เมื่อเข้าเทิร์น ค้นหาการ์ดเวทจากกองหรือนรกขึ้นมือแล้วบังคับใช้งาน แต่ถ้าไม่สามารถใช้งานได้ ชุบยูนิตจากนรกได้ 1 ใบ' },
+  { id: 'DM05', name: 'ซึรุรุ', type: 'Monster', power: 1, maxCopies: 1, image: 'images/วันสิ้นโลก/6.png', ability: 'TSURURU_SKILL', desc: '[ใส่ได้ 1 ใบ] ออโต้: เมื่อการ์ดใบนี้ถูกทิ้งจากสกิลของ "โอนามิ ผู้ทำลายโลก" อีกฝ่ายต้องทิ้งมือ 1 ใบ' },
+  { id: 'DM06', name: 'โซเนบุ', type: 'Monster', power: 3, maxCopies: 1, image: 'images/วันสิ้นโลก/7.png', ability: 'SONEBU_SKILL', desc: '[ใส่ได้ 1 ใบ] ออโต้: เมื่อยูนิตนี้โจมตี ถ้าอีกฝ่ายใช้เวทรีแอค ทั้ง 2 ฝ่ายทอยเต๋า ใครน้อยกว่าชนะและสกิลเวทนั้นไร้ผล' },
+  { id: 'DM07', name: 'แอชชี่ล่า', type: 'Monster', power: 2, maxCopies: 1, image: 'images/วันสิ้นโลก/8.png', ability: 'ASHILA_SKILL', desc: '[ใส่ได้ 1 ใบ] สั่งใช้งานจากบนมือ: ถ้ายูนิตฝ่ายเราถูกทำลาย 2 ใบขึ้นไปในเทิร์นนี้ คอลใบนี้ลงสนามและพลังโจมตี +2 จนจบเทิร์น' },
+  { id: 'DM08', name: 'เอมิ', type: 'Monster', power: 1, maxCopies: 1, image: 'images/วันสิ้นโลก/9.png', ability: 'EMI_SKILL', desc: '[ใส่ได้ 1 ใบ] ออโต้: ถ้าบนสนามเรามี "เดบิรุน" พลังโจมตี +1 และสามารถทิ้งการ์ดมือ 3 ใบเพื่อ Stand โจมตีอีกครั้งได้' },
+
+  // --- การ์ดอนาคต (DM09 - DM14) ---
+  { id: 'DM09', name: 'ผู้รักษาความฝัน มายอา', type: 'Monster', power: 2, maxCopies: 1, cannotNormalSummon: true, image: 'images/วันสิ้นโลก/10.png', ability: 'FUTURE_MAYA', futureBaseId: 'DM03', futureBaseName: 'มายอา', desc: '[ใส่ได้ 1 ใบ | ห้ามอัญเชิญปกติ | อนาคต: มายอา]\nส่ง "มายอา" บนสนามไปมิติมืดแล้วคอลใบนี้: พลัง +1 และเปิดท็อปกอง ถ้าเป็นเวท บังคับ Rest ยูนิตอีกฝ่าย 1 ใบ' },
+  { id: 'DM10', name: 'เดบิรุน เดอะ ฟิวเจอร์', type: 'Monster', power: 2, maxCopies: 1, cannotNormalSummon: true, image: 'images/วันสิ้นโลก/11.png', ability: 'FUTURE_DEBIRUN', futureBaseId: 'DM04', futureBaseName: 'เดบิรุน', desc: '[ใส่ได้ 1 ใบ | ห้ามอัญเชิญปกติ | อนาคต: เดบิรุน]\nส่ง "เดบิรุน" บนสนามไปมิติมืดแล้วคอลใบนี้: นำยูนิตอื่นบนสนามเรา 1 ใบขึ้นมือ จากนั้นเปิดท็อปกอง ถ้าเป็นยูนิตคอลลงสนามโดยสกิลไม่ทำงาน ถ้าเป็นเวทนำขึ้นมือ' },
+  { id: 'DM11', name: 'เด็กสาวขนมหวาน ซึรุรุ', type: 'Monster', power: 2, maxCopies: 1, cannotNormalSummon: true, image: 'images/วันสิ้นโลก/12.png', ability: 'FUTURE_TSURURU', futureBaseId: 'DM05', futureBaseName: 'ซึรุรุ', desc: '[ใส่ได้ 1 ใบ | ห้ามอัญเชิญปกติ | อนาคต: ซึรุรุ]\nส่ง "ซึรุรุ" บนสนามไปมิติมืดแล้วคอลใบนี้: คอล "มายอา" จากนรก 1 ใบลงสนามและเพิ่มพลังให้มายอา +1' },
+  { id: 'DM12', name: 'นักล่าปีศาจ โซเนบุ', type: 'Monster', power: 2, maxCopies: 1, cannotNormalSummon: true, image: 'images/วันสิ้นโลก/13.png', ability: 'FUTURE_SONEBU', futureBaseId: 'DM06', futureBaseName: 'โซเนบุ', desc: '[ใส่ได้ 1 ใบ | ห้ามอัญเชิญปกติ | อนาคต: โซเนบุ]\nส่ง "โซเนบุ" บนสนามไปมิติมืดแล้วคอลใบนี้: อีกฝ่ายเลือกทิ้งมือ 1 ใบ หรือทำลายยูนิตบนสนาม 1 ใบ ถ้าไม่ทำ ยูนิตนี้พลัง +1' },
+  { id: 'DM13', name: 'ยอดนักดาบ แอชชี่ล่า', type: 'Monster', power: 3, maxCopies: 1, cannotNormalSummon: true, image: 'images/วันสิ้นโลก/14.png', ability: 'FUTURE_ASHILA', futureBaseId: 'DM07', futureBaseName: 'แอชชี่ล่า', desc: '[ใส่ได้ 1 ใบ | ห้ามอัญเชิญปกติ | อนาคต: แอชชี่ล่า]\nส่ง "แอชชี่ล่า" บนสนามไปมิติมืดแล้วคอลใบนี้: การ์ดทุกใบบนสนามอีกฝ่ายพลังโจมตี -1 จนจบเทิร์น' },
+  { id: 'DM14', name: 'สุดยอดเอไอ เอมิ', type: 'Monster', power: 1, maxCopies: 1, cannotNormalSummon: true, image: 'images/วันสิ้นโลก/15.png', ability: 'FUTURE_EMI', futureBaseId: 'DM08', futureBaseName: 'เอมิ', desc: '[ใส่ได้ 1 ใบ | ห้ามอัญเชิญปกติ | อนาคต: เอมิ]\nส่ง "เอมิ" บนสนามไปมิติมืดแล้วคอลใบนี้: บังคับอีกฝ่ายนำการ์ดบนสนาม 1 ใบขึ้นมือแล้วคอลใบอื่นลงมาแทน' },
+
+  // --- เวทมนตร์เด็ควันสิ้นโลก ---
+  { id: 'DS01', name: 'เบิกเนตรแห่งแสง', type: 'NormalSpell', maxCopies: 2, effect: 'SPELL_LIGHT_AWAKEN', image: 'images/วันสิ้นโลก/16.png', desc: 'จั่วการ์ด 1 ใบ แต่ถ้าในนรกเรามีการ์ด 5 ใบขึ้นไป จั่ว 2 ใบแทน และเพิ่มพลังโจมตี +1 ให้ยูนิตบนสนามเรา 1 ใบ' },
+  { id: 'DS02', name: 'พวกเราจะช่วยเอง', type: 'ReactionSpell', maxCopies: 2, effect: 'SPELL_WE_WILL_HELP', image: 'images/วันสิ้นโลก/17.png', desc: 'เมื่ออีกฝ่ายโจมตี: นำการ์ดยูนิต (ที่ไม่ใช่เวท) 5 ใบในนรกเรากลับเข้ากองและสับกอง แล้วยกเลิกการโจมตีนั้นทันที' }
+];
+
+const DEFAULT_DECK_LIST = ['M01', 'M01', 'M02', 'M02', 'M03', 'M03', 'M04', 'M04', 'M05', 'M05', 'M06', 'M06', 'S01', 'S01', 'S02', 'S02', 'S03', 'S03', 'S04', 'S04'];
+const DEFAULT_NUEA_DECK_LIST = ['NM01', 'NM01', 'NM02', 'NM02', 'NM03', 'NM03', 'NM04', 'NM04', 'NM05', 'NM05', 'NS01', 'NS01', 'NS02', 'NS02', 'NS03', 'NS03', 'NS04', 'NS04', 'NS05', 'NS05'];
+const DEFAULT_DOOMSDAY_DECK_LIST = ['DM01', 'DM01', 'DM02', 'DM02', 'DM03', 'DM04', 'DM05', 'DM06', 'DM07', 'DM08', 'DM09', 'DM10', 'DM11', 'DM12', 'DM13', 'DM14', 'DS01', 'DS01', 'DS02', 'DS02'];
+
+
+/* ============================================================================
+   หมวดที่ 2: ฟังก์ชันตรวจสอบเผ่า การย้ายโซน และการคำนวณค่าพลัง
+   ============================================================================ */
+function isNueaCard(card) { return card && card.name && card.name.includes('เหนือ'); }
+function isSoldierCard(card) { return card && card.name && card.name.includes('ทหาร'); }
+function isPhraiCard(card) { return card && card.name && card.name.includes('ไพร่'); }
+function getCardMaxCopies(cardTemplate) { return cardTemplate && cardTemplate.maxCopies !== undefined ? cardTemplate.maxCopies : 2; }
 
 function shuffleDeck(deckArray) {
   const arr = [...deckArray];
@@ -471,38 +126,22 @@ function resetCardStateForZoneChange(card) {
 
 function isPartnerActive(contestant) {
   if (!contestant || !Array.isArray(contestant.board)) return false;
-  const hasOnami = contestant.board.some(m => m !== null && m.id === 'DM01');
-  const hasRoselia = contestant.board.some(m => m !== null && m.id === 'DM02');
-  return hasOnami && hasRoselia;
+  return contestant.board.some(m => m !== null && m.id === 'DM01') && contestant.board.some(m => m !== null && m.id === 'DM02');
 }
 
 function getEffectivePower(card, ownerContestant) {
   if (!card || card.type !== 'Monster') return 0;
-
-  let total = (card.basePower !== undefined ? card.basePower : card.power)
-    + (card.permPowerMod || 0)
-    + (card.tempPowerMod || 0);
+  let total = (card.basePower !== undefined ? card.basePower : card.power) + (card.permPowerMod || 0) + (card.tempPowerMod || 0);
 
   if (ownerContestant && Array.isArray(ownerContestant.board)) {
-    if (card.id === 'M01' && ownerContestant.board.some(m => m !== null && m.id === 'M02')) {
-      total += 1;
-    }
-    if (card.id === 'NM04') {
-      const otherSoldiers = ownerContestant.board.filter(m => m !== null && m.uid !== card.uid && isSoldierCard(m)).length;
-      total += otherSoldiers;
-    }
+    if (card.id === 'M01' && ownerContestant.board.some(m => m !== null && m.id === 'M02')) total += 1;
+    if (card.id === 'NM04') total += ownerContestant.board.filter(m => m !== null && m.uid !== card.uid && isSoldierCard(m)).length;
     if (ownerContestant.leader && ownerContestant.leader.id === 'L02' && isNueaCard(card)) {
-      const nueaCount = ownerContestant.board.filter(m => m !== null && isNueaCard(m)).length;
-      if (nueaCount >= 3) total += 1;
+      if (ownerContestant.board.filter(m => m !== null && isNueaCard(m)).length >= 3) total += 1;
     }
-    if (card.id === 'DM01' && isPartnerActive(ownerContestant)) {
-      total += 2;
-    }
-    if (card.id === 'DM08' && ownerContestant.board.some(m => m !== null && m.id === 'DM04')) {
-      total += 1;
-    }
+    if (card.id === 'DM01' && isPartnerActive(ownerContestant)) total += 2;
+    if (card.id === 'DM08' && ownerContestant.board.some(m => m !== null && m.id === 'DM04')) total += 1;
   }
-
   return Math.max(0, total);
 }
 
@@ -513,13 +152,9 @@ function getDefaultDeckForLeader(leaderId) {
 }
 
 function createValidDeck(leaderId, mainDeckCardIds, ownerPrefix) {
-  const leaderTemplate = CARD_DATABASE.find(c => c.id === leaderId && c.type === 'Leader')
-    || CARD_DATABASE.find(c => c.type === 'Leader');
-
+  const leaderTemplate = CARD_DATABASE.find(c => c.id === leaderId && c.type === 'Leader') || CARD_DATABASE.find(c => c.type === 'Leader');
   const defaultListForLeader = getDefaultDeckForLeader(leaderTemplate.id);
-  const sourceList = (Array.isArray(mainDeckCardIds) && mainDeckCardIds.length === 20)
-    ? mainDeckCardIds
-    : defaultListForLeader;
+  const sourceList = (Array.isArray(mainDeckCardIds) && mainDeckCardIds.length === 20) ? mainDeckCardIds : defaultListForLeader;
 
   const idCounter = {};
   const mainDeck = [];
@@ -547,14 +182,7 @@ function createValidDeck(leaderId, mainDeckCardIds, ownerPrefix) {
     });
   }
 
-  return {
-    leader: {
-      ...leaderTemplate,
-      hp: leaderTemplate.maxHp,
-      abilityUsedThisTurn: false
-    },
-    deck: shuffleDeck(mainDeck)
-  };
+  return { leader: { ...leaderTemplate, hp: leaderTemplate.maxHp, abilityUsedThisTurn: false }, deck: shuffleDeck(mainDeck) };
 }
 
 function drawCards(contestant, count) {
@@ -571,19 +199,14 @@ function performMulligan(contestant, indicesToMulligan) {
   if (!indicesToMulligan || indicesToMulligan.length === 0) return;
   const sortedIndices = [...indicesToMulligan].sort((a, b) => b - a);
   const returnedCards = [];
-
   for (const idx of sortedIndices) {
-    if (contestant.hand[idx]) {
-      returnedCards.push(contestant.hand.splice(idx, 1)[0]);
-    }
+    if (contestant.hand[idx]) returnedCards.push(contestant.hand.splice(idx, 1)[0]);
   }
-
   drawCards(contestant, returnedCards.length);
   contestant.deck.push(...returnedCards);
   contestant.deck = shuffleDeck(contestant.deck);
 }
 
-// ⭐ ฟังก์ชันวางการ์ดทับช่องเดิม: ส่งใบเก่าลงนรกโดย "ไม่ถือว่าถูกทำลาย" (ไม่นับ unitsDestroyedThisTurn และไม่เกิดคำสั่งเสีย)
 function sendOverwrittenMonsterToGrave(contestant, slotIndex) {
   const oldMonster = contestant.board[slotIndex];
   if (!oldMonster) return null;
@@ -593,16 +216,14 @@ function sendOverwrittenMonsterToGrave(contestant, slotIndex) {
   return oldMonster;
 }
 
-// ฟังก์ชันทำลายยูนิตบนสนาม (ถือว่าถูกทำลายจริง -> นับจำนวนถูกทำลายและทำงานคำสั่งเสีย)
 function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEnemyEffect = false) {
   const monster = boardOwner.board[slotIndex];
   if (!monster) return { destroyed: false, reason: 'empty' };
 
   if (isByEnemyEffect && monster.immuneToEnemyEffectsUntilEndOfTurn) {
-    setLog(`🛡️ "${monster.name}" ไม่ได้รับผลจากความสามารถของการ์ดฝ่ายตรงข้ามในเทิร์นนี้!`);
+    setLog(`🛡️ "${monster.name}" ไม่ได้รับผลจากความสามารถฝ่ายตรงข้าม!`);
     return { destroyed: false, reason: 'immune', monster };
   }
-
   if (monster.indestructibleUntilNextTurn) {
     setLog(`🛡️ "${monster.name}" ไม่สามารถถูกทำลายได้จนเริ่มเทิร์นถัดไป!`);
     return { destroyed: false, reason: 'indestructible', monster };
@@ -621,18 +242,16 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
       const phraiCard = boardOwner.graveyard.splice(phraiIdx, 1)[0];
       resetCardStateForZoneChange(phraiCard);
       boardOwner.hand.push(phraiCard);
-      setLog(`🪦 [คำสั่งเสีย - ทหารเกณฑ์เหนือ] นำ "${phraiCard.name}" 1 ใบจากนรกขึ้นมือของ ${boardOwner.name}!`);
+      setLog(`🪦 [คำสั่งเสีย] นำ "${phraiCard.name}" จากนรกขึ้นมือ!`);
     }
   }
-
   if (monster.id === 'NM05') {
     drawCards(otherContestant, 1);
-    setLog(`🕵️ [คำสั่งเสีย - สายลับไพร่เหนือ] ลงนรกของ ${boardOwner.name} และ ${otherContestant.name} ได้จั่วการ์ด 1 ใบ!`);
+    setLog(`🕵️ [คำสั่งเสีย] สายลับไพร่เหนือลงนรก ฝ่ายตรงข้ามจั่วการ์ด 1 ใบ!`);
   }
-
   if (monster.id === 'DM02' && isFromBattle) {
     drawCards(boardOwner, 1);
-    setLog(`🌹 [ออโต้ - โรเซเลีย] ถูกทำลายจากการต่อสู้ ${boardOwner.name} จั่วการ์ด 1 ใบ!`);
+    setLog(`🌹 [โรเซเลีย] ถูกทำลายจากการต่อสู้ จั่วการ์ด 1 ใบ!`);
   }
 
   return { destroyed: true, monster };
@@ -640,7 +259,7 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
 
 
 /* ============================================================================
-   หมวดที่ 3: สถานะเกม ระบบ Log ย้อนหลัง และหน้าต่างเปิดดูการ์ดในนรก/มิติมืด
+   หมวดที่ 3: สถานะเกม ระบบ Log และหน้าต่างเปิดดูโซน (นรก / มิติมืด)
    ============================================================================ */
 const gameState = {
   turnCount: 1,
@@ -660,21 +279,10 @@ const gameState = {
 function createContestant(name, isFirstPlayer, prefix, leaderId = 'L01', deckList = DEFAULT_DECK_LIST) {
   const setup = createValidDeck(leaderId, deckList, prefix);
   return {
-    name,
-    isFirstPlayer,
-    turnsTaken: 0,
-    attacksThisTurn: 0,
-    unitsDestroyedThisTurn: 0,
-    futureUsedThisTurn: false,
-    allForJitUsed: false,
-    mayaOncePerGameUsed: false,
-    leader: setup.leader,
-    deck: setup.deck,
-    hand: [],
-    board: [null, null, null],
-    graveyard: [],
-    darkDimension: [], // โซนมิติมืด
-    spellQuota: { normalUsed: 0, reactionUsed: 0 }
+    name, isFirstPlayer, turnsTaken: 0, attacksThisTurn: 0, unitsDestroyedThisTurn: 0,
+    futureUsedThisTurn: false, allForJitUsed: false, mayaOncePerGameUsed: false,
+    leader: setup.leader, deck: setup.deck, hand: [], board: [null, null, null],
+    graveyard: [], darkDimension: [], spellQuota: { normalUsed: 0, reactionUsed: 0 }
   };
 }
 
@@ -686,9 +294,7 @@ function setLog(message) {
   if (scrollbox) {
     const logItem = document.createElement('div');
     logItem.className = 'log-item';
-    if (message.includes('🤖') || message.includes('AI')) {
-      logItem.classList.add('ai-action');
-    }
+    if (message.includes('🤖') || message.includes('AI')) logItem.classList.add('ai-action');
     logItem.textContent = `[Turn ${gameState.turnCount}] ${message}`;
     scrollbox.appendChild(logItem);
     scrollbox.scrollTop = scrollbox.scrollHeight;
@@ -734,12 +340,10 @@ function showChoiceModal(title, description, options) {
     `;
     document.body.appendChild(modal);
   }
-
   document.getElementById('choice-modal-title').textContent = title;
   document.getElementById('choice-modal-desc').textContent = description;
   const btnContainer = document.getElementById('choice-modal-buttons');
   btnContainer.innerHTML = '';
-
   options.forEach(opt => {
     const btn = document.createElement('button');
     btn.className = 'btn';
@@ -747,19 +351,14 @@ function showChoiceModal(title, description, options) {
     btn.style.padding = '10px 16px';
     btn.textContent = opt.label;
     btn.disabled = !!opt.disabled;
-    btn.onclick = () => {
-      modal.style.display = 'none';
-      if (opt.onSelect) opt.onSelect();
-    };
+    btn.onclick = () => { modal.style.display = 'none'; if (opt.onSelect) opt.onSelect(); };
     btnContainer.appendChild(btn);
   });
-
   modal.style.display = 'flex';
 }
 
-// ⭐ ฟังก์ชันสร้างกล่อง UI "🌌 มิติมืด" และผูกการคลิกเปิดดูการ์ดในนรกและมิติมืดอัตโนมัติ
+// สร้าง UI ช่อง "🌌 มิติมืด" และผูกคลิกดูการ์ดในนรก/มิติมืด
 function ensureZoneUIAndViewers() {
-  // 1. สร้างหน้าต่าง Modal สำหรับเปิดดูการ์ดในโซน (Graveyard / มิติมืด)
   if (!document.getElementById('zone-viewer-modal')) {
     const viewerModal = document.createElement('div');
     viewerModal.id = 'zone-viewer-modal';
@@ -769,25 +368,22 @@ function ensureZoneUIAndViewers() {
       <div class="modal-box" style="max-width: 780px; max-height: 88vh; overflow-y: auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 15px;">
           <h2 id="zone-viewer-title" style="color: #fbbf24;">รายการการ์ด</h2>
-          <button class="btn" id="btn-close-zone-viewer" style="background: #dc2626;">✖ ปิดหน้าต่าง</button>
+          <button class="btn" id="btn-close-zone-viewer" style="background: #dc2626;">✖ ปิด</button>
         </div>
         <p id="zone-viewer-empty" style="color: #94a3b8; margin: 20px 0; display: none;">ไม่มีการ์ดในโซนนี้</p>
         <div id="zone-viewer-list" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-bottom: 10px;"></div>
       </div>
     `;
     document.body.appendChild(viewerModal);
-    document.getElementById('btn-close-zone-viewer').onclick = () => {
-      viewerModal.style.display = 'none';
-    };
+    document.getElementById('btn-close-zone-viewer').onclick = () => { viewerModal.style.display = 'none'; };
   }
 
-  // 2. เพิ่มกล่อง "🌌 มิติมืด" ข้างๆ กล่อง Graveyard ของ AI และ Player ถ้ายังไม่มี
   const aiGraveCountEl = document.getElementById('ai-grave-count');
   if (aiGraveCountEl) {
     const aiGraveBox = aiGraveCountEl.parentElement;
     aiGraveBox.style.cursor = 'pointer';
-    aiGraveBox.title = 'คลิกเพื่อดูการ์ดในนรกของ AI';
-    aiGraveBox.onclick = () => openZoneViewerModal('🪦 กองนรกของ AI (Graveyard)', gameState.ai.graveyard, gameState.ai);
+    aiGraveBox.title = 'คลิกดูนรก AI';
+    aiGraveBox.onclick = () => openZoneViewerModal('🪦 กองนรก AI', gameState.ai.graveyard, gameState.ai);
 
     const aiPileGroup = aiGraveBox.parentElement;
     if (aiPileGroup && !document.getElementById('ai-dark-box')) {
@@ -797,9 +393,9 @@ function ensureZoneUIAndViewers() {
       darkBox.style.background = '#131129';
       darkBox.style.border = '2px dashed #6366f1';
       darkBox.style.cursor = 'pointer';
-      darkBox.title = 'คลิกเพื่อดูการ์ดในมิติมืดของ AI';
+      darkBox.title = 'คลิกดูมิติมืด AI';
       darkBox.innerHTML = `<div>🌌 มิติมืด</div><h2 id="ai-dark-count">0</h2><div style="font-size:10px; color:#a5b4fc;">(คลิกดู)</div>`;
-      darkBox.onclick = () => openZoneViewerModal('🌌 มิติมืดของ AI (Dark Dimension)', gameState.ai.darkDimension, gameState.ai);
+      darkBox.onclick = () => openZoneViewerModal('🌌 มิติมืด AI', gameState.ai.darkDimension, gameState.ai);
       aiPileGroup.appendChild(darkBox);
     }
   }
@@ -808,8 +404,8 @@ function ensureZoneUIAndViewers() {
   if (playerGraveCountEl) {
     const playerGraveBox = playerGraveCountEl.parentElement;
     playerGraveBox.style.cursor = 'pointer';
-    playerGraveBox.title = 'คลิกเพื่อดูการ์ดในนรกของคุณ';
-    playerGraveBox.onclick = () => openZoneViewerModal('🪦 กองนรกของคุณ (Graveyard)', gameState.player.graveyard, gameState.player);
+    playerGraveBox.title = 'คลิกดูนรกของคุณ';
+    playerGraveBox.onclick = () => openZoneViewerModal('🪦 กองนรกของคุณ', gameState.player.graveyard, gameState.player);
 
     const playerPileGroup = playerGraveBox.parentElement;
     if (playerPileGroup && !document.getElementById('player-dark-box')) {
@@ -819,15 +415,14 @@ function ensureZoneUIAndViewers() {
       darkBox.style.background = '#131129';
       darkBox.style.border = '2px dashed #6366f1';
       darkBox.style.cursor = 'pointer';
-      darkBox.title = 'คลิกเพื่อดูการ์ดในมิติมืดของคุณ';
+      darkBox.title = 'คลิกดูมิติมืดของคุณ';
       darkBox.innerHTML = `<div>🌌 มิติมืด</div><h2 id="player-dark-count">0</h2><div style="font-size:10px; color:#a5b4fc;">(คลิกดู)</div>`;
-      darkBox.onclick = () => openZoneViewerModal('🌌 มิติมืดของคุณ (Dark Dimension)', gameState.player.darkDimension, gameState.player);
+      darkBox.onclick = () => openZoneViewerModal('🌌 มิติมืดของคุณ', gameState.player.darkDimension, gameState.player);
       playerPileGroup.appendChild(darkBox);
     }
   }
 }
 
-// เปิดหน้าต่างแสดงรายการการ์ดในนรกหรือมิติมืด
 function openZoneViewerModal(titleText, cardArray, ownerContestant) {
   ensureZoneUIAndViewers();
   const modal = document.getElementById('zone-viewer-modal');
@@ -837,7 +432,6 @@ function openZoneViewerModal(titleText, cardArray, ownerContestant) {
 
   titleEl.textContent = `${titleText} (${cardArray.length} ใบ)`;
   listEl.innerHTML = '';
-
   if (!cardArray || cardArray.length === 0) {
     emptyEl.style.display = 'block';
   } else {
@@ -848,42 +442,25 @@ function openZoneViewerModal(titleText, cardArray, ownerContestant) {
       listEl.appendChild(cardEl);
     });
   }
-
   modal.style.display = 'flex';
 }
 
 
 /* ============================================================================
-   หมวดที่ 4: ความสามารถของ Leader และ Monster ทั้ง 3 เด็ค (ABILITIES)
+   หมวดที่ 4: ความสามารถของ Leader และ Monster ทั้ง 3 เด็ค
    ============================================================================ */
 function activateLeaderSkillPlayer() {
   const player = gameState.player;
   if (gameState.gameOver || gameState.activeTurn !== 'player' || gameState.phase !== 'Main Phase') return;
-  if (gameState.pendingAction) {
-    setLog('⚠️ กรุณาเลือกเป้าหมายของเอฟเฟกต์ที่ค้างอยู่ให้เสร็จก่อน!');
-    return;
-  }
-  if (player.leader.id === 'L02') {
-    setLog('ℹ️ "ขุนเหนือ" มีความสามารถออโต้เมื่อเข้าเทิร์น และความสามารถต่อเนื่อง (+1 เมื่อมีเหนือครบ 3 ใบ)');
-    return;
-  }
-  if (player.leader.id === 'L03') {
-    setLog('ℹ️ "วันสิ้นโลก" มีความสามารถออโต้เมื่อเข้าเทิร์น (คอลการ์ดยูนิตพลังไม่เกิน 2 จากนรก 1 ใบ)');
-    return;
-  }
+  if (gameState.pendingAction) { setLog('⚠️ กรุณาเลือกเป้าหมายที่ค้างอยู่ให้เสร็จก่อน!'); return; }
+  if (player.leader.id === 'L02' || player.leader.id === 'L03') return;
   if (player.leader.id !== 'L01') return;
-  if (player.leader.abilityUsedThisTurn) {
-    setLog('❌ มายฮีโร่ เดจิต ใช้ความสามารถไปแล้วในเทิร์นนี้!');
-    return;
-  }
-  if (!player.board.some(m => m !== null)) {
-    setLog('⚠️ ไม่มีมอนสเตอร์บนสนามฝั่งเราให้เพิ่มพลัง!');
-    return;
-  }
+  if (player.leader.abilityUsedThisTurn) { setLog('❌ ใช้ความสามารถไปแล้วในเทิร์นนี้!'); return; }
+  if (!player.board.some(m => m !== null)) { setLog('⚠️ ไม่มีมอนสเตอร์บนสนามให้เพิ่มพลัง!'); return; }
 
   gameState.selectedHandIndex = null;
   gameState.pendingAction = { type: 'LEADER_L01_TARGET' };
-  setLog('👑 [มายฮีโร่ เดจิต] คลิกเลือกยูนิทฝั่งเรา 1 ตัวบนสนาม เพื่อเพิ่มพลังโจมตี +1 จนจบเทิร์น');
+  setLog('👑 [เดจิต] เลือกยูนิทฝั่งเรา 1 ตัวเพื่อเพิ่มพลัง +1 จนจบเทิร์น');
   renderGame();
 }
 
@@ -895,356 +472,154 @@ function triggerKhunNueaStartTurn(contestant) {
 
   if (contestant.name === 'AI') {
     if (inGraveIdx !== -1) {
-      const card = contestant.graveyard.splice(inGraveIdx, 1)[0];
-      resetCardStateForZoneChange(card);
-      contestant.hand.push(card);
-      setLog('👑 [AI ขุนเหนือ] นำ "ไพร่ชาวนาเหนือ" 1 ใบจากนรกขึ้นมือ!');
+      contestant.hand.push(resetCardStateForZoneChange(contestant.graveyard.splice(inGraveIdx, 1)[0]));
     } else if (inDeckIdx !== -1) {
-      const card = contestant.deck.splice(inDeckIdx, 1)[0];
-      resetCardStateForZoneChange(card);
-      contestant.hand.push(card);
+      contestant.hand.push(resetCardStateForZoneChange(contestant.deck.splice(inDeckIdx, 1)[0]));
       contestant.deck = shuffleDeck(contestant.deck);
-      setLog('👑 [AI ขุนเหนือ] นำ "ไพร่ชาวนาเหนือ" 1 ใบจากกองขึ้นมือ!');
     }
     renderGame();
     return;
   }
 
-  showChoiceModal(
-    '👑 ออโต้เมื่อเข้าเทิร์น: ขุนเหนือ',
-    'คุณสามารถนำ "ไพร่ชาวนาเหนือ" จากกองการ์ดหรือนรกไม่เกิน 1 ใบขึ้นมือได้',
-    [
-      {
-        label: `นำ "ไพร่ชาวนาเหนือ" จากกองนรกขึ้นมือ ${inGraveIdx === -1 ? '(ไม่มีในนรก)' : ''}`,
-        disabled: inGraveIdx === -1,
-        color: '#7c3aed',
-        onSelect: () => {
-          const card = contestant.graveyard.splice(inGraveIdx, 1)[0];
-          resetCardStateForZoneChange(card);
-          contestant.hand.push(card);
-          setLog('👑 [ขุนเหนือ] นำ "ไพร่ชาวนาเหนือ" 1 ใบจากกองนรกขึ้นมือสำเร็จ!');
-          renderGame();
-        }
-      },
-      {
-        label: `นำ "ไพร่ชาวนาเหนือ" จากกองการ์ดขึ้นมือ ${inDeckIdx === -1 ? '(ไม่มีในกอง)' : ''}`,
-        disabled: inDeckIdx === -1,
-        color: '#0284c7',
-        onSelect: () => {
-          const card = contestant.deck.splice(inDeckIdx, 1)[0];
-          resetCardStateForZoneChange(card);
-          contestant.hand.push(card);
-          contestant.deck = shuffleDeck(contestant.deck);
-          setLog('👑 [ขุนเหนือ] นำ "ไพร่ชาวนาเหนือ" 1 ใบจากกองการ์ดขึ้นมือสำเร็จ!');
-          renderGame();
-        }
-      },
-      { label: 'ไม่นำขึ้นมือ (ข้าม)', color: '#475569', onSelect: () => renderGame() }
-    ]
-  );
+  showChoiceModal('👑 ขุนเหนือ (ออโต้เข้าเทิร์น)', 'นำ "ไพร่ชาวนาเหนือ" จากกองหรือนรกไม่เกิน 1 ใบขึ้นมือ', [
+    { label: 'จากนรก', disabled: inGraveIdx === -1, color: '#7c3aed', onSelect: () => { contestant.hand.push(resetCardStateForZoneChange(contestant.graveyard.splice(inGraveIdx, 1)[0])); renderGame(); } },
+    { label: 'จากกอง', disabled: inDeckIdx === -1, color: '#0284c7', onSelect: () => { contestant.hand.push(resetCardStateForZoneChange(contestant.deck.splice(inDeckIdx, 1)[0])); contestant.deck = shuffleDeck(contestant.deck); renderGame(); } },
+    { label: 'ข้าม', color: '#475569', onSelect: () => renderGame() }
+  ]);
 }
 
-// ออโต้เมื่อเข้าเทิร์นของ Leader "วันสิ้นโลก" (L03) และ "เดบิรุน" (DM04)
 function triggerDoomsdayStartTurnQueue(contestant, onDoneCallback = null) {
-  const finishQueue = () => {
-    renderGame();
-    if (onDoneCallback) onDoneCallback();
-  };
-
+  const finishQueue = () => { renderGame(); if (onDoneCallback) onDoneCallback(); };
   const checkDebirunStep = () => {
-    const hasDebirun = contestant.board.some(m => m !== null && m.id === 'DM04');
-    if (!hasDebirun) {
-      finishQueue();
-      return;
-    }
+    if (!contestant.board.some(m => m !== null && m.id === 'DM04')) { finishQueue(); return; }
     triggerDebirunStartTurn(contestant, finishQueue);
   };
 
   if (contestant.leader && contestant.leader.id === 'L03') {
-    const validTargets = contestant.graveyard.filter(c =>
-      c.type === 'Monster' && !c.cannotNormalSummon && !c.isSpy && (c.basePower !== undefined ? c.basePower : c.power) <= 2
-    );
-
+    const validTargets = contestant.graveyard.filter(c => c.type === 'Monster' && !c.cannotNormalSummon && !c.isSpy && (c.basePower !== undefined ? c.basePower : c.power) <= 2);
     if (validTargets.length > 0) {
       if (contestant.name === 'AI') {
         const emptySlot = contestant.board.findIndex(m => m === null);
         if (emptySlot !== -1) {
           const gIdx = contestant.graveyard.findIndex(c => c.uid === validTargets[0].uid);
-          if (gIdx !== -1) {
-            const called = contestant.graveyard.splice(gIdx, 1)[0];
-            resetCardStateForZoneChange(called);
-            contestant.board[emptySlot] = called;
-            setLog(`⏳ [AI วันสิ้นโลก - ออโต้เข้าเทิร์น] คอล "${called.name}" (Power ${called.power}) จากนรกลงสนาม!`);
-          }
+          if (gIdx !== -1) contestant.board[emptySlot] = resetCardStateForZoneChange(contestant.graveyard.splice(gIdx, 1)[0]);
         }
         checkDebirunStep();
         return;
       }
-
       const seenIds = new Set();
       const options = [];
       validTargets.forEach(c => {
         if (!seenIds.has(c.id)) {
           seenIds.add(c.id);
           options.push({
-            label: `คอล "${c.name}" (Power ${c.power}) จากนรกลงสนาม`,
-            color: '#7c3aed',
+            label: `คอล "${c.name}" (Power ${c.power}) ลงสนาม`, color: '#7c3aed',
             onSelect: () => {
               const gIdx = contestant.graveyard.findIndex(g => g.id === c.id);
               if (gIdx !== -1) {
-                const called = contestant.graveyard.splice(gIdx, 1)[0];
-                resetCardStateForZoneChange(called);
-                if (called.id === 'NM04') called.permPowerMod += 1;
-
+                const called = resetCardStateForZoneChange(contestant.graveyard.splice(gIdx, 1)[0]);
                 const emptySlot = contestant.board.findIndex(m => m === null);
                 if (emptySlot !== -1) {
                   contestant.board[emptySlot] = called;
-                  setLog(`⏳ [วันสิ้นโลก - ออโต้เข้าเทิร์น] คอล "${called.name}" จากนรกลงช่องที่ ${emptySlot + 1}!`);
                   checkDebirunStep();
                 } else {
-                  // หากสนามเต็ม 3 ช่อง ให้คลิกเลือกช่องที่จะวางทับ
-                  gameState.pendingAction = {
-                    type: 'CALL_FROM_EFFECT_SELECT_SLOT',
-                    cardToPlace: called,
-                    onAfterPlace: checkDebirunStep
-                  };
-                  setLog(`⏳ [วันสิ้นโลก] สนามเต็ม 3 ช่อง — คลิกเลือกช่องบนสนามของคุณเพื่อวาง "${called.name}" ทับ (ใบเดิมจะส่งลงนรกโดยไม่ถือว่าถูกทำลาย)`);
+                  gameState.pendingAction = { type: 'CALL_FROM_EFFECT_SELECT_SLOT', cardToPlace: called, onAfterPlace: checkDebirunStep };
+                  setLog(`⏳ สนามเต็ม — คลิกเลือกช่องบนสนามเพื่อวาง "${called.name}" ทับ`);
                   renderGame();
                 }
-              } else {
-                checkDebirunStep();
-              }
+              } else { checkDebirunStep(); }
             }
           });
         }
       });
-      options.push({
-        label: 'ไม่คอล (ข้าม)',
-        color: '#475569',
-        onSelect: () => checkDebirunStep()
-      });
-
-      showChoiceModal('⏳ ออโต้เมื่อเข้าเทิร์น: วันสิ้นโลก', 'เลือกคอลยูนิตที่มีพลังโจมตีไม่เกิน 2 จากกองนรก 1 ใบลงสนาม:', options);
+      options.push({ label: 'ข้าม', color: '#475569', onSelect: () => checkDebirunStep() });
+      showChoiceModal('⏳ วันสิ้นโลก (ออโต้เข้าเทิร์น)', 'คอลยูนิตพลังไม่เกิน 2 จากนรก 1 ใบ:', options);
       return;
     }
   }
-
   checkDebirunStep();
 }
 
 function triggerDebirunStartTurn(contestant, onComplete) {
-  const spellsInGrave = contestant.graveyard.filter(c => c.type === 'NormalSpell' || c.type === 'ReactionSpell');
-  const spellsInDeck = contestant.deck.filter(c => c.type === 'NormalSpell' || c.type === 'ReactionSpell');
-
-  const reviveUnitFallback = (reasonText) => {
-    const unitsInGrave = contestant.graveyard.filter(c => c.type === 'Monster' && !c.cannotNormalSummon && !c.isSpy);
-    if (unitsInGrave.length === 0) {
-      setLog(`😈 [เดบิรุน] ${reasonText} (ไม่มีมอนสเตอร์ในนรกให้ชุบ)`);
-      if (onComplete) onComplete();
-      return;
-    }
-
-    if (contestant.name === 'AI') {
-      const emptySlot = contestant.board.findIndex(m => m === null);
-      if (emptySlot !== -1) {
-        const uIdx = contestant.graveyard.findIndex(c => c.uid === unitsInGrave[0].uid);
-        const revived = contestant.graveyard.splice(uIdx, 1)[0];
-        resetCardStateForZoneChange(revived);
-        contestant.board[emptySlot] = revived;
-        setLog(`😈 [AI เดบิรุน] ${reasonText} -> ชุบ "${revived.name}" จากนรกลงสนาม!`);
-      }
-      if (onComplete) onComplete();
-      return;
-    }
-
-    const opts = [];
-    const seen = new Set();
-    unitsInGrave.forEach(u => {
-      if (!seen.has(u.id)) {
-        seen.add(u.id);
-        opts.push({
-          label: `ชุบยูนิต "${u.name}" (Power ${u.power}) ลงสนาม`,
-          color: '#16a34a',
-          onSelect: () => {
-            const idx = contestant.graveyard.findIndex(g => g.id === u.id);
-            if (idx !== -1) {
-              const card = contestant.graveyard.splice(idx, 1)[0];
-              resetCardStateForZoneChange(card);
-              const emptySlot = contestant.board.findIndex(m => m === null);
-              if (emptySlot !== -1) {
-                contestant.board[emptySlot] = card;
-                setLog(`😈 [เดบิรุน] ชุบยูนิต "${card.name}" จากนรกลงสนามสำเร็จ!`);
-                if (onComplete) onComplete();
-              } else {
-                gameState.pendingAction = {
-                  type: 'CALL_FROM_EFFECT_SELECT_SLOT',
-                  cardToPlace: card,
-                  onAfterPlace: onComplete
-                };
-                setLog(`😈 [เดบิรุน] สนามเต็ม 3 ช่อง — คลิกเลือกช่องบนสนามของคุณเพื่อวาง "${card.name}" ทับ!`);
-                renderGame();
-              }
-            } else if (onComplete) {
-              onComplete();
-            }
-          }
-        });
-      }
-    });
-    showChoiceModal('😈 สกิลของ เดบิรุน (ชุบยูนิตจากนรก)', `${reasonText} เลือกยูนิต 1 ใบจากนรกเพื่อชุบลงสนาม:`, opts);
-  };
-
-  if (spellsInGrave.length === 0 && spellsInDeck.length === 0) {
-    reviveUnitFallback('ไม่พบการ์ดเวทในกองหรือนรก');
-    return;
-  }
-
-  const canForceCastSpell = (spellCard) => spellCard.id === 'DS01';
+  const unitsInGrave = contestant.graveyard.filter(c => c.type === 'Monster' && !c.cannotNormalSummon && !c.isSpy);
+  if (unitsInGrave.length === 0) { if (onComplete) onComplete(); return; }
 
   if (contestant.name === 'AI') {
-    const ds01GraveIdx = contestant.graveyard.findIndex(c => c.id === 'DS01');
-    const ds01DeckIdx = contestant.deck.findIndex(c => c.id === 'DS01');
-    if (ds01GraveIdx !== -1 || ds01DeckIdx !== -1) {
-      const spell = ds01GraveIdx !== -1
-        ? contestant.graveyard.splice(ds01GraveIdx, 1)[0]
-        : contestant.deck.splice(ds01DeckIdx, 1)[0];
-      if (ds01DeckIdx !== -1) contestant.deck = shuffleDeck(contestant.deck);
-      const drawCount = contestant.graveyard.length >= 5 ? 2 : 1;
-      drawCards(contestant, drawCount);
-      const ally = contestant.board.find(m => m !== null);
-      if (ally) ally.tempPowerMod += 1;
-      contestant.graveyard.push(spell);
-      setLog(`😈 [AI เดบิรุน] ค้นหา "เบิกเนตรแห่งแสง" ขึ้นมือและบังคับใช้งานทันที (จั่ว ${drawCount} ใบ)!`);
-      if (onComplete) onComplete();
-    } else {
-      reviveUnitFallback('การ์ดเวทที่ค้นหาไม่สามารถบังคับใช้งานในจังหวะนี้ได้');
-    }
+    const emptySlot = contestant.board.findIndex(m => m === null);
+    if (emptySlot !== -1) contestant.board[emptySlot] = resetCardStateForZoneChange(contestant.graveyard.splice(contestant.graveyard.findIndex(c => c.uid === unitsInGrave[0].uid), 1)[0]);
+    if (onComplete) onComplete();
     return;
   }
 
-  const options = [];
-  const allSpells = [
-    ...spellsInGrave.map(s => ({ card: s, zone: 'grave', zoneLabel: 'จากนรก' })),
-    ...spellsInDeck.map(s => ({ card: s, zone: 'deck', zoneLabel: 'จากกองการ์ด' }))
-  ];
-  const seenKeys = new Set();
-
-  allSpells.forEach(item => {
-    const key = `${item.zone}_${item.card.id}`;
-    if (!seenKeys.has(key)) {
-      seenKeys.add(key);
-      options.push({
-        label: `[${item.zoneLabel}] ค้นหา "${item.card.name}" ขึ้นมือแล้วบังคับใช้งาน`,
-        color: '#0284c7',
+  const opts = [];
+  const seen = new Set();
+  unitsInGrave.forEach(u => {
+    if (!seen.has(u.id)) {
+      seen.add(u.id);
+      opts.push({
+        label: `ชุบ "${u.name}" (Power ${u.power})`, color: '#16a34a',
         onSelect: () => {
-          const sourceArr = item.zone === 'grave' ? contestant.graveyard : contestant.deck;
-          const idx = sourceArr.findIndex(c => c.id === item.card.id);
+          const idx = contestant.graveyard.findIndex(g => g.id === u.id);
           if (idx !== -1) {
-            const pickedSpell = sourceArr.splice(idx, 1)[0];
-            if (item.zone === 'deck') contestant.deck = shuffleDeck(contestant.deck);
-            resetCardStateForZoneChange(pickedSpell);
-            contestant.hand.push(pickedSpell);
-
-            if (canForceCastSpell(pickedSpell)) {
-              const handIdx = contestant.hand.length - 1;
-              const used = contestant.hand.splice(handIdx, 1)[0];
-              const drawCnt = contestant.graveyard.length >= 5 ? 2 : 1;
-              drawCards(contestant, drawCnt);
-              const ally = contestant.board.find(m => m !== null);
-              if (ally) ally.tempPowerMod += 1;
-              contestant.graveyard.push(used);
-              setLog(`😈 [เดบิรุน] ดึง "${used.name}" ขึ้นมือและบังคับใช้งานทันที (จั่ว ${drawCnt} ใบ และบัฟพลัง +1)!`);
+            const card = resetCardStateForZoneChange(contestant.graveyard.splice(idx, 1)[0]);
+            const slot = contestant.board.findIndex(m => m === null);
+            if (slot !== -1) {
+              contestant.board[slot] = card;
               if (onComplete) onComplete();
             } else {
-              reviveUnitFallback(`ดึง "${pickedSpell.name}" ขึ้นมือแล้ว แต่เงื่อนไขเวทไม่สามารถบังคับใช้ตอนนี้ได้`);
+              gameState.pendingAction = { type: 'CALL_FROM_EFFECT_SELECT_SLOT', cardToPlace: card, onAfterPlace: onComplete };
+              setLog(`😈 เดบิรุน: สนามเต็ม — เลือกช่องเพื่อวางทับ`);
+              renderGame();
             }
-          }
+          } else if (onComplete) onComplete();
         }
       });
     }
   });
-
-  showChoiceModal('😈 ออโต้เมื่อเข้าเทิร์น: เดบิรุน', 'เลือกค้นหาการ์ดเวทจากกองหรือนรกขึ้นมือเพื่อบังคับใช้งาน (หากใช้งานไม่ได้จะชุบยูนิตจากนรก 1 ใบ):', options);
+  showChoiceModal('😈 เดบิรุน (ชุบยูนิตจากนรก)', 'เลือกยูนิตชุบลงสนาม:', opts);
 }
 
-// ⭐ แก้ไขตามข้อที่ 2: การ์ดอนาคต (DM09-DM14) ห้ามอัญเชิญแบบปกติ ต้องส่งร่างต้นบนสนามไปมิติมืดเท่านั้น!
+// จัดการเมนูบนมือของเด็ควันสิ้นโลก (แอชชี่ล่า & อนาคต)
 function handleDoomsdayHandMenu(handIndex) {
   const player = gameState.player;
   const ai = gameState.ai;
   const card = player.hand[handIndex];
   if (!card) return;
 
-  // --- 1. แอชชี่ล่า (DM07) ---
   if (card.id === 'DM07') {
     const canSpecialCall = player.unitsDestroyedThisTurn >= 2;
-    showChoiceModal(
-      '🔥 แอชชี่ล่า (เลือกวิธีอัญเชิญ)',
-      `ยูนิตฝั่งเราที่ถูกทำลายในเทิร์นนี้: ${player.unitsDestroyedThisTurn} ใบ`,
-      [
-        {
-          label: '⚔️ อัญเชิญปกติลงสนาม (Power 2)',
-          color: '#d97706',
-          onSelect: () => {
-            gameState.selectedHandIndex = handIndex;
-            setLog('👉 เลือก "แอชชี่ล่า" แล้ว — คลิกที่ช่องบนสนามของคุณเพื่อลงสนาม (หากคลิกช่องที่มีมอนสเตอร์ จะวางทับและส่งใบเก่าลงนรก)!');
+    showChoiceModal('🔥 แอชชี่ล่า', `ยูนิตที่ถูกทำลายในเทิร์นนี้: ${player.unitsDestroyedThisTurn} ใบ`, [
+      { label: 'อัญเชิญปกติ (Power 2)', color: '#d97706', onSelect: () => { gameState.selectedHandIndex = handIndex; setLog('👉 เลือกแอชชี่ล่า — คลิกช่องสนาม (วางทับได้)'); renderGame(); } },
+      {
+        label: `สั่งใช้จากมือ (ยูนิตถูกทำลายครบ 2 ใบ): พลัง +2 ${!canSpecialCall ? '(เงื่อนไขไม่ครบ)' : ''}`, disabled: !canSpecialCall, color: '#dc2626',
+        onSelect: () => {
+          const summoned = resetCardStateForZoneChange(player.hand.splice(handIndex, 1)[0]);
+          summoned.tempPowerMod += 2;
+          const emptySlot = player.board.findIndex(m => m === null);
+          if (emptySlot !== -1) {
+            player.board[emptySlot] = summoned;
+            renderGame();
+          } else {
+            gameState.pendingAction = { type: 'CALL_FROM_EFFECT_SELECT_SLOT', cardToPlace: summoned, onAfterPlace: null };
+            setLog('🔥 สนามเต็ม — คลิกช่องเพื่อวางทับ');
             renderGame();
           }
-        },
-        {
-          label: `💥 สั่งใช้งานจากมือ (เมื่อยูนิตเราถูกทำลายครบ 2 ใบ): คอลลงสนามและพลัง +2 จนจบเทิร์น ${!canSpecialCall ? '(เงื่อนไขยังไม่ครบ)' : ''}`,
-          disabled: !canSpecialCall,
-          color: '#dc2626',
-          onSelect: () => {
-            const summoned = player.hand.splice(handIndex, 1)[0];
-            resetCardStateForZoneChange(summoned);
-            summoned.tempPowerMod += 2;
-
-            const emptySlot = player.board.findIndex(m => m === null);
-            if (emptySlot !== -1) {
-              player.board[emptySlot] = summoned;
-              setLog('🔥 [แอชชี่ล่า] สั่งใช้งานจากบนมือ! คอลลงสนามและได้รับพลังโจมตี +2 จนจบเทิร์น (เป็น 4)!');
-              renderGame();
-            } else {
-              gameState.pendingAction = {
-                type: 'CALL_FROM_EFFECT_SELECT_SLOT',
-                cardToPlace: summoned,
-                onAfterPlace: null
-              };
-              setLog('🔥 [แอชชี่ล่า] สนามเต็ม 3 ช่อง — คลิกเลือกช่องบนสนามของคุณเพื่อวาง "แอชชี่ล่า" ทับ!');
-              renderGame();
-            }
-          }
-        },
-        { label: 'ยกเลิก', color: '#475569', onSelect: () => renderGame() }
-      ]
-    );
+        }
+      },
+      { label: 'ยกเลิก', color: '#475569', onSelect: () => renderGame() }
+    ]);
     return;
   }
 
-  // --- 2. การ์ดกลุ่ม "อนาคต" (DM09 ถึง DM14): ห้ามอัญเชิญปกติ ---
   if (card.futureBaseId) {
     const baseSlotIdx = player.board.findIndex(m => m !== null && m.id === card.futureBaseId);
-    if (player.futureUsedThisTurn) {
-      setLog(`🚫 คุณใช้ความสามารถ "อนาคต" ไปแล้วในเทิร์นนี้ (จำกัด 1 ครั้งต่อเทิร์น) และการ์ดอนาคตไม่สามารถอัญเชิญแบบปกติได้!`);
-      return;
-    }
-    if (baseSlotIdx === -1) {
-      setLog(`🚫 ไม่สามารถอัญเชิญ "${card.name}" แบบปกติได้! ต้องมี "${card.futureBaseName}" อยู่บนสนามฝั่งเราเพื่อส่งไปมิติมืดเท่านั้น!`);
-      return;
-    }
+    if (player.futureUsedThisTurn) { setLog('🚫 ใช้ความสามารถอนาคตไปแล้วในเทิร์นนี้'); return; }
+    if (baseSlotIdx === -1) { setLog(`🚫 ต้องมี "${card.futureBaseName}" บนสนามเพื่อส่งไปมิติมืด`); return; }
 
-    showChoiceModal(
-      `🌌 สั่งใช้งานอนาคต: ${card.name}`,
-      `การ์ดอนาคตไม่สามารถอัญเชิญแบบปกติได้\nต้องการส่ง "${card.futureBaseName}" บนสนามไปที่ "มิติมืด" แล้วคอล "${card.name}" ลงสนามหรือไม่? (ใช้ได้ 1 ครั้ง/เทิร์น)`,
-      [
-        {
-          label: `🌌 ยืนยัน: ส่ง "${card.futureBaseName}" ไปมิติมืด -> คอล "${card.name}" ลงสนาม!`,
-          color: '#7c3aed',
-          onSelect: () => executeFutureSummon(player, ai, handIndex, baseSlotIdx)
-        },
-        { label: 'ยกเลิก', color: '#475569', onSelect: () => renderGame() }
-      ]
-    );
+    showChoiceModal(`🌌 สั่งใช้งานอนาคต: ${card.name}`, `ส่ง "${card.futureBaseName}" ไปมิติมืดแล้วคอลใบนี้ลงสนาม`, [
+      { label: 'ยืนยัน', color: '#7c3aed', onSelect: () => executeFutureSummon(player, ai, handIndex, baseSlotIdx) },
+      { label: 'ยกเลิก', color: '#475569', onSelect: () => renderGame() }
+    ]);
   }
 }
 
@@ -1254,150 +629,42 @@ function executeFutureSummon(caster, opponent, handIndex, baseSlotIndex) {
   if (!futureCard || !baseUnit) return;
 
   caster.futureUsedThisTurn = true;
+  caster.darkDimension.push(resetCardStateForZoneChange(baseUnit));
 
-  // 1. ส่งร่างต้นไปไว้ใน "มิติมืด" (darkDimension)
-  resetCardStateForZoneChange(baseUnit);
-  caster.darkDimension.push(baseUnit);
-
-  // 2. คอลการ์ดอนาคตลงในช่องนั้น
   resetCardStateForZoneChange(futureCard);
   futureCard.state = 'Stand';
   futureCard.returnFromDarkDimensionId = baseUnit.id;
   caster.board[baseSlotIndex] = futureCard;
 
-  // 3. แสดงผลความสามารถเมื่อลงสนามของการ์ดอนาคต
   if (futureCard.id === 'DM09') {
     futureCard.permPowerMod += 1;
-    let topMsg = 'ไม่มีการ์ดในกองให้เปิด';
     if (caster.deck.length > 0) {
-      const topCard = caster.deck[caster.deck.length - 1];
-      if (topCard.type === 'NormalSpell' || topCard.type === 'ReactionSpell') {
-        const standEnemy = opponent.board.find(m => m !== null && m.state === 'Stand');
-        if (standEnemy) {
-          standEnemy.state = 'Rest';
-          topMsg = `เปิดท็อปกองได้เวท "${topCard.name}" -> บังคับ Rest "${standEnemy.name}" ของอีกฝ่าย!`;
-        } else {
-          topMsg = `เปิดท็อปกองได้เวท "${topCard.name}" (อีกฝ่ายไม่มียูนิตที่ Stand อยู่)`;
-        }
-      } else {
-        topMsg = `เปิดท็อปกองได้ "${topCard.name}" (ไม่ใช่การ์ดเวท)`;
+      const top = caster.deck[caster.deck.length - 1];
+      if ((top.type === 'NormalSpell' || top.type === 'ReactionSpell') && opponent.board.some(m => m !== null && m.state === 'Stand')) {
+        opponent.board.find(m => m !== null && m.state === 'Stand').state = 'Rest';
       }
     }
-    setLog(`🌌 [อนาคต - ผู้รักษาความฝัน มายอา] ส่งมายอาไปมิติมืด คอลลงสนามพลัง +1 | ${topMsg}`);
-    renderGame();
-    return;
-  }
-
-  if (futureCard.id === 'DM10') {
-    const otherSlot = caster.board.findIndex((m, idx) => m !== null && idx !== baseSlotIndex);
-    let bounceMsg = '';
-    if (otherSlot !== -1) {
-      const bounced = caster.board[otherSlot];
-      caster.board[otherSlot] = null;
-      resetCardStateForZoneChange(bounced);
-      caster.hand.push(bounced);
-      bounceMsg = `นำ "${bounced.name}" บนสนามเราขึ้นมือ `;
-    }
-    let topMsg = '';
-    if (caster.deck.length > 0) {
-      const topCard = caster.deck.pop();
-      resetCardStateForZoneChange(topCard);
-      if (topCard.type === 'Monster') {
-        const emptySlot = caster.board.findIndex(m => m === null);
-        if (emptySlot !== -1) {
-          caster.board[emptySlot] = topCard;
-          topMsg = `และเปิดท็อปกองคอล "${topCard.name}" ลงสนาม!`;
-        } else {
-          caster.hand.push(topCard);
-          topMsg = `และนำ "${topCard.name}" ขึ้นมือ (สนามเต็ม)`;
-        }
-      } else {
-        caster.hand.push(topCard);
-        topMsg = `และเปิดท็อปกองได้เวท "${topCard.name}" นำขึ้นมือ!`;
-      }
-    }
-    setLog(`🌌 [อนาคต - เดบิรุน เดอะ ฟิวเจอร์] ส่งเดบิรุนไปมิติมืด ${bounceMsg}${topMsg}`);
-    renderGame();
-    return;
-  }
-
-  if (futureCard.id === 'DM11') {
-    const mayaGraveIdx = caster.graveyard.findIndex(c => c.id === 'DM03');
-    if (mayaGraveIdx !== -1) {
-      const maya = caster.graveyard.splice(mayaGraveIdx, 1)[0];
-      resetCardStateForZoneChange(maya);
+  } else if (futureCard.id === 'DM11') {
+    const mayaIdx = caster.graveyard.findIndex(c => c.id === 'DM03');
+    if (mayaIdx !== -1) {
+      const maya = resetCardStateForZoneChange(caster.graveyard.splice(mayaIdx, 1)[0]);
       maya.permPowerMod += 1;
-      const emptySlot = caster.board.findIndex(m => m === null);
-      if (emptySlot !== -1) {
-        caster.board[emptySlot] = maya;
-        setLog('🌌 [อนาคต - เด็กสาวขนมหวาน ซึรุรุ] ส่งซึรุรุไปมิติมืด คอล "มายอา" จากนรกลงสนาม และเพิ่มพลังให้มายอา +1 (เป็น 3)!');
-      } else {
-        gameState.pendingAction = {
-          type: 'CALL_FROM_EFFECT_SELECT_SLOT',
-          cardToPlace: maya,
-          onAfterPlace: null
-        };
-        setLog('🌌 [อนาคต - เด็กสาวขนมหวาน ซึรุรุ] สนามเต็ม 3 ช่อง — คลิกเลือกช่องบนสนามเพื่อวาง "มายอา" (พลัง +1) ทับ!');
-      }
-    } else {
-      setLog('🌌 [อนาคต - เด็กสาวขนมหวาน ซึรุรุ] ส่งซึรุรุไปมิติมืดและลงสนามสำเร็จ! (ไม่มีมายอาในนรก)');
+      const slot = caster.board.findIndex(m => m === null);
+      if (slot !== -1) caster.board[slot] = maya;
+      else { gameState.pendingAction = { type: 'CALL_FROM_EFFECT_SELECT_SLOT', cardToPlace: maya, onAfterPlace: null }; }
     }
-    renderGame();
-    return;
-  }
-
-  if (futureCard.id === 'DM12') {
-    if (opponent.name === 'AI') {
-      if (opponent.hand.length > 0) {
-        const discarded = opponent.hand.pop();
-        resetCardStateForZoneChange(discarded);
-        opponent.graveyard.push(discarded);
-        setLog(`🌌 [อนาคต - นักล่าปีศาจ โซเนบุ] ส่งโซเนบุไปมิติมืด -> AI เลือกทิ้งการ์ดบนมือ "${discarded.name}" 1 ใบ!`);
-      } else {
-        futureCard.permPowerMod += 1;
-        setLog('🌌 [อนาคต - นักล่าปีศาจ โซเนบุ] ส่งโซเนบุไปมิติมืด -> AI ไม่ทิ้งการ์ดและไม่ทำลายยูนิต นักล่าปีศาจ โซเนบุ พลัง +1!');
-      }
-    }
-    renderGame();
-    return;
-  }
-
-  if (futureCard.id === 'DM13') {
-    opponent.board.forEach(m => {
-      if (m && !m.immuneToEnemyEffectsUntilEndOfTurn) m.tempPowerMod -= 1;
-    });
-    setLog('🌌 [อนาคต - ยอดนักดาบ แอชชี่ล่า] ส่งแอชชี่ล่าไปมิติมืด -> การ์ดทุกใบบนสนามของฝ่ายตรงข้ามพลังโจมตี -1 จนจบเทิร์น!');
-    renderGame();
-    return;
-  }
-
-  if (futureCard.id === 'DM14') {
+  } else if (futureCard.id === 'DM12' && opponent.hand.length > 0) {
+    opponent.graveyard.push(resetCardStateForZoneChange(opponent.hand.pop()));
+  } else if (futureCard.id === 'DM13') {
+    opponent.board.forEach(m => { if (m && !m.immuneToEnemyEffectsUntilEndOfTurn) m.tempPowerMod -= 1; });
+  } else if (futureCard.id === 'DM14') {
     const enemySlot = opponent.board.findIndex(m => m !== null && !m.immuneToEnemyEffectsUntilEndOfTurn);
-    if (enemySlot !== -1) {
-      const bouncedEnemy = opponent.board[enemySlot];
-      opponent.board[enemySlot] = null;
-      resetCardStateForZoneChange(bouncedEnemy);
-      opponent.hand.push(bouncedEnemy);
-
-      const otherUnitInHandIdx = opponent.hand.findIndex(c => c.type === 'Monster' && c.uid !== bouncedEnemy.uid && !c.cannotNormalSummon);
-      if (otherUnitInHandIdx !== -1) {
-        const replacement = opponent.hand.splice(otherUnitInHandIdx, 1)[0];
-        resetCardStateForZoneChange(replacement);
-        opponent.board[enemySlot] = replacement;
-        setLog(`🌌 [อนาคต - สุดยอดเอไอ เอมิ] บังคับอีกฝ่ายนำ "${bouncedEnemy.name}" ขึ้นมือ และคอล "${replacement.name}" ลงมาแทน!`);
-      } else {
-        drawCards(caster, 1);
-        setLog(`🌌 [อนาคต - สุดยอดเอไอ เอมิ] บังคับอีกฝ่ายนำ "${bouncedEnemy.name}" ขึ้นมือ (อีกฝ่ายไม่มียูนิตอื่นให้คอล เราจั่ว 1 ใบ)!`);
-      }
-    } else {
-      drawCards(caster, 1);
-      setLog('🌌 [อนาคต - สุดยอดเอไอ เอมิ] อีกฝ่ายไม่มีการ์ดบนสนามให้ยกขึ้นมือ -> เราจั่วการ์ด 1 ใบ!');
-    }
-    renderGame();
+    if (enemySlot !== -1) opponent.hand.push(resetCardStateForZoneChange(opponent.board[enemySlot]));
   }
+  setLog(`🌌 ใช้ความสามารถอนาคตอัญเชิญ "${futureCard.name}" สำเร็จ!`);
+  renderGame();
 }
 
-// เมนูสกิลจากมือของเด็คเหนือ (รองรับการวางทับเมื่อสนามเต็ม 3 ช่อง)
 function handleNueaHandAbilityMenu(handIndex) {
   const player = gameState.player;
   const ai = gameState.ai;
@@ -1405,433 +672,127 @@ function handleNueaHandAbilityMenu(handIndex) {
   if (!card) return;
 
   if (card.id === 'NM01') {
-    const spyInDeck = player.deck.some(c => c.id === 'NM05');
-    const spyInGrave = player.graveyard.some(c => c.id === 'NM05');
-    const enemyHasEmptySlot = ai.board.some(m => m === null);
-    const canSummonSpy = (spyInDeck || spyInGrave) && enemyHasEmptySlot;
-    const soldierInDeck = player.deck.some(c => isSoldierCard(c));
-
-    showChoiceModal(
-      '🌾 ไพร่ชาวนาเหนือ (เลือกวิธีใช้งาน)',
-      'คุณสามารถอัญเชิญลงสนามตามปกติ (วางทับได้) หรือส่งใบนี้จากมือลงนรกเพื่อใช้ความสามารถ',
-      [
-        {
-          label: '⚔️ อัญเชิญปกติลงสนาม (Power 1)',
-          color: '#d97706',
-          onSelect: () => {
-            gameState.selectedHandIndex = handIndex;
-            setLog('👉 เลือก "ไพร่ชาวนาเหนือ" แล้ว — คลิกที่ช่องบนกระดานของคุณเพื่อลงสนาม (คลิกช่องที่มีมอนสเตอร์เพื่อวางทับได้)!');
-            renderGame();
+    const canSummonSpy = (player.deck.some(c => c.id === 'NM05') || player.graveyard.some(c => c.id === 'NM05')) && ai.board.some(m => m === null);
+    showChoiceModal('🌾 ไพร่ชาวนาเหนือ', 'เลือกวิธีใช้งาน:', [
+      { label: 'อัญเชิญปกติ (วางทับได้)', color: '#d97706', onSelect: () => { gameState.selectedHandIndex = handIndex; setLog('👉 เลือกไพร่ชาวนาเหนือ — คลิกช่องสนาม'); renderGame(); } },
+      {
+        label: 'ทิ้งลงนรก -> ส่งสายลับไปสนาม AI', disabled: !canSummonSpy, color: '#7c3aed',
+        onSelect: () => {
+          player.graveyard.push(resetCardStateForZoneChange(player.hand.splice(handIndex, 1)[0]));
+          let spy = null;
+          const g = player.graveyard.findIndex(c => c.id === 'NM05');
+          if (g !== -1) spy = player.graveyard.splice(g, 1)[0];
+          else {
+            const d = player.deck.findIndex(c => c.id === 'NM05');
+            if (d !== -1) { spy = player.deck.splice(d, 1)[0]; player.deck = shuffleDeck(player.deck); }
           }
-        },
-        {
-          label: `🕵️ สั่งใช้ 1: ทิ้งใบนี้ลงนรก -> อัญเชิญ "สายลับไพร่เหนือ" จากกอง/นรกลงสนามอีกฝ่าย ${!canSummonSpy ? '(เงื่อนไขไม่ครบ)' : ''}`,
-          disabled: !canSummonSpy,
-          color: '#7c3aed',
-          onSelect: () => {
-            const discarded = player.hand.splice(handIndex, 1)[0];
-            resetCardStateForZoneChange(discarded);
-            player.graveyard.push(discarded);
-
-            let spyCard = null;
-            const gIdx = player.graveyard.findIndex(c => c.id === 'NM05');
-            if (gIdx !== -1) {
-              spyCard = player.graveyard.splice(gIdx, 1)[0];
-            } else {
-              const dIdx = player.deck.findIndex(c => c.id === 'NM05');
-              if (dIdx !== -1) {
-                spyCard = player.deck.splice(dIdx, 1)[0];
-                player.deck = shuffleDeck(player.deck);
-              }
-            }
-            const emptyAiSlot = ai.board.findIndex(m => m === null);
-            if (spyCard && emptyAiSlot !== -1) {
-              resetCardStateForZoneChange(spyCard);
-              spyCard.state = 'Stand';
-              ai.board[emptyAiSlot] = spyCard;
-              setLog('🕵️ [ไพร่ชาวนาเหนือ] ส่งตัวเองลงนรก และอัญเชิญ "สายลับไพร่เหนือ" ลงบนสนามของ AI สำเร็จ!');
-            }
-            renderGame();
-          }
-        },
-        {
-          label: `🛡️ สั่งใช้ 2: ทิ้งใบนี้ลงนรก -> เลือกนำการ์ด "ทหาร" 1 ใบจากกองการ์ดขึ้นมือ ${!soldierInDeck ? '(ไม่มีทหารในกอง)' : ''}`,
-          disabled: !soldierInDeck,
-          color: '#0284c7',
-          onSelect: () => {
-            const discarded = player.hand.splice(handIndex, 1)[0];
-            resetCardStateForZoneChange(discarded);
-            player.graveyard.push(discarded);
-            openSelectSoldierFromDeckModal(player);
-          }
-        },
-        { label: 'ยกเลิก', color: '#475569', onSelect: () => renderGame() }
-      ]
-    );
-    return;
-  }
-
-  if (card.id === 'NM02' || card.id === 'NM03') {
-    const canJuti = player.hand.some((c, idx) => idx !== handIndex && c.id === 'NM01');
-
-    showChoiceModal(
-      `⚔️ ${card.name} (เลือกวิธีอัญเชิญ)`,
-      'เลือกว่าจะอัญเชิญลงสนามตามปกติ หรือส่ง "ไพร่ชาวนาเหนือ" 1 ใบบนมือลงนรกเพื่ออัญเชิญแบบพลัง +1 (สามารถวางทับยูนิตบนสนามได้)',
-      [
-        {
-          label: `อัญเชิญปกติลงสนาม (Power ${card.power})`,
-          color: '#d97706',
-          onSelect: () => {
-            gameState.selectedHandIndex = handIndex;
-            setLog(`👉 เลือก "${card.name}" แล้ว — คลิกที่ช่องบนกระดานของคุณเพื่อลงสนาม (วางทับช่องที่มีมอนสเตอร์ได้)!`);
-            renderGame();
-          }
-        },
-        {
-          label: `🔥 สั่งใช้จากมือ (จุติ): ทิ้ง "ไพร่ชาวนาเหนือ" บนมือ 1 ใบ -> อัญเชิญใบนี้พลัง +1 ${!canJuti ? '(ต้องมีไพร่ชาวนาเหนือบนมือ)' : ''}`,
-          disabled: !canJuti,
-          color: '#dc2626',
-          onSelect: () => {
-            gameState.pendingAction = { type: 'JUTI_SELECT_SLOT', summonHandIndex: handIndex };
-            setLog(`🔥 [อัญเชิญจุติ ${card.name}] คลิกเลือกช่องบนสนามของคุณเพื่อวางการ์ด (หากเลือกช่องที่มีมอนสเตอร์ ใบเดิมจะถูกส่งลงนรกโดยไม่ถือว่าถูกทำลาย)`);
-            renderGame();
-          }
-        },
-        { label: 'ยกเลิก', color: '#475569', onSelect: () => renderGame() }
-      ]
-    );
+          const empty = ai.board.findIndex(m => m === null);
+          if (spy && empty !== -1) { ai.board[empty] = resetCardStateForZoneChange(spy); spy.state = 'Stand'; }
+          renderGame();
+        }
+      },
+      { label: 'ทิ้งลงนรก -> ดึงทหารขึ้นมือ', color: '#0284c7', onSelect: () => { player.graveyard.push(resetCardStateForZoneChange(player.hand.splice(handIndex, 1)[0])); openSelectSoldierFromDeckModal(player); } },
+      { label: 'ยกเลิก', color: '#475569', onSelect: () => renderGame() }
+    ]);
   }
 }
 
 function openSelectSoldierFromDeckModal(contestant) {
   const uniqueSoldiers = [];
-  const seenIds = new Set();
-  contestant.deck.forEach(c => {
-    if (isSoldierCard(c) && !seenIds.has(c.id)) {
-      seenIds.add(c.id);
-      uniqueSoldiers.push(c);
-    }
-  });
+  const seen = new Set();
+  contestant.deck.forEach(c => { if (isSoldierCard(c) && !seen.has(c.id)) { seen.add(c.id); uniqueSoldiers.push(c); } });
+  if (uniqueSoldiers.length === 0) { setLog('⚠️ ไม่พบทหารในกอง'); renderGame(); return; }
 
-  if (uniqueSoldiers.length === 0) {
-    setLog('⚠️ ไม่พบการ์ด "ทหาร" ในกองการ์ด');
-    renderGame();
-    return;
-  }
-
-  const options = uniqueSoldiers.map(sCard => ({
-    label: `เลือก "${sCard.name}" (Power ${sCard.power}) ขึ้นมือ`,
-    color: '#16a34a',
+  showChoiceModal('🛡️ ดึงทหารจากกองขึ้นมือ', 'เลือกทหาร:', uniqueSoldiers.map(s => ({
+    label: s.name, color: '#16a34a',
     onSelect: () => {
-      const idx = contestant.deck.findIndex(c => c.id === sCard.id);
-      if (idx !== -1) {
-        const picked = contestant.deck.splice(idx, 1)[0];
-        resetCardStateForZoneChange(picked);
-        contestant.hand.push(picked);
-        contestant.deck = shuffleDeck(contestant.deck);
-        setLog(`🛡️ [ไพร่ชาวนาเหนือ] นำ "${picked.name}" จากกองการ์ดขึ้นมือและสับกองสำเร็จ!`);
-      }
+      const idx = contestant.deck.findIndex(c => c.id === s.id);
+      if (idx !== -1) { contestant.hand.push(resetCardStateForZoneChange(contestant.deck.splice(idx, 1)[0])); contestant.deck = shuffleDeck(contestant.deck); }
       renderGame();
     }
-  }));
-
-  showChoiceModal('🛡️ เลือกการ์ด "ทหาร" 1 ใบจากกองการ์ดขึ้นมือ', 'คลิกเลือกทหารที่ต้องการดึงขึ้นมือ:', options);
+  })));
 }
 
 function triggerRoyalGuardJutiBonus(contestant) {
-  const hasConscriptOnBoard = contestant.board.some(m => m !== null && m.id === 'NM04');
-  if (!hasConscriptOnBoard) return;
+  if (!contestant.board.some(m => m !== null && m.id === 'NM04')) return;
+  const soldiers = [...contestant.graveyard.filter(c => isSoldierCard(c)), ...contestant.deck.filter(c => isSoldierCard(c))];
+  if (soldiers.length === 0) return;
 
-  const graveSoldiers = contestant.graveyard.filter(c => isSoldierCard(c));
-  const deckSoldiers = contestant.deck.filter(c => isSoldierCard(c));
-  if (graveSoldiers.length === 0 && deckSoldiers.length === 0) return;
-
-  if (contestant.name === 'AI') {
-    const emptySlot = contestant.board.findIndex(m => m === null);
-    if (emptySlot === -1) return;
-    let summoned = null;
-    if (graveSoldiers.length > 0) {
-      const idx = contestant.graveyard.findIndex(c => isSoldierCard(c));
-      summoned = contestant.graveyard.splice(idx, 1)[0];
-    } else {
-      const idx = contestant.deck.findIndex(c => isSoldierCard(c));
-      summoned = contestant.deck.splice(idx, 1)[0];
-      contestant.deck = shuffleDeck(contestant.deck);
-    }
-    if (summoned) {
-      resetCardStateForZoneChange(summoned);
-      if (summoned.id === 'NM04') summoned.permPowerMod += 1;
-      contestant.board[emptySlot] = summoned;
-      setLog(`🤖 [จุติ - ทหารหลวงเหนือ] อัญเชิญ "${summoned.name}" ลงสนามฟรี!`);
-    }
-    renderGame();
-    return;
-  }
-
-  const placeBonusSoldier = (card) => {
+  const place = (card) => {
     resetCardStateForZoneChange(card);
     if (card.id === 'NM04') card.permPowerMod += 1;
-    const emptySlot = contestant.board.findIndex(m => m === null);
-    if (emptySlot !== -1) {
-      contestant.board[emptySlot] = card;
-      setLog(`✨ [จุติ - ทหารหลวงเหนือ] อัญเชิญ "${card.name}" ลงสนามทันที!`);
-      renderGame();
-    } else {
-      gameState.pendingAction = {
-        type: 'CALL_FROM_EFFECT_SELECT_SLOT',
-        cardToPlace: card,
-        onAfterPlace: null
-      };
-      setLog(`✨ [จุติ - ทหารหลวงเหนือ] สนามเต็ม 3 ช่อง — คลิกเลือกช่องบนสนามของคุณเพื่อวาง "${card.name}" ทับ!`);
-      renderGame();
-    }
+    const slot = contestant.board.findIndex(m => m === null);
+    if (slot !== -1) { contestant.board[slot] = card; renderGame(); }
+    else { gameState.pendingAction = { type: 'CALL_FROM_EFFECT_SELECT_SLOT', cardToPlace: card, onAfterPlace: null }; renderGame(); }
   };
 
-  const options = [];
-  const seen = new Set();
-
-  graveSoldiers.forEach(c => {
-    const key = `G_${c.id}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      options.push({
-        label: `[จากนรก] อัญเชิญ "${c.name}" (Power ${c.power})`,
-        color: '#7c3aed',
-        onSelect: () => {
-          const idx = contestant.graveyard.findIndex(g => g.id === c.id);
-          if (idx !== -1) placeBonusSoldier(contestant.graveyard.splice(idx, 1)[0]);
-        }
-      });
+  showChoiceModal('🔥 จุติ - ทหารหลวงเหนือ', 'อัญเชิญทหารลงสนามฟรี:', soldiers.map(s => ({
+    label: s.name, color: '#7c3aed',
+    onSelect: () => {
+      let idx = contestant.graveyard.findIndex(g => g.id === s.id);
+      if (idx !== -1) { place(contestant.graveyard.splice(idx, 1)[0]); return; }
+      idx = contestant.deck.findIndex(d => d.id === s.id);
+      if (idx !== -1) { const c = contestant.deck.splice(idx, 1)[0]; contestant.deck = shuffleDeck(contestant.deck); place(c); }
     }
-  });
-
-  deckSoldiers.forEach(c => {
-    const key = `D_${c.id}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      options.push({
-        label: `[จากกองการ์ด] อัญเชิญ "${c.name}" (Power ${c.power})`,
-        color: '#0284c7',
-        onSelect: () => {
-          const idx = contestant.deck.findIndex(d => d.id === c.id);
-          if (idx !== -1) {
-            const card = contestant.deck.splice(idx, 1)[0];
-            contestant.deck = shuffleDeck(contestant.deck);
-            placeBonusSoldier(card);
-          }
-        }
-      });
-    }
-  });
-
-  showChoiceModal('🔥 สกิลจุติของ ทหารหลวงเหนือ!', 'เลือกอัญเชิญ "ทหาร" 1 ใบจากกองหรือนรกลงสนามทันที:', options);
+  })));
 }
 
-// เมื่อคลิกที่ Monster บนสนามของผู้เล่นใน Main Phase เพื่อสั่งใช้ความสามารถ
 function activateMonsterOnBoardPlayer(slotIndex) {
   const player = gameState.player;
   const monster = player.board[slotIndex];
   if (!monster) return;
 
-  // 1. โทโดโรจิต (M02)
   if (monster.id === 'M02') {
-    const usedSkill1 = !!monster.usedSkills.todoroMill;
-    const usedSkill2 = !!monster.usedSkills.todoroRecover;
-    const canSkill1 = !usedSkill1 && player.hand.length > 0 && gameState.ai.deck.length > 0;
-    const hasBakuInGrave = player.graveyard.some(c => c.id === 'M01');
-    const canSkill2 = !usedSkill2 && hasBakuInGrave;
-
-    showChoiceModal(
-      '❄️ เลือกความสามารถของ โทโดโรจิต',
-      'แต่ละความสามารถสั่งใช้ได้เทิร์นละ 1 ครั้ง (แยกกัน)',
-      [
-        {
-          label: `1) ทิ้งมือ 1 ใบ -> ส่งใบบนสุดกองอีกฝ่ายลงนรก ${usedSkill1 ? '(ใช้แล้ว)' : !canSkill1 ? '(เงื่อนไขไม่ครบ)' : ''}`,
-          disabled: !canSkill1,
-          color: '#0284c7',
-          onSelect: () => {
-            gameState.pendingAction = { type: 'TODORO_SKILL1_DISCARD', sourceSlot: slotIndex };
-            setLog('👉 [โทโดโรจิต] คลิกเลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก');
-            renderGame();
-          }
-        },
-        {
-          label: `2) นำ "บาคุจิต" 1 ใบจากนรกขึ้นมือ ${usedSkill2 ? '(ใช้แล้ว)' : !hasBakuInGrave ? '(ไม่มีบาคุจิตในนรก)' : ''}`,
-          disabled: !canSkill2,
-          color: '#16a34a',
-          onSelect: () => {
-            const bakuIdx = player.graveyard.findIndex(c => c.id === 'M01');
-            if (bakuIdx !== -1) {
-              const bakuCard = player.graveyard.splice(bakuIdx, 1)[0];
-              resetCardStateForZoneChange(bakuCard);
-              player.hand.push(bakuCard);
-              monster.usedSkills.todoroRecover = true;
-              setLog('✨ [โทโดโรจิต] นำ "บาคุจิต" 1 ใบจากกองนรกขึ้นมือสำเร็จ!');
-              renderGame();
-            }
-          }
-        },
-        { label: 'ยกเลิก', color: '#475569', onSelect: () => renderGame() }
-      ]
-    );
+    showChoiceModal('❄️ โทโดโรจิต', 'เลือกสกิล:', [
+      { label: 'ทิ้งมือ -> โม่กองอีกฝ่าย', color: '#0284c7', onSelect: () => { gameState.pendingAction = { type: 'TODORO_SKILL1_DISCARD', sourceSlot: slotIndex }; renderGame(); } },
+      { label: 'ดึงบาคุจิตจากนรกขึ้นมือ', color: '#16a34a', onSelect: () => { const idx = player.graveyard.findIndex(c => c.id === 'M01'); if (idx !== -1) player.hand.push(resetCardStateForZoneChange(player.graveyard.splice(idx, 1)[0])); renderGame(); } },
+      { label: 'ยกเลิก', color: '#475569', onSelect: () => renderGame() }
+    ]);
     return;
   }
-
-  // 2. เอ็นเดจิต (M05)
-  if (monster.id === 'M05') {
-    if (monster.usedSkills.endeBoost) {
-      setLog('⚠️ เอ็นเดจิต ใช้ความสามารถไปแล้วในเทิร์นนี้!');
-      return;
-    }
-    triggerEndeSkill(player, slotIndex);
-    renderGame();
-    return;
-  }
-
-  // 3. ฮออ์กส์ฟีม (M06)
-  if (monster.id === 'M06') {
-    if (monster.usedSkills.hawksSearch) {
-      setLog('⚠️ ฮออ์กส์ฟีม ใช้ความสามารถค้นหาไปแล้วในเทิร์นนี้!');
-      return;
-    }
-    if (getEffectivePower(monster, player) < 2) {
-      setLog('⚠️ พลังของ ฮออ์กส์ฟีม น้อยกว่า 2 จึงไม่สามารถลดพลังเพื่อใช้สกิลได้!');
-      return;
-    }
-    const inDeck = player.deck.some(c => c.id === 'M05');
-    const inGrave = player.graveyard.some(c => c.id === 'M05');
-    if (!inDeck && !inGrave) {
-      setLog('⚠️ ไม่มี "เอ็นเดจิต" อยู่ในกองการ์ดหรือกองนรกเลย!');
-      return;
-    }
-
-    showChoiceModal(
-      '🦅 ความสามารถของ ฮออ์กส์ฟีม',
-      'ลดพลังโจมตีของยูนิทนี้ลง 2 หน่วย เพื่อนำ "เอ็นเดจิต" ขึ้นมือ',
-      [
-        {
-          label: `ดึง "เอ็นเดจิต" จากกองการ์ด (พร้อมสับกอง) ${!inDeck ? '(ไม่มีในกอง)' : ''}`,
-          disabled: !inDeck,
-          color: '#0284c7',
-          onSelect: () => executeHawksSearch(player, slotIndex, 'deck')
-        },
-        {
-          label: `ดึง "เอ็นเดจิต" จากกองนรก ${!inGrave ? '(ไม่มีในนรก)' : ''}`,
-          disabled: !inGrave,
-          color: '#7c3aed',
-          onSelect: () => executeHawksSearch(player, slotIndex, 'grave')
-        },
-        { label: 'ยกเลิก', color: '#475569', onSelect: () => renderGame() }
-      ]
-    );
-    return;
-  }
-
-  // 4. ทหารพรานเหนือ (NM03)
-  if (monster.id === 'NM03') {
-    if (monster.usedSkills.rangerTarget) {
-      setLog('⚠️ ทหารพรานเหนือ ใช้ความสามารถประจำเทิร์นนี้ไปแล้ว!');
-      return;
-    }
-    gameState.pendingAction = { type: 'RANGER_SELECT_UNIT', sourceSlot: slotIndex };
-    setLog('🏹 [ทหารพรานเหนือ] คลิกเลือกยูนิท 1 ใบบนสนาม (คลิกยูนิทเราพลัง +1 / คลิกยูนิทอีกฝ่ายพลัง -1)');
-    renderGame();
-    return;
-  }
-
-  // 5. โอนามิ ผู้ทำลายโลก (DM01)
+  if (monster.id === 'M05') { triggerEndeSkill(player, slotIndex); renderGame(); return; }
   if (monster.id === 'DM01') {
-    if (monster.usedSkills.onamiSummon) {
-      setLog('⚠️ โอนามิ ผู้ทำลายโลก ใช้ความสามารถไปแล้วในเทิร์นนี้!');
-      return;
-    }
-    if (player.hand.length === 0) {
-      setLog('⚠️ ไม่มีการ์ดบนมือให้ทิ้งสำหรับสกิลของโอนามิ!');
-      return;
-    }
-    const roseliaInDeck = player.deck.some(c => c.id === 'DM02');
-    const roseliaInGrave = player.graveyard.some(c => c.id === 'DM02');
-    if (!roseliaInDeck && !roseliaInGrave) {
-      setLog('⚠️ ไม่มี "โรเซเลีย" อยู่ในกองการ์ดหรือกองนรกเลย!');
-      return;
-    }
-
+    if (player.hand.length === 0) return;
     gameState.pendingAction = { type: 'ONAMI_DISCARD_HAND', sourceSlot: slotIndex };
-    setLog('🌊 [โอนามิ ผู้ทำลายโลก] คลิกเลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก และอัญเชิญ "โรเซเลีย" ลงสนาม!');
+    setLog('🌊 ทิ้งการ์ดมือ 1 ใบเพื่ออัญเชิญโรเซเลีย');
     renderGame();
     return;
   }
-
-  // 6. โรเซเลีย (DM02)
-  if (monster.id === 'DM02') {
-    if (!isPartnerActive(player)) {
-      setLog('⚠️ ต้องมี "โอนามิ ผู้ทำลายโลก" อยู่บนสนามฝั่งเรา จึงจะเข้าสู่สถานะคู่หูและใช้สกิลนี้ได้!');
-      return;
-    }
-    if (monster.state !== 'Stand') {
-      setLog('⚠️ โรเซเลีย ต้องอยู่ในสถานะ Stand จึงจะสั่ง Rest เพื่อจั่วการ์ดได้!');
-      return;
-    }
+  if (monster.id === 'DM02' && isPartnerActive(player) && monster.state === 'Stand') {
     monster.state = 'Rest';
     drawCards(player, 1);
-    setLog('🌹 [คู่หู - โรเซเลีย] เปลี่ยนสถานะเป็น Rest และจั่วการ์ด 1 ใบสำเร็จ!');
+    setLog('🌹 โรเซเลียจั่วการ์ด 1 ใบ');
     renderGame();
     return;
   }
-
-  setLog(`ℹ️ "${monster.name}" ไม่มีสกิลกดใช้บนสนามในจังหวะนี้ (หากต้องการโจมตี ให้กดปุ่มเข้าสู่ Battle Phase)`);
+  setLog(`ℹ️ ${monster.name} ไม่มีสกิลกดใช้`);
 }
 
 function triggerEndeSkill(contestant, slotIndex) {
   const ende = contestant.board[slotIndex];
   if (!ende || ende.id !== 'M05') return;
-
   ende.tempPowerMod += 2;
   ende.destroyAtEndOfTurn = true;
   ende.usedSkills.endeBoost = true;
-
-  let hawksCount = 0;
-  contestant.board.forEach(m => {
-    if (m && m.id === 'M06') {
-      m.permPowerMod += 2;
-      hawksCount += 1;
-    }
-  });
-
-  const hawksText = hawksCount > 0 ? ` และสกิลออโต้ของ "ฮออ์กส์ฟีม" ทำงาน (+2 Power)!` : '';
-  setLog(`🔥 [${contestant.name}] "เอ็นเดจิต" เพิ่มพลังโจมตี +2 (จะถูกทำลายเมื่อจบเทิร์น)${hawksText}`);
+  contestant.board.forEach(m => { if (m && m.id === 'M06') m.permPowerMod += 2; });
 }
 
 function executeHawksSearch(contestant, slotIndex, sourceZone) {
   const hawks = contestant.board[slotIndex];
-  if (!hawks || hawks.id !== 'M06') return;
-
-  if (sourceZone === 'deck') {
-    const idx = contestant.deck.findIndex(c => c.id === 'M05');
-    if (idx === -1) return;
+  if (!hawks) return;
+  const src = sourceZone === 'deck' ? contestant.deck : contestant.graveyard;
+  const idx = src.findIndex(c => c.id === 'M05');
+  if (idx !== -1) {
     hawks.permPowerMod -= 2;
-    hawks.usedSkills.hawksSearch = true;
-    const found = contestant.deck.splice(idx, 1)[0];
-    resetCardStateForZoneChange(found);
-    contestant.hand.push(found);
-    contestant.deck = shuffleDeck(contestant.deck);
-    setLog(`🦅 [${contestant.name}] "ฮออ์กส์ฟีม" ลดพลัง -2 นำ "เอ็นเดจิต" จากกองการ์ดขึ้นมือและสับกองเรียบร้อย!`);
-  } else if (sourceZone === 'grave') {
-    const idx = contestant.graveyard.findIndex(c => c.id === 'M05');
-    if (idx === -1) return;
-    hawks.permPowerMod -= 2;
-    hawks.usedSkills.hawksSearch = true;
-    const found = contestant.graveyard.splice(idx, 1)[0];
-    resetCardStateForZoneChange(found);
-    contestant.hand.push(found);
-    setLog(`🦅 [${contestant.name}] "ฮออ์กส์ฟีม" ลดพลัง -2 นำ "เอ็นเดจิต" จากกองนรกขึ้นมือเรียบร้อย!`);
+    contestant.hand.push(resetCardStateForZoneChange(src.splice(idx, 1)[0]));
+    if (sourceZone === 'deck') contestant.deck = shuffleDeck(contestant.deck);
+    renderGame();
   }
-  renderGame();
 }
 
 
 /* ============================================================================
-   หมวดที่ 5: ระบบการ์ดเวทมนตร์ทั้ง 3 เด็ค (SPELL CARDS)
+   หมวดที่ 5: ระบบเวทมนตร์ (SPELL CARDS)
    ============================================================================ */
 function initiatePlayerSpell(handIndex) {
   const player = gameState.player;
@@ -1839,220 +800,35 @@ function initiatePlayerSpell(handIndex) {
   const spell = player.hand[handIndex];
   if (!spell) return;
 
-  if (spell.type === 'NormalSpell' && player.spellQuota.normalUsed >= 1) {
-    setLog('❌ คุณใช้โควต้า Normal Spell (1 ใบ/เทิร์น) ไปแล้วในเทิร์นนี้!');
-    return;
-  }
-  if (spell.type === 'ReactionSpell' && player.spellQuota.reactionUsed >= 1) {
-    setLog('❌ คุณใช้โควต้า Reaction Spell (1 ใบ/เทิร์น) ไปแล้วในเทิร์นนี้!');
-    return;
-  }
+  if (spell.type === 'NormalSpell' && player.spellQuota.normalUsed >= 1) { setLog('❌ ใช้ Normal Spell ไปแล้ว'); return; }
 
   if (spell.id === 'DS01') {
-    const usedSpell = player.hand.splice(handIndex, 1)[0];
+    const used = player.hand.splice(handIndex, 1)[0];
     player.spellQuota.normalUsed += 1;
-    const drawCount = player.graveyard.length >= 5 ? 2 : 1;
-    drawCards(player, drawCount);
-    player.graveyard.push(usedSpell);
-    gameState.selectedHandIndex = null;
-
-    if (player.board.some(m => m !== null)) {
-      gameState.pendingAction = { type: 'SPELL_DS01_BUFF_TARGET', drawnCount: drawCount };
-      setLog(`✨ [เบิกเนตรแห่งแสง] จั่วการ์ด ${drawCount} ใบแล้ว — คลิกเลือกยูนิตบนสนามของคุณ 1 ใบเพื่อเพิ่มพลังโจมตี +1!`);
-    } else {
-      setLog(`✨ [เบิกเนตรแห่งแสง] จั่วการ์ด ${drawCount} ใบสำเร็จ! (ไม่มีมอนสเตอร์บนสนามให้เพิ่มพลัง)`);
-    }
+    drawCards(player, player.graveyard.length >= 5 ? 2 : 1);
+    player.graveyard.push(used);
+    gameState.pendingAction = { type: 'SPELL_DS01_BUFF_TARGET' };
+    setLog('✨ เบิกเนตรแห่งแสง: เลือกยูนิทเพิ่มพลัง +1');
     renderGame();
     return;
   }
-
-  if (spell.id === 'DS02') {
-    setLog('ℹ️ "พวกเราจะช่วยเอง" เป็นการ์ดป้องกันเมื่ออีกฝ่ายโจมตี (ระบบจะเด้งถามอัตโนมัติเมื่ออีกฝ่ายโจมตีและคุณมียูนิตในนรกครบ 5 ใบ)');
-    return;
-  }
-
-  if (spell.id === 'S01') {
-    const otherHandCards = player.hand.filter((_, idx) => idx !== handIndex);
-    if (otherHandCards.length === 0) {
-      setLog('⚠️ ใช้ "โอ็ยใครเหยียบตีน!!!" ไม่ได้: ต้องมีการ์ดใบอื่นบนมืออย่างน้อย 1 ใบเพื่อใช้ทิ้ง!');
-      return;
-    }
-    if (!ai.board.some(m => m !== null)) {
-      setLog('⚠️ ใช้ "โอ็ยใครเหยียบตีน!!!" ไม่ได้: ฝ่ายตรงข้ามไม่มีมอนสเตอร์บนสนามให้ทำลาย!');
-      return;
-    }
-    gameState.selectedHandIndex = null;
-    gameState.pendingAction = { type: 'SPELL_S01_DISCARD', spellHandIndex: handIndex };
-    setLog('🦶 [โอ็ยใครเหยียบตีน!!!] ขั้นที่ 1: คลิกเลือกการ์ดใบอื่นบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก');
-    renderGame();
-    return;
-  }
-
   if (spell.id === 'S02') {
-    if (!ai.board.some(m => m !== null)) {
-      setLog('⚠️ ใช้ "เชี่ย หุ้นตก" ไม่ได้: ฝ่ายตรงข้ามไม่มีมอนสเตอร์บนสนาม!');
-      return;
-    }
-    const usedSpell = player.hand.splice(handIndex, 1)[0];
+    player.hand.splice(handIndex, 1);
     player.spellQuota.normalUsed += 1;
-    ai.board.forEach(m => {
-      if (m && !m.immuneToEnemyEffectsUntilEndOfTurn) m.tempPowerMod -= 3;
-    });
-    player.graveyard.push(usedSpell);
-    gameState.selectedHandIndex = null;
-    setLog('📉 [เชี่ย หุ้นตก] ลดพลังโจมตีของยูนิทฝ่ายตรงข้ามทุกใบลง 3 หน่วยจนจบเทิร์น!');
+    ai.board.forEach(m => { if (m && !m.immuneToEnemyEffectsUntilEndOfTurn) m.tempPowerMod -= 3; });
     renderGame();
     return;
   }
-
-  if (spell.id === 'S03') {
-    if (!player.board.some(m => m !== null && m.state === 'Stand')) {
-      setLog('⚠️ ใช้ "หนึ่งเดียวเพื่อทุกสิ่ง" ไม่ได้: ไม่มีมอนสเตอร์ฝ่ายเราที่อยู่ในสถานะ Stand!');
-      return;
-    }
-    gameState.selectedHandIndex = null;
-    gameState.pendingAction = { type: 'SPELL_S03_REST_TARGET', spellHandIndex: handIndex };
-    setLog('✨ [หนึ่งเดียวเพื่อทุกสิ่ง] คลิกเลือกยูนิทฝ่ายเราที่ Stand อยู่ 1 ใบเพื่อเปลี่ยนเป็น Rest และเพิ่ม HP ลีดเดอร์ +1');
-    renderGame();
-    return;
-  }
-
-  if (spell.id === 'S04') {
-    const standAllies = player.board.filter(m => m !== null && m.state === 'Stand');
-    if (standAllies.length < 2) {
-      setLog('⚠️ ใช้ "ทุกสิ่งเพื่อหนึ่งเดียว" ไม่ได้: ต้องมียูนิทฝ่ายเราที่อยู่ในสถานะ Stand อย่างน้อย 2 ใบ!');
-      return;
-    }
-    gameState.selectedHandIndex = null;
-    gameState.pendingAction = { type: 'SPELL_S04_REST_FIRST', spellHandIndex: handIndex, firstRestSlot: null };
-    setLog('🌟 [ทุกสิ่งเพื่อหนึ่งเดียว] ขั้นที่ 1/3: คลิกเลือกยูนิทฝ่ายเราที่ Stand อยู่ใบที่ 1 เพื่อเปลี่ยนเป็น Rest');
-    renderGame();
-    return;
-  }
-
-  if (spell.id === 'NS01') {
-    if (!player.graveyard.some(c => isPhraiCard(c))) {
-      setLog('⚠️ ใช้ "หมอไพร่เหนือ" ไม่ได้: ไม่มีมอนสเตอร์ที่มีคำว่า "ไพร่" อยู่ในกองนรก!');
-      return;
-    }
-    openGraveRecoverModal(player, handIndex, isPhraiCard, 'หมอไพร่เหนือ');
-    return;
-  }
-
-  if (spell.id === 'NS02') {
-    if (!player.graveyard.some(c => isSoldierCard(c))) {
-      setLog('⚠️ ใช้ "หมอสนามเหนือ" ไม่ได้: ไม่มีมอนสเตอร์ที่มีคำว่า "ทหาร" อยู่ในกองนรก!');
-      return;
-    }
-    openGraveRecoverModal(player, handIndex, isSoldierCard, 'หมอสนามเหนือ');
-    return;
-  }
-
-  if (spell.id === 'NS04') {
-    if (!player.graveyard.some(c => c.type === 'NormalSpell' || c.type === 'ReactionSpell')) {
-      setLog('⚠️ ใช้ "หน่วยข่าวกรอง" ไม่ได้: ไม่มีการ์ดเวทมนตร์อยู่ในกองนรก!');
-      return;
-    }
-    openGraveRecoverModal(player, handIndex, (c) => c.type === 'NormalSpell' || c.type === 'ReactionSpell', 'หน่วยข่าวกรอง');
-    return;
-  }
-
-  if (spell.id === 'NS05') {
-    if (!ai.board.some(m => m !== null)) {
-      setLog('⚠️ ใช้ "จีวรบิน" ไม่ได้: ฝ่ายตรงข้ามไม่มีมอนสเตอร์บนสนาม!');
-      return;
-    }
-    gameState.selectedHandIndex = null;
-    gameState.pendingAction = { type: 'SPELL_NS05_BOUNCE_TARGET', spellHandIndex: handIndex };
-    setLog('🌪️ [จีวรบิน] คลิกเลือกยูนิทของ AI บนสนาม 1 ใบ เพื่อส่งกลับขึ้นมือฝ่ายตรงข้าม!');
-    renderGame();
-    return;
-  }
-
-  if (spell.id === 'NS03') {
-    const conscriptCount = player.board.filter(m => m !== null && m.id === 'NM04').length;
-    const rangerCount = player.board.filter(m => m !== null && m.id === 'NM03').length;
-    const royalCount = player.board.filter(m => m !== null && m.id === 'NM02').length;
-
-    if (conscriptCount === 0 && rangerCount === 0 && royalCount === 0) {
-      setLog('⚠️ ใช้ "ระเบิดปูพรม" ไม่ได้: ไม่มี ทหารเกณฑ์เหนือ, ทหารพรานเหนือ หรือ ทหารหลวงเหนือ บนสนามของคุณเลย!');
-      return;
-    }
-
-    const usedSpell = player.hand.splice(handIndex, 1)[0];
-    player.spellQuota.normalUsed += 1;
-    player.graveyard.push(usedSpell);
-    gameState.selectedHandIndex = null;
-
-    const effectsLog = [];
-    if (conscriptCount > 0) {
-      player.board.forEach(m => { if (m && isNueaCard(m)) m.tempPowerMod += conscriptCount; });
-      effectsLog.push(`ยูนิทเหนือพลัง +${conscriptCount}`);
-    }
-    if (royalCount > 0) {
-      player.board.forEach(m => { if (m) m.indestructibleUntilNextTurn = true; });
-      effectsLog.push('ยูนิทเราไม่ถูกทำลายจนเริ่มเทิร์นหน้า');
-    }
-    if (rangerCount > 0 && ai.board.some(m => m !== null)) {
-      gameState.pendingAction = { type: 'CARPET_BOMB_DESTROY', remainingKills: rangerCount };
-      setLog(`💣 [ระเบิดปูพรม] (${effectsLog.join(', ')}) -> กรุณาคลิกเลือกยูนิทของ AI เพื่อทำลาย (${rangerCount} ครั้ง)!`);
-    } else {
-      setLog(`💣 [ระเบิดปูพรม] ทำงานสำเร็จ: ${effectsLog.join(' | ')}!`);
-    }
-    renderGame();
-  }
-}
-
-function openGraveRecoverModal(contestant, spellHandIndex, filterFn, spellTitle) {
-  const candidates = [];
-  const seenIds = new Set();
-  contestant.graveyard.forEach(c => {
-    if (filterFn(c) && !seenIds.has(c.id)) {
-      seenIds.add(c.id);
-      candidates.push(c);
-    }
-  });
-
-  const options = candidates.map(targetCard => ({
-    label: `นำ "${targetCard.name}" ขึ้นมือ`,
-    color: '#16a34a',
-    onSelect: () => {
-      const usedSpell = contestant.hand.splice(spellHandIndex, 1)[0];
-      contestant.spellQuota.normalUsed += 1;
-
-      const gIdx = contestant.graveyard.findIndex(c => c.id === targetCard.id);
-      if (gIdx !== -1) {
-        const recovered = contestant.graveyard.splice(gIdx, 1)[0];
-        resetCardStateForZoneChange(recovered);
-        contestant.hand.push(recovered);
-      }
-
-      resetCardStateForZoneChange(usedSpell);
-      contestant.graveyard.push(usedSpell);
-      setLog(`✨ [${spellTitle}] นำ "${targetCard.name}" 1 ใบจากกองนรกขึ้นมือสำเร็จ!`);
-      renderGame();
-    }
-  }));
-
-  options.push({ label: 'ยกเลิก', color: '#475569', onSelect: () => renderGame() });
-  showChoiceModal(`🪦 ${spellTitle}`, 'เลือกการ์ด 1 ใบจากกองนรกเพื่อนำกลับขึ้นมือ:', options);
 }
 
 
 /* ============================================================================
-   หมวดที่ 6: ระบบจัดการเทิร์น และการคลิกของผู้เล่น (รองรับการวางทับช่องเดิม)
+   หมวดที่ 6: ระบบจัดการเทิร์น และคลิกกระดาน (รองรับวางทับ)
    ============================================================================ */
 function canContestantAttack(contestant, monster) {
-  if (gameState.gameOver) return { allowed: false, reason: 'เกมจบแล้ว' };
-  if (!monster || monster.state !== 'Stand') {
-    return { allowed: false, reason: 'ยูนิทต้องอยู่ในสถานะ Stand เท่านั้นจึงจะโจมตีได้' };
-  }
-  if (contestant.isFirstPlayer && contestant.turnsTaken === 1) {
-    return { allowed: false, reason: '🚫 กฎผู้เล่นเริ่มคนแรก: ห้ามโจมตีใน Turn 1!' };
-  }
-  if (!contestant.isFirstPlayer && contestant.turnsTaken === 1 && contestant.attacksThisTurn >= 1) {
-    return { allowed: false, reason: '🚫 กฎผู้เล่นเริ่มคนที่สอง: ในเทิร์นแรกของตัวเอง โจมตีได้เพียง 1 ครั้ง!' };
-  }
+  if (gameState.gameOver) return { allowed: false, reason: 'จบเกมแล้ว' };
+  if (!monster || monster.state !== 'Stand') return { allowed: false, reason: 'ยูนิทต้อง Stand' };
+  if (contestant.isFirstPlayer && contestant.turnsTaken === 1) return { allowed: false, reason: 'ห้ามตีเทิร์น 1' };
   return { allowed: true };
 }
 
@@ -2066,1027 +842,171 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
   contestant.spellQuota.reactionUsed = 0;
 
   drawCards(contestant, 1);
+  contestant.board.forEach(m => { if (m) { m.state = 'Stand'; m.usedSkills = {}; m.indestructibleUntilNextTurn = false; } });
 
-  contestant.board.forEach(m => {
-    if (m) {
-      m.state = 'Stand';
-      m.usedSkills = {};
-      m.indestructibleUntilNextTurn = false;
-    }
-  });
-
-  if (contestant.leader && contestant.leader.id === 'L02') {
-    triggerKhunNueaStartTurn(contestant);
-    if (onStartEffectsComplete) onStartEffectsComplete();
-    return;
-  }
-
+  if (contestant.leader && contestant.leader.id === 'L02') { triggerKhunNueaStartTurn(contestant); if (onStartEffectsComplete) onStartEffectsComplete(); return; }
   triggerDoomsdayStartTurnQueue(contestant, onStartEffectsComplete);
 }
 
 function executeEndPhaseCleanup(activeContestant) {
   activeContestant.board.forEach((m, idx) => {
     if (!m) return;
-
-    // 1. ยูนิตความสามารถ "อนาคต": เมื่อจบเทิร์นนำยูนิตนี้ลงนรก แล้วคอลร่างต้นจากมิติมืดลงสนาม
     if (m.returnFromDarkDimensionId) {
       const baseId = m.returnFromDarkDimensionId;
-      const futureName = m.name;
       activeContestant.board[idx] = null;
-      resetCardStateForZoneChange(m);
-      activeContestant.graveyard.push(m);
-
+      activeContestant.graveyard.push(resetCardStateForZoneChange(m));
       const darkIdx = activeContestant.darkDimension.findIndex(d => d.id === baseId);
       if (darkIdx !== -1) {
-        const returnedUnit = activeContestant.darkDimension.splice(darkIdx, 1)[0];
-        resetCardStateForZoneChange(returnedUnit);
-        returnedUnit.state = 'Stand';
-        activeContestant.board[idx] = returnedUnit;
-        setLog(`🌌 [จบเทิร์นอนาคต] นำ "${futureName}" ลงนรก และคอล "${returnedUnit.name}" จากมิติมืดกลับลงสนาม!`);
+        const returned = resetCardStateForZoneChange(activeContestant.darkDimension.splice(darkIdx, 1)[0]);
+        returned.state = 'Stand';
+        activeContestant.board[idx] = returned;
       }
       return;
     }
-
-    // 2. เอ็นเดจิต (M05): ทำลายเมื่อจบเทิร์นที่ใช้สกิล
-    if (m.destroyAtEndOfTurn) {
-      destroyBoardMonster(activeContestant, idx);
-      setLog(`🔥 "${m.name}" ถูกทำลายเมื่อจบเทิร์นตามเงื่อนไขความสามารถ!`);
-    }
+    if (m.destroyAtEndOfTurn) destroyBoardMonster(activeContestant, idx);
   });
-
-  [gameState.player, gameState.ai].forEach(side => {
-    side.board.forEach(m => {
-      if (m) {
-        m.tempPowerMod = 0;
-        m.immuneToEnemyEffectsUntilEndOfTurn = false;
-      }
-    });
-  });
+  [gameState.player, gameState.ai].forEach(side => side.board.forEach(m => { if (m) { m.tempPowerMod = 0; m.immuneToEnemyEffectsUntilEndOfTurn = false; } }));
 }
 
-// เมื่อผู้เล่นคลิกที่การ์ดบนมือตัวเอง
 function handleHandCardClick(handIndex) {
-  if (gameState.gameOver || gameState.isRollingDice || gameState.activeTurn !== 'player' || gameState.phase !== 'Main Phase') {
-    setLog('⚠️ ใช้งานการ์ดบนมือได้เฉพาะใน Main Phase ของคุณเท่านั้น!');
-    return;
-  }
-
+  if (gameState.gameOver || gameState.activeTurn !== 'player' || gameState.phase !== 'Main Phase') return;
   const player = gameState.player;
-  const ai = gameState.ai;
-  const clickedCard = player.hand[handIndex];
-  if (!clickedCard) return;
+  const card = player.hand[handIndex];
+  if (!card) return;
 
-  // กรณีที่ 1: อยู่ระหว่างรอคลิกเลือกการ์ดบนมือเพื่อทิ้ง
   if (gameState.pendingAction) {
     if (gameState.pendingAction.type === 'ONAMI_DISCARD_HAND') {
-      const sourceMonster = player.board[gameState.pendingAction.sourceSlot];
-      const discarded = player.hand.splice(handIndex, 1)[0];
-      resetCardStateForZoneChange(discarded);
-      player.graveyard.push(discarded);
-
-      let tsururuMsg = '';
-      if (discarded.id === 'DM05' && ai.hand.length > 0) {
-        const aiDiscarded = ai.hand.pop();
-        resetCardStateForZoneChange(aiDiscarded);
-        ai.graveyard.push(aiDiscarded);
-        tsururuMsg = ` + 🍬 [ออโต้ซึรุรุ] AI ถูกบังคับทิ้งมือ "${aiDiscarded.name}" 1 ใบ!`;
-      }
-
-      let roseliaCard = null;
-      const gIdx = player.graveyard.findIndex(c => c.id === 'DM02');
-      if (gIdx !== -1) {
-        roseliaCard = player.graveyard.splice(gIdx, 1)[0];
-      } else {
-        const dIdx = player.deck.findIndex(c => c.id === 'DM02');
-        if (dIdx !== -1) {
-          roseliaCard = player.deck.splice(dIdx, 1)[0];
-        }
-      }
+      player.graveyard.push(resetCardStateForZoneChange(player.hand.splice(handIndex, 1)[0]));
+      let roselia = player.graveyard.findIndex(c => c.id === 'DM02') !== -1 ? player.graveyard.splice(player.graveyard.findIndex(c => c.id === 'DM02'), 1)[0] : player.deck.splice(player.deck.findIndex(c => c.id === 'DM02'), 1)[0];
       player.deck = shuffleDeck(player.deck);
-
-      if (sourceMonster) sourceMonster.usedSkills.onamiSummon = true;
       gameState.pendingAction = null;
-
-      if (roseliaCard) {
-        resetCardStateForZoneChange(roseliaCard);
-        roseliaCard.state = 'Stand';
-        roseliaCard.immuneToEnemyEffectsUntilEndOfTurn = true;
-
-        const emptySlot = player.board.findIndex(m => m === null);
-        if (emptySlot !== -1) {
-          player.board[emptySlot] = roseliaCard;
-          setLog(`🌊 [โอนามิ] ทิ้ง "${discarded.name}" อัญเชิญ "โรเซเลีย" ลงสนาม (ไม่โดนสกิลอีกฝ่ายจนจบเทิร์น)!${tsururuMsg}`);
-        } else {
-          gameState.pendingAction = {
-            type: 'CALL_FROM_EFFECT_SELECT_SLOT',
-            cardToPlace: roseliaCard,
-            onAfterPlace: null
-          };
-          setLog(`🌊 [โอนามิ] ทิ้ง "${discarded.name}" แล้ว${tsururuMsg} — สนามเต็ม 3 ช่อง คลิกเลือกช่องบนสนามของคุณเพื่อวาง "โรเซเลีย" ทับ!`);
-        }
+      if (roselia) {
+        resetCardStateForZoneChange(roselia);
+        roselia.state = 'Stand';
+        const empty = player.board.findIndex(m => m === null);
+        if (empty !== -1) player.board[empty] = roselia;
+        else gameState.pendingAction = { type: 'CALL_FROM_EFFECT_SELECT_SLOT', cardToPlace: roselia, onAfterPlace: null };
       }
       renderGame();
       return;
     }
-
-    if (gameState.pendingAction.type === 'TODORO_SKILL1_DISCARD') {
-      const sourceMonster = player.board[gameState.pendingAction.sourceSlot];
-      const discarded = player.hand.splice(handIndex, 1)[0];
-      resetCardStateForZoneChange(discarded);
-      player.graveyard.push(discarded);
-
-      let milledMsg = '';
-      if (ai.deck.length > 0) {
-        const milled = ai.deck.pop();
-        resetCardStateForZoneChange(milled);
-        ai.graveyard.push(milled);
-        milledMsg = ` และส่ง "${milled.name}" ใบบนสุดของกอง AI ลงนรก!`;
-      }
-      if (sourceMonster) sourceMonster.usedSkills.todoroMill = true;
-      gameState.pendingAction = null;
-      setLog(`❄️ [โทโดโรจิต] ทิ้ง "${discarded.name}" จากมือ${milledMsg}`);
-      renderGame();
-      return;
-    }
-
-    if (gameState.pendingAction.type === 'SPELL_S01_DISCARD') {
-      if (handIndex === gameState.pendingAction.spellHandIndex) {
-        setLog('⚠️ กรุณาคลิกเลือกการ์ดใบอื่นบนมือเพื่อใช้ทิ้ง!');
-        return;
-      }
-      gameState.pendingAction.discardHandIndex = handIndex;
-      gameState.pendingAction.type = 'SPELL_S01_DESTROY_TARGET';
-      setLog(`🦶 [โอ็ยใครเหยียบตีน!!!] เลือกทิ้ง "${clickedCard.name}" แล้ว — คลิกเลือกยูนิทของ AI บนสนามที่ต้องการทำลาย!`);
-      renderGame();
-      return;
-    }
-
-    setLog('⚠️ กรุณาคลิกเลือกเป้าหมายบนสนามตามที่ระบบแจ้งเตือนอยู่!');
-    return;
   }
 
-  // กรณีที่ 2: คลิกการ์ด Monster บนมือ
-  if (clickedCard.type === 'Monster') {
-    if (clickedCard.id === 'M04') {
-      setLog('🚫 "ออลฟอจิต" ไม่สามารถอัญเชิญแบบปกติได้!');
-      return;
-    }
-
-    // การ์ดอนาคต (DM09-DM14) หรือ แอชชี่ล่า (DM07)
-    if (clickedCard.id === 'DM07' || clickedCard.futureBaseId) {
-      handleDoomsdayHandMenu(handIndex);
-      return;
-    }
-
-    // การ์ดเด็คเหนือที่มีสกิลสั่งใช้จากมือ (NM01, NM02, NM03)
-    if (clickedCard.id === 'NM01' || clickedCard.id === 'NM02' || clickedCard.id === 'NM03') {
-      handleNueaHandAbilityMenu(handIndex);
-      return;
-    }
-
-    // สายลับไพร่เหนือ (NM05)
-    if (clickedCard.id === 'NM05' || clickedCard.isSpy) {
-      if (!ai.board.some(m => m === null)) {
-        setLog('⚠️ สนามของฝ่ายตรงข้ามเต็มทั้ง 3 ช่อง จึงไม่สามารถส่งสายลับไปลงได้!');
-        return;
-      }
-      gameState.selectedHandIndex = (gameState.selectedHandIndex === handIndex) ? null : handIndex;
-      setLog(gameState.selectedHandIndex !== null
-        ? '🕵️ เลือก "สายลับไพร่เหนือ" แล้ว — คลิกที่ช่องว่างบนสนามของ AI (ด้านบน) เพื่อส่งสายลับลงไป!'
-        : 'ยกเลิกการเลือกสายลับ');
-      renderGame();
-      return;
-    }
-
-    gameState.selectedHandIndex = (gameState.selectedHandIndex === handIndex) ? null : handIndex;
-    setLog(gameState.selectedHandIndex !== null
-      ? `👉 เลือก "${clickedCard.name}" แล้ว — คลิกที่ช่องบนสนามของคุณเพื่อลงสนาม (หากคลิกช่องที่มีมอนสเตอร์อยู่ ใบเดิมจะถูกส่งลงนรกโดยไม่ถือว่าถูกทำลาย)!`
-      : 'ยกเลิกการเลือกการ์ดบนมือ');
+  if (card.type === 'Monster') {
+    if (card.id === 'DM07' || card.futureBaseId) { handleDoomsdayHandMenu(handIndex); return; }
+    if (card.id === 'NM01' || card.id === 'NM02' || card.id === 'NM03') { handleNueaHandAbilityMenu(handIndex); return; }
+    gameState.selectedHandIndex = handIndex;
     renderGame();
     return;
   }
-
-  if (clickedCard.type === 'NormalSpell' || clickedCard.type === 'ReactionSpell') {
-    initiatePlayerSpell(handIndex);
-  }
+  initiatePlayerSpell(handIndex);
 }
 
-// เมื่อผู้เล่นคลิกที่ช่องบนสนามฝั่งตัวเอง
 function handlePlayerSlotClick(slotIndex) {
-  if (gameState.gameOver || gameState.isRollingDice || gameState.activeTurn !== 'player') return;
+  if (gameState.gameOver || gameState.activeTurn !== 'player') return;
   const player = gameState.player;
-
-  if (slotIndex === 'leader') {
-    activateLeaderSkillPlayer();
-    return;
-  }
+  if (slotIndex === 'leader') { activateLeaderSkillPlayer(); return; }
 
   const slotMonster = player.board[slotIndex];
 
-  // --- ส่วนที่ 1: หากกำลังรอเลือกเป้าหมายฝั่งตัวเอง ---
   if (gameState.pendingAction) {
     const action = gameState.pendingAction;
-
-    // 1.0 โหมดเลือกช่องเพื่อวางการ์ดที่คอลมาจากสกิลเมื่อสนามเต็ม 3 ช่อง (ส่งใบเดิมลงนรกโดยไม่ถือว่าถูกทำลาย)
     if (action.type === 'CALL_FROM_EFFECT_SELECT_SLOT') {
-      const cardToPlace = action.cardToPlace;
-      const callback = action.onAfterPlace;
-      let overwriteMsg = '';
-      if (slotMonster !== null) {
-        const overwritten = sendOverwrittenMonsterToGrave(player, slotIndex);
-        overwriteMsg = ` (วางทับ "${overwritten.name}" ส่งลงนรกโดยไม่ถือว่าถูกทำลาย)`;
-      }
-      player.board[slotIndex] = cardToPlace;
+      if (slotMonster !== null) sendOverwrittenMonsterToGrave(player, slotIndex);
+      player.board[slotIndex] = action.cardToPlace;
       gameState.pendingAction = null;
-      setLog(`✨ คอล "${cardToPlace.name}" ลงช่องที่ ${slotIndex + 1} สำเร็จ!${overwriteMsg}`);
       renderGame();
-      if (callback) callback();
+      if (action.onAfterPlace) action.onAfterPlace();
       return;
     }
-
-    if (action.type === 'SPELL_DS01_BUFF_TARGET') {
-      if (!slotMonster) {
-        setLog('⚠️ กรุณาคลิกเลือกช่องที่มียูนิทของคุณอยู่!');
-        return;
-      }
+    if (action.type === 'SPELL_DS01_BUFF_TARGET' && slotMonster) {
       slotMonster.tempPowerMod += 1;
       gameState.pendingAction = null;
-      setLog(`✨ [เบิกเนตรแห่งแสง] จั่ว ${action.drawnCount} ใบ และเพิ่มพลังให้ "${slotMonster.name}" +1 (เป็น ${getEffectivePower(slotMonster, player)})!`);
       renderGame();
       return;
     }
-
-    // ⭐ อัญเชิญจุติ (รองรับทั้งช่องว่างและวางทับช่องที่มีมอนสเตอร์อยู่)
-    if (action.type === 'JUTI_SELECT_SLOT') {
-      const summonIdx = action.summonHandIndex;
-      const peasantIdx = player.hand.findIndex((c, idx) => idx !== summonIdx && c.id === 'NM01');
-      if (peasantIdx === -1) {
-        gameState.pendingAction = null;
-        renderGame();
-        return;
-      }
-
-      const summonedCard = player.hand[summonIdx];
-      const peasantCard = player.hand[peasantIdx];
-      [summonIdx, peasantIdx].sort((a, b) => b - a).forEach(idx => player.hand.splice(idx, 1));
-
-      resetCardStateForZoneChange(peasantCard);
-      player.graveyard.push(peasantCard);
-
-      let overwriteMsg = '';
-      if (slotMonster !== null) {
-        const overwritten = sendOverwrittenMonsterToGrave(player, slotIndex);
-        overwriteMsg = ` (วางทับ "${overwritten.name}" ส่งลงนรกโดยไม่ถือว่าถูกทำลาย)`;
-      }
-
-      resetCardStateForZoneChange(summonedCard);
-      summonedCard.state = 'Stand';
-      summonedCard.permPowerMod += 1;
-      player.board[slotIndex] = summonedCard;
-      gameState.pendingAction = null;
-
-      setLog(`🔥 อัญเชิญจุติ "${summonedCard.name}" (พลัง +1 เป็น ${getEffectivePower(summonedCard, player)}) สำเร็จ!${overwriteMsg}`);
-      if (summonedCard.id === 'NM02') triggerRoyalGuardJutiBonus(player);
-      renderGame();
-      return;
-    }
-
-    if (action.type === 'RANGER_SELECT_UNIT') {
-      if (!slotMonster) {
-        setLog('⚠️ กรุณาคลิกช่องที่มียูนิทอยู่!');
-        return;
-      }
-      const ranger = player.board[action.sourceSlot];
-      slotMonster.permPowerMod += 1;
-      if (ranger) ranger.usedSkills.rangerTarget = true;
-      gameState.pendingAction = null;
-      setLog(`🏹 [ทหารพรานเหนือ] เพิ่มพลังโจมตีให้ "${slotMonster.name}" ฝั่งเรา +1!`);
-      renderGame();
-      return;
-    }
-
-    if (action.type === 'LEADER_L01_TARGET') {
-      if (!slotMonster) {
-        setLog('⚠️ กรุณาคลิกช่องที่มียูนิทฝ่ายเราอยู่!');
-        return;
-      }
-      slotMonster.tempPowerMod += 1;
-      player.leader.abilityUsedThisTurn = true;
-      gameState.pendingAction = null;
-      setLog(`👑 [มายฮีโร่ เดจิต] เพิ่มพลังโจมตีให้ "${slotMonster.name}" +1 จนจบเทิร์น!`);
-      renderGame();
-      return;
-    }
-
-    if (action.type === 'SPELL_S03_REST_TARGET') {
-      if (!slotMonster || slotMonster.state !== 'Stand') {
-        setLog('⚠️ กรุณาคลิกเลือกยูนิทฝ่ายเราที่อยู่ในสถานะ Stand เท่านั้น!');
-        return;
-      }
-      const usedSpell = player.hand.splice(action.spellHandIndex, 1)[0];
-      player.spellQuota.normalUsed += 1;
-      slotMonster.state = 'Rest';
-      const oldHp = player.leader.hp;
-      player.leader.hp = Math.min(player.leader.maxHp, player.leader.hp + 1);
-      player.graveyard.push(usedSpell);
-      gameState.pendingAction = null;
-      setLog(`✨ [หนึ่งเดียวเพื่อทุกสิ่ง] เปลี่ยน "${slotMonster.name}" เป็น Rest และฟื้นฟู HP ลีดเดอร์ (${oldHp} -> ${player.leader.hp}/6)!`);
-      renderGame();
-      return;
-    }
-
-    if (action.type === 'SPELL_S04_REST_FIRST') {
-      if (!slotMonster || slotMonster.state !== 'Stand') {
-        setLog('⚠️ กรุณาคลิกเลือกยูนิทฝ่ายเราที่อยู่ในสถานะ Stand ใบที่ 1!');
-        return;
-      }
-      action.firstRestSlot = slotIndex;
-      action.type = 'SPELL_S04_REST_SECOND';
-      setLog(`🌟 [ทุกสิ่งเพื่อหนึ่งเดียว] เลือก "${slotMonster.name}" แล้ว — ขั้นที่ 2/3: คลิกเลือกยูนิทที่ Stand ใบที่ 2 เพื่อ Rest`);
-      renderGame();
-      return;
-    }
-
-    if (action.type === 'SPELL_S04_REST_SECOND') {
-      if (slotIndex === action.firstRestSlot || !slotMonster || slotMonster.state !== 'Stand') {
-        setLog('⚠️ กรุณาคลิกเลือกยูนิทที่ Stand อยู่คนละใบกับใบแรก!');
-        return;
-      }
-      action.secondRestSlot = slotIndex;
-      action.type = 'SPELL_S04_CHOOSE_BENEFICIARY';
-      setLog('🌟 [ทุกสิ่งเพื่อหนึ่งเดียว] ขั้นที่ 3/3: คลิกเลือกยูนิทฝ่ายเรา 1 ใบบนสนามเพื่อรับความสามารถพิเศษ!');
-      renderGame();
-      return;
-    }
-
-    if (action.type === 'SPELL_S04_CHOOSE_BENEFICIARY') {
-      if (!slotMonster) {
-        setLog('⚠️ กรุณาคลิกเลือกยูนิทฝ่ายเรา 1 ใบบนสนาม!');
-        return;
-      }
-      const usedSpell = player.hand.splice(action.spellHandIndex, 1)[0];
-      player.spellQuota.normalUsed += 1;
-      if (player.board[action.firstRestSlot]) player.board[action.firstRestSlot].state = 'Rest';
-      if (player.board[action.secondRestSlot]) player.board[action.secondRestSlot].state = 'Rest';
-      slotMonster.burnLeaderOnKill = true;
-      player.graveyard.push(usedSpell);
-      gameState.pendingAction = null;
-      setLog(`🌟 [ทุกสิ่งเพื่อหนึ่งเดียว] มอบสกิลออโต้ให้ "${slotMonster.name}" สำเร็จ!`);
-      renderGame();
-      return;
-    }
-
-    return;
   }
 
-  // --- ส่วนที่ 2: การวาง Monster จากมือลงสนามตัวเอง (รองรับการวางทับช่องที่มีมอนสเตอร์อยู่แล้ว) ---
+  // ⭐ อัญเชิญลงสนาม หรือ วางทับช่องเดิม
   if (gameState.phase === 'Main Phase' && gameState.selectedHandIndex !== null) {
-    const selectedCard = player.hand[gameState.selectedHandIndex];
-    if (!selectedCard || selectedCard.type !== 'Monster') return;
-
-    if (selectedCard.cannotNormalSummon) {
-      setLog(`🚫 "${selectedCard.name}" ไม่สามารถอัญเชิญแบบปกติได้!`);
-      gameState.selectedHandIndex = null;
-      renderGame();
-      return;
-    }
-
-    if (selectedCard.id === 'NM05' || selectedCard.isSpy) {
-      setLog('🕵️ "สายลับไพร่เหนือ" ต้องคลิกวางลงบนช่องว่างของสนามฝ่ายตรงข้าม (ด้านบน)!');
-      return;
-    }
-
-    // ⭐ หากช่องที่คลิกมียูนิทวางอยู่แล้ว ให้ส่งใบเดิมลงนรกโดยไม่ถือว่าถูกทำลาย
-    let overwriteMsg = '';
-    if (player.board[slotIndex] !== null) {
-      const overwritten = sendOverwrittenMonsterToGrave(player, slotIndex);
-      overwriteMsg = ` (วางทับ "${overwritten.name}" ส่งลงนรกโดยไม่ถือว่าถูกทำลาย)`;
-    }
-
-    const summoned = player.hand.splice(gameState.selectedHandIndex, 1)[0];
-    resetCardStateForZoneChange(summoned);
-    summoned.state = 'Stand';
-
-    if (summoned.id === 'NM04') summoned.permPowerMod += 1;
-
-    player.board[slotIndex] = summoned;
+    if (player.board[slotIndex] !== null) sendOverwrittenMonsterToGrave(player, slotIndex);
+    player.board[slotIndex] = resetCardStateForZoneChange(player.hand.splice(gameState.selectedHandIndex, 1)[0]);
+    player.board[slotIndex].state = 'Stand';
     gameState.selectedHandIndex = null;
-
-    if (summoned.id === 'M01') {
-      const hasEnemy = gameState.ai.board.some(m => m !== null);
-      if (hasEnemy) {
-        gameState.pendingAction = { type: 'BAKU_DESTROY_TARGET' };
-        setLog(`💥 อัญเชิญ "บาคุจิต" สำเร็จ!${overwriteMsg} -> กรุณาคลิกเลือกยูนิทของ AI บนสนาม 1 ใบเพื่อทำลาย!`);
-      } else {
-        setLog(`✅ อัญเชิญ "บาคุจิต" ลงสนามสำเร็จ!${overwriteMsg} (ฝ่ายตรงข้ามไม่มีมอนสเตอร์ให้ทำลาย)`);
-      }
-      renderGame();
-      return;
-    }
-
-    setLog(`✅ อัญเชิญ "${summoned.name}" (Power ${getEffectivePower(summoned, player)}) ลงช่องที่ ${slotIndex + 1} สำเร็จ!${overwriteMsg}`);
     renderGame();
     return;
   }
 
-  // --- ส่วนที่ 3: คลิกยูนิทบนสนามตัวเองใน Main Phase เพื่อเปิดใช้สกิล ---
-  if (gameState.phase === 'Main Phase' && gameState.selectedHandIndex === null) {
-    if (slotMonster) activateMonsterOnBoardPlayer(slotIndex);
-    return;
-  }
-
-  // --- ส่วนที่ 4: คลิกยูนิทตัวเองใน Battle Phase ---
-  if (gameState.phase === 'Battle Phase') {
-    if (!slotMonster) return;
-
-    if (slotMonster.id === 'DM08' && slotMonster.state === 'Rest') {
-      const hasDebirun = player.board.some(m => m !== null && m.id === 'DM04');
-      if (hasDebirun && player.hand.length >= 3 && !slotMonster.usedSkills.emiReattack) {
-        showChoiceModal(
-          '⚡ สกิลออโต้ของ เอมิ (โจมตีอีกครั้ง)',
-          'บนสนามเรามี "เดบิรุน" อยู่! ต้องการทิ้งการ์ดบนมือ 3 ใบ เพื่อเปลี่ยน เอมิ เป็น Stand และโจมตีอีกครั้งหรือไม่?',
-          [
-            {
-              label: '🔥 ทิ้งการ์ดบนมือ 3 ใบ -> Stand เอมิเพื่อโจมตีอีกครั้ง!',
-              color: '#dc2626',
-              onSelect: () => {
-                for (let i = 0; i < 3; i++) {
-                  const d = player.hand.pop();
-                  resetCardStateForZoneChange(d);
-                  player.graveyard.push(d);
-                }
-                slotMonster.state = 'Stand';
-                slotMonster.usedSkills.emiReattack = true;
-                setLog('⚡ [เอมิ] ทิ้งการ์ดบนมือ 3 ใบ และลุกขึ้น Stand พร้อมโจมตีอีกครั้ง!');
-                renderGame();
-              }
-            },
-            { label: 'ยกเลิก', color: '#475569', onSelect: () => renderGame() }
-          ]
-        );
-        return;
-      }
-    }
-
-    const check = canContestantAttack(player, slotMonster);
-    if (!check.allowed) {
-      setLog(check.reason);
-      return;
-    }
-
+  if (gameState.phase === 'Main Phase' && slotMonster) activateMonsterOnBoardPlayer(slotIndex);
+  if (gameState.phase === 'Battle Phase' && slotMonster) {
     gameState.selectedAttackerSlot = (gameState.selectedAttackerSlot === slotIndex) ? null : slotIndex;
-    setLog(gameState.selectedAttackerSlot !== null
-      ? `⚔️ เลือก "${slotMonster.name}" (Power ${getEffectivePower(slotMonster, player)}) — คลิกที่ยูนิทของ AI หรือคลิกที่ AI Leader เพื่อโจมตี!`
-      : 'ยกเลิกการเลือกยูนิทโจมตี');
     renderGame();
   }
 }
 
 function handleAISlotClick(aiSlotIndex) {
-  if (gameState.gameOver || gameState.activeTurn !== 'player') return;
-  const player = gameState.player;
-  const ai = gameState.ai;
-  const targetMonster = ai.board[aiSlotIndex];
-
-  if (gameState.phase === 'Main Phase' && gameState.selectedHandIndex !== null && !gameState.pendingAction) {
-    const selectedCard = player.hand[gameState.selectedHandIndex];
-    if (selectedCard && (selectedCard.id === 'NM05' || selectedCard.isSpy)) {
-      if (targetMonster !== null) {
-        setLog('⚠️ ช่องนี้ของ AI มียูนิทอยู่แล้ว กรุณาคลิกเลือกช่องว่างของ AI!');
-        return;
-      }
-      const spy = player.hand.splice(gameState.selectedHandIndex, 1)[0];
-      resetCardStateForZoneChange(spy);
-      spy.state = 'Stand';
-      ai.board[aiSlotIndex] = spy;
-      gameState.selectedHandIndex = null;
-      setLog(`🕵️ อัญเชิญ "สายลับไพร่เหนือ" ลงไปยึดช่องที่ ${aiSlotIndex + 1} บนสนามของ AI สำเร็จ!`);
-      renderGame();
-      return;
-    }
-  }
-
-  if (gameState.pendingAction) {
-    const action = gameState.pendingAction;
-
-    if (action.type === 'RANGER_SELECT_UNIT') {
-      if (!targetMonster) {
-        setLog('⚠️ กรุณาคลิกช่องที่มียูนิทอยู่!');
-        return;
-      }
-      if (targetMonster.immuneToEnemyEffectsUntilEndOfTurn) {
-        setLog(`🛡️ "${targetMonster.name}" ไม่ได้รับผลจากความสามารถของการ์ดฝ่ายตรงข้ามในเทิร์นนี้!`);
-        return;
-      }
-      const ranger = player.board[action.sourceSlot];
-      targetMonster.permPowerMod -= 1;
-      if (ranger) ranger.usedSkills.rangerTarget = true;
-      gameState.pendingAction = null;
-      setLog(`🏹 [ทหารพรานเหนือ] ลดพลังโจมตีของ "${targetMonster.name}" ฝั่งตรงข้ามลง 1 หน่วย!`);
-      renderGame();
-      return;
-    }
-
-    if (action.type === 'SPELL_NS05_BOUNCE_TARGET') {
-      if (!targetMonster) {
-        setLog('⚠️ กรุณาคลิกเลือกช่องที่มีมอนสเตอร์ของ AI อยู่!');
-        return;
-      }
-      if (targetMonster.immuneToEnemyEffectsUntilEndOfTurn) {
-        setLog(`🛡️ "${targetMonster.name}" ป้องกันความสามารถการ์ดฝ่ายตรงข้ามในเทิร์นนี้!`);
-        return;
-      }
-      const usedSpell = player.hand.splice(action.spellHandIndex, 1)[0];
-      player.spellQuota.normalUsed += 1;
-      player.graveyard.push(usedSpell);
-
-      ai.board[aiSlotIndex] = null;
-      resetCardStateForZoneChange(targetMonster);
-      ai.hand.push(targetMonster);
-      gameState.pendingAction = null;
-      setLog(`🌪️ [จีวรบิน] ส่ง "${targetMonster.name}" ของ AI กลับขึ้นมือสำเร็จ!`);
-      renderGame();
-      return;
-    }
-
-    if (action.type === 'CARPET_BOMB_DESTROY') {
-      if (!targetMonster) {
-        setLog('⚠️ กรุณาคลิกเลือกช่องที่มีมอนสเตอร์ของ AI อยู่!');
-        return;
-      }
-      destroyBoardMonster(ai, aiSlotIndex, false, true);
-      action.remainingKills -= 1;
-      if (action.remainingKills <= 0 || !ai.board.some(m => m !== null)) {
-        gameState.pendingAction = null;
-        setLog(`💣 [ระเบิดปูพรม] ทำลายเป้าหมายเสร็จสิ้น!`);
-      } else {
-        setLog(`💣 [ระเบิดปูพรม] คลิกเลือกทำลายเพิ่มอีก ${action.remainingKills} ใบ!`);
-      }
-      renderGame();
-      return;
-    }
-
-    if (action.type === 'BAKU_DESTROY_TARGET') {
-      if (!targetMonster) {
-        setLog('⚠️ กรุณาคลิกเลือกช่องที่มีมอนสเตอร์ของ AI อยู่!');
-        return;
-      }
-      destroyBoardMonster(ai, aiSlotIndex, false, true);
-      gameState.pendingAction = null;
-      setLog(`💥 [บาคุจิต] สั่งทำลาย "${targetMonster.name}" ของ AI!`);
-      renderGame();
-      return;
-    }
-
-    if (action.type === 'SPELL_S01_DESTROY_TARGET') {
-      if (!targetMonster) {
-        setLog('⚠️ กรุณาคลิกเลือกช่องที่มีมอนสเตอร์ของ AI อยู่!');
-        return;
-      }
-      const spellIdx = action.spellHandIndex;
-      const discardIdx = action.discardHandIndex;
-      const spellCard = player.hand[spellIdx];
-      const discardCard = player.hand[discardIdx];
-
-      [spellIdx, discardIdx].sort((a, b) => b - a).forEach(idx => player.hand.splice(idx, 1));
-
-      resetCardStateForZoneChange(discardCard);
-      resetCardStateForZoneChange(spellCard);
-      player.graveyard.push(discardCard);
-      player.graveyard.push(spellCard);
-      player.spellQuota.normalUsed += 1;
-
-      destroyBoardMonster(ai, aiSlotIndex, false, true);
-      gameState.pendingAction = null;
-      setLog(`🦶 [โอ็ยใครเหยียบตีน!!!] ทิ้ง "${discardCard.name}" และสั่งทำลาย "${targetMonster.name}" ของ AI!`);
-      renderGame();
-      return;
-    }
-
-    return;
-  }
-
-  if (gameState.phase !== 'Battle Phase' || gameState.selectedAttackerSlot === null) return;
-  if (!targetMonster) {
-    setLog('⚠️ ช่องนี้ไม่มีมอนสเตอร์ของ AI ให้โจมตี!');
-    return;
-  }
-
-  if (targetMonster.id === 'DM03' && ai.board.some(m => m !== null && m.id === 'DM05')) {
-    setLog('🛡️ "มายอา" ไม่ตกเป็นเป้าหมายการโจมตีตราบเท่าที่มี "ซึรุรุ" อยู่บนสนาม!');
-    return;
-  }
-
-  executeAttack(player, ai, gameState.selectedAttackerSlot, 'monster', aiSlotIndex);
+  if (gameState.gameOver || gameState.activeTurn !== 'player' || gameState.phase !== 'Battle Phase' || gameState.selectedAttackerSlot === null) return;
+  executeAttack(gameState.player, gameState.ai, gameState.selectedAttackerSlot, 'monster', aiSlotIndex);
 }
 
 document.getElementById('ai-leader-box').addEventListener('click', () => {
-  if (gameState.gameOver || gameState.activeTurn !== 'player' || gameState.phase !== 'Battle Phase') return;
-  if (gameState.pendingAction || gameState.selectedAttackerSlot === null) return;
-
+  if (gameState.gameOver || gameState.activeTurn !== 'player' || gameState.phase !== 'Battle Phase' || gameState.selectedAttackerSlot === null) return;
   executeAttack(gameState.player, gameState.ai, gameState.selectedAttackerSlot, 'leader', null);
 });
 
 
 /* ============================================================================
-   หมวดที่ 7: ระบบการต่อสู้, มายอา, พวกเราจะช่วยเอง, ออลจิต/ออลฟอจิต และ INTERCEPT
+   หมวดที่ 7: ระบบการต่อสู้และ Intercept
    ============================================================================ */
 function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot, onCompleteCallback = null) {
   const attackingMonster = attacker.board[attackerSlot];
-  const check = canContestantAttack(attacker, attackingMonster);
-  if (!check.allowed) {
-    if (onCompleteCallback) onCompleteCallback();
-    return;
-  }
+  if (!canContestantAttack(attacker, attackingMonster).allowed) return;
 
   attackingMonster.state = 'Rest';
   attacker.attacksThisTurn += 1;
   gameState.selectedAttackerSlot = null;
 
-  checkDefenderAttackReactions(attacker, defender, attackerSlot, targetType, targetSlot, onCompleteCallback);
-}
-
-function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetType, targetSlot, onCompleteCallback) {
-  const attackingMonster = attacker.board[attackerSlot];
-  if (!attackingMonster) {
-    if (onCompleteCallback) onCompleteCallback();
-    return;
-  }
-
-  const continueNormalAttackFlow = () => {
-    if (targetType === 'monster') {
-      const msg = compareAndDestroyMonsters(attacker, attackerSlot, defender, targetSlot);
-      setLog(`⚔️ [${attacker.name}] สั่ง "${attackingMonster.name}" โจมตี! -> ${msg}`);
-      renderGame();
-      checkGameOver();
-      if (onCompleteCallback) onCompleteCallback();
-    } else {
-      checkWhenLeaderAttacked(attacker, defender, attackerSlot, onCompleteCallback);
-    }
-  };
-
-  const canUseMayaOnce = defender.board.some(m => m !== null && m.id === 'DM03')
-    && !defender.mayaOncePerGameUsed
-    && defender.deck.length > 0;
-
-  const nonSpellsInGrave = defender.graveyard.filter(c => c.type === 'Monster');
-  const ds02InHandIdx = defender.hand.findIndex(c => c.id === 'DS02');
-  const canUseWeWillHelp = (ds02InHandIdx !== -1)
-    && (nonSpellsInGrave.length >= 5)
-    && (defender.spellQuota.reactionUsed < 1);
-
-  if (defender.name === 'Player' && (canUseMayaOnce || canUseWeWillHelp)) {
-    const options = [];
-
-    if (canUseMayaOnce) {
-      options.push({
-        label: '🔮 สั่งใช้สกิล 1 เกมของ "มายอา": เปิดท็อปกอง 1 ใบ ถ้าเป็น "โซเนบุ" อีกฝ่ายจบเทิร์นทันที!',
-        color: '#7c3aed',
-        onSelect: () => {
-          defender.mayaOncePerGameUsed = true;
-          const topCard = defender.deck[defender.deck.length - 1];
-          if (topCard && topCard.id === 'DM06') {
-            setLog(`🔮 [มายอา - 1 เกม] เปิดท็อปกองพบ "${topCard.name}"! บังคับให้ ${attacker.name} จบเทิร์นทันที!`);
-            renderGame();
-            endAITurn();
-          } else {
-            setLog(`🔮 [มายอา - 1 เกม] เปิดท็อปกองได้ "${topCard ? topCard.name : '-'}" (ไม่ใช่โซเนบุ การโจมตีดำเนินต่อ)`);
-            renderGame();
-            continueNormalAttackFlow();
-          }
-        }
-      });
-    }
-
-    if (canUseWeWillHelp) {
-      options.push({
-        label: '🛡️ ใช้การ์ด "พวกเราจะช่วยเอง": นำยูนิต 5 ใบในนรกกลับเข้ากอง แล้วยกเลิกการโจมตี!',
-        color: '#0284c7',
-        onSelect: () => {
-          const spellCard = defender.hand.splice(ds02InHandIdx, 1)[0];
-          defender.spellQuota.reactionUsed += 1;
-
-          let returnedCount = 0;
-          for (let i = defender.graveyard.length - 1; i >= 0 && returnedCount < 5; i--) {
-            if (defender.graveyard[i].type === 'Monster') {
-              const unit = defender.graveyard.splice(i, 1)[0];
-              resetCardStateForZoneChange(unit);
-              defender.deck.push(unit);
-              returnedCount += 1;
-            }
-          }
-          defender.deck = shuffleDeck(defender.deck);
-          defender.graveyard.push(spellCard);
-
-          if (attackingMonster.id === 'DM06') {
-            const atkRoll = Math.floor(Math.random() * 6) + 1;
-            const defRoll = Math.floor(Math.random() * 6) + 1;
-            if (atkRoll < defRoll) {
-              setLog(`🎲 [ออโต้ - โซเนบุ] โซเนบุทอยได้ [${atkRoll}] น้อยกว่าคุณ [${defRoll}] -> โซเนบุชนะ! เวทย์ "พวกเราจะช่วยเอง" ไร้ผล!`);
-              renderGame();
-              continueNormalAttackFlow();
-              return;
-            }
-            setLog(`🎲 [ออโต้ - โซเนบุ] คุณทอยได้ [${defRoll}] น้อยกว่าหรือเท่ากับโซเนบุ [${atkRoll}] -> ยกเลิกการโจมตีสำเร็จ!`);
-          } else {
-            setLog('🛡️ [พวกเราจะช่วยเอง] นำยูนิต 5 ใบในนรกกลับเข้ากองและสับกอง — ยกเลิกการโจมตีสำเร็จ!');
-          }
-          renderGame();
-          if (onCompleteCallback) onCompleteCallback();
-        }
-      });
-    }
-
-    options.push({
-      label: 'ไม่ใช้ (ดำเนินการป้องกันตามปกติ)',
-      color: '#475569',
-      onSelect: () => continueNormalAttackFlow()
-    });
-
-    showChoiceModal(
-      '⚡ ฝ่ายตรงข้ามประกาศโจมตี!',
-      `"${attackingMonster.name}" กำลังโจมตีเข้ามา! คุณต้องการเปิดใช้ความสามารถตอบโต้หรือไม่?`,
-      options
-    );
-    return;
-  }
-
-  continueNormalAttackFlow();
-}
-
-function checkWhenLeaderAttacked(attacker, defender, attackerSlot, onCompleteCallback) {
-  const attackingMonster = attacker.board[attackerSlot];
-  if (!attackingMonster) {
-    if (onCompleteCallback) onCompleteCallback();
-    return;
-  }
-
-  const canUseAllForJit = defender.leader.hp <= 2
-    && !defender.allForJitUsed
-    && defender.graveyard.some(c => c.id === 'M04');
-
-  const canUseAllJit = defender.hand.some(c => c.id === 'M03')
-    && defender.board.some(m => m === null);
-
-  if (defender.name === 'AI') {
-    if (canUseAllForJit) {
-      resolveAllForJitTrigger(attacker, defender, attackerSlot, onCompleteCallback);
-      return;
-    }
-    if (canUseAllJit) {
-      resolveAllJitFromHand(attacker, defender, attackerSlot, onCompleteCallback);
-      return;
-    }
-    proceedToStandardIntercept(attacker, defender, attackerSlot, onCompleteCallback);
-    return;
-  }
-
-  if (canUseAllForJit || canUseAllJit) {
-    const options = [];
-    if (canUseAllForJit) {
-      options.push({
-        label: '💀 สั่งใช้ "ออลฟอจิต" จากนรก (1 ครั้ง/เกม: ล้างกระดานทุกฝ่ายและอัญเชิญออลฟอจิตลงสนาม!)',
-        color: '#dc2626',
-        onSelect: () => resolveAllForJitTrigger(attacker, defender, attackerSlot, onCompleteCallback)
-      });
-    }
-    if (canUseAllJit) {
-      options.push({
-        label: '🛡️ สั่งใช้ "ออลจิต" จากบนมือ (อัญเชิญลงสนามและเปลี่ยนเป้าหมายโจมตีมาที่ออลจิต)',
-        color: '#0284c7',
-        onSelect: () => resolveAllJitFromHand(attacker, defender, attackerSlot, onCompleteCallback)
-      });
-    }
-    options.push({
-      label: 'ไม่ใช้ความสามารถพิเศษ (ดำเนินการต่อตามปกติ)',
-      color: '#475569',
-      onSelect: () => proceedToStandardIntercept(attacker, defender, attackerSlot, onCompleteCallback)
-    });
-
-    showChoiceModal(
-      '⚠️ ลีดเดอร์ของคุณกำลังถูกโจมตี!',
-      `"${attackingMonster.name}" (Power ${getEffectivePower(attackingMonster, attacker)}) กำลังโจมตีลีดเดอร์ของคุณ! ต้องการสั่งใช้ความสามารถพิเศษหรือไม่?`,
-      options
-    );
-    return;
-  }
-
-  proceedToStandardIntercept(attacker, defender, attackerSlot, onCompleteCallback);
-}
-
-function resolveAllForJitTrigger(attacker, defender, attackerSlot, onCompleteCallback) {
-  const idx = defender.graveyard.findIndex(c => c.id === 'M04');
-  if (idx === -1) {
-    proceedToStandardIntercept(attacker, defender, attackerSlot, onCompleteCallback);
-    return;
-  }
-
-  defender.allForJitUsed = true;
-  const allForJitCard = defender.graveyard.splice(idx, 1)[0];
-  resetCardStateForZoneChange(allForJitCard);
-  allForJitCard.state = 'Stand';
-
-  for (let i = 0; i < 3; i++) {
-    if (defender.board[i]) destroyBoardMonster(defender, i, false, true);
-    if (attacker.board[i]) destroyBoardMonster(attacker, i, false, true);
-  }
-
-  const emptySlot = defender.board.findIndex(m => m === null);
-  if (emptySlot !== -1) {
-    defender.board[emptySlot] = allForJitCard;
-  }
-
-  setLog(`💀 [${defender.name}] สั่งใช้งาน "ออลฟอจิต" จากนรก! ทำลายการ์ดบนสนามและอัญเชิญ "ออลฟอจิต" (Power 3) ลงสู่สนามสำเร็จ!`);
-  renderGame();
-  checkGameOver();
-  if (onCompleteCallback) onCompleteCallback();
-}
-
-function resolveAllJitFromHand(attacker, defender, attackerSlot, onCompleteCallback) {
-  const handIdx = defender.hand.findIndex(c => c.id === 'M03');
-  const emptySlot = defender.board.findIndex(m => m === null);
-  if (handIdx === -1 || emptySlot === -1) {
-    proceedToStandardIntercept(attacker, defender, attackerSlot, onCompleteCallback);
-    return;
-  }
-
-  const allJitCard = defender.hand.splice(handIdx, 1)[0];
-  resetCardStateForZoneChange(allJitCard);
-  allJitCard.state = 'Stand';
-  defender.board[emptySlot] = allJitCard;
-
-  const combatMsg = compareAndDestroyMonsters(attacker, attackerSlot, defender, emptySlot);
-  setLog(`🛡️ [${defender.name}] อัญเชิญ "ออลจิต" จากบนมือลงสนามและเปลี่ยนเป้าหมายการโจมตีมาที่ตัวเอง! -> ${combatMsg}`);
-  renderGame();
-  checkGameOver();
-  if (onCompleteCallback) onCompleteCallback();
-}
-
-function proceedToStandardIntercept(attacker, defender, attackerSlot, onCompleteCallback) {
-  const attackingMonster = attacker.board[attackerSlot];
-  if (!attackingMonster) {
-    if (onCompleteCallback) onCompleteCallback();
-    return;
-  }
-
-  const standBlockerSlots = defender.board
-    .map((m, idx) => (m && m.state === 'Stand' ? idx : null))
-    .filter(idx => idx !== null);
-
-  if (standBlockerSlots.length === 0) {
-    defender.leader.hp = Math.max(0, defender.leader.hp - 1);
-    setLog(`💥 "${attackingMonster.name}" โจมตีเข้าใส่ Leader ของ ${defender.name} โดยตรง! (เสีย 1 HP เหลือ ${defender.leader.hp}/6)`);
-    renderGame();
-    checkGameOver();
-    if (onCompleteCallback) onCompleteCallback();
-    return;
-  }
-
-  if (defender.name === 'AI') {
-    const atkPower = getEffectivePower(attackingMonster, attacker);
-    const validAiBlockers = standBlockerSlots.filter(idx => defender.board[idx].id !== 'NM05');
-    let chosenSlot = validAiBlockers.find(idx => getEffectivePower(defender.board[idx], defender) >= atkPower);
-    if (chosenSlot === undefined && defender.leader.hp <= 2 && validAiBlockers.length > 0) {
-      chosenSlot = validAiBlockers[0];
-    }
-
-    if (chosenSlot !== undefined) {
-      const blocker = defender.board[chosenSlot];
-      blocker.state = 'Rest';
-      const msg = compareAndDestroyMonsters(attacker, attackerSlot, defender, chosenSlot);
-      setLog(`🛡️ AI สั่ง "${blocker.name}" เข้ามา Intercept! -> ${msg}`);
-    } else {
-      defender.leader.hp = Math.max(0, defender.leader.hp - 1);
-      setLog(`💥 AI เลือกไม่ป้องกัน! Leader ของ AI เสีย 1 HP (เหลือ ${defender.leader.hp}/6)`);
-    }
+  if (targetType === 'monster') {
+    compareAndDestroyMonsters(attacker, attackerSlot, defender, targetSlot);
     renderGame();
     checkGameOver();
     if (onCompleteCallback) onCompleteCallback();
   } else {
-    openInterceptModal(attacker, attackerSlot, defender, standBlockerSlots, onCompleteCallback);
+    defender.leader.hp = Math.max(0, defender.leader.hp - 1);
+    renderGame();
+    checkGameOver();
+    if (onCompleteCallback) onCompleteCallback();
   }
 }
 
 function compareAndDestroyMonsters(contestantA, slotA, contestantB, slotB) {
-  const monsterA = contestantA.board[slotA];
-  const monsterB = contestantB.board[slotB];
-  if (!monsterA || !monsterB) return '';
+  const mA = contestantA.board[slotA], mB = contestantB.board[slotB];
+  if (!mA || !mB) return;
+  const pA = getEffectivePower(mA, contestantA), pB = getEffectivePower(mB, contestantB);
 
-  const totalA = getEffectivePower(monsterA, contestantA);
-  const totalB = getEffectivePower(monsterB, contestantB);
-
-  if (totalA > totalB) {
-    const hadBurn = !!monsterA.burnLeaderOnKill;
-    const resB = destroyBoardMonster(contestantB, slotB, true, false);
-
-    let burnMsg = '';
-    if (resB.destroyed && hadBurn) {
-      contestantB.leader.hp = Math.max(0, contestantB.leader.hp - 1);
-      burnMsg = ` และสกิลออโต้ของ "${monsterA.name}" ทำดาเมจใส่ Leader อีกฝ่าย 1 หน่วย (เหลือ ${contestantB.leader.hp}/6)!`;
-    }
-    return `"${monsterA.name}" (${totalA}) ชนะ "${monsterB.name}" (${totalB})!${burnMsg}`;
-  } else if (totalA < totalB) {
-    destroyBoardMonster(contestantA, slotA, true, false);
-    return `"${monsterB.name}" (${totalB}) พลังสูงกว่า! สวนกลับทำลาย "${monsterA.name}" (${totalA})!`;
-  } else {
-    const hadBurn = !!monsterA.burnLeaderOnKill;
-    destroyBoardMonster(contestantA, slotA, true, false);
-    const resB = destroyBoardMonster(contestantB, slotB, true, false);
-
-    let burnMsg = '';
-    if (resB.destroyed && hadBurn) {
-      contestantB.leader.hp = Math.max(0, contestantB.leader.hp - 1);
-      burnMsg = ` (สกิลออโต้ของ "${monsterA.name}" ทำดาเมจใส่ Leader อีกฝ่าย 1 หน่วย!)`;
-    }
-    return `พลังเท่ากัน (${totalA})! ปะทะกันทั้งสองฝ่าย!${burnMsg}`;
-  }
+  if (pA > pB) destroyBoardMonster(contestantB, slotB, true, false);
+  else if (pA < pB) destroyBoardMonster(contestantA, slotA, true, false);
+  else { destroyBoardMonster(contestantA, slotA, true, false); destroyBoardMonster(contestantB, slotB, true, false); }
 }
-
-function openInterceptModal(attacker, attackerSlot, defender, standBlockerSlots, onCompleteCallback) {
-  gameState.pendingAttack = { attacker, attackerSlot, defender, onCompleteCallback };
-  const attackerMonster = attacker.board[attackerSlot];
-  const atkPwr = getEffectivePower(attackerMonster, attacker);
-
-  document.getElementById('intercept-desc').textContent =
-    `⚠️ "${attackerMonster.name}" (Power ${atkPwr}) กำลังโจมตี Leader ของคุณ! คลิกเลือก Monster ที่ Stand อยู่เพื่อรับการโจมตีแทน:`;
-
-  const listEl = document.getElementById('intercept-card-list');
-  listEl.innerHTML = '';
-
-  standBlockerSlots.forEach(slotIdx => {
-    const blocker = defender.board[slotIdx];
-    const cardEl = createCardElement(blocker, defender);
-    cardEl.addEventListener('click', () => resolvePlayerIntercept(slotIdx));
-    listEl.appendChild(cardEl);
-  });
-
-  document.getElementById('intercept-modal').style.display = 'flex';
-}
-
-function resolvePlayerIntercept(chosenSlotIndex) {
-  document.getElementById('intercept-modal').style.display = 'none';
-  const pending = gameState.pendingAttack;
-  if (!pending) return;
-  gameState.pendingAttack = null;
-
-  const { attacker, attackerSlot, defender, onCompleteCallback } = pending;
-
-  if (chosenSlotIndex !== null) {
-    const blocker = defender.board[chosenSlotIndex];
-    blocker.state = 'Rest';
-    const msg = compareAndDestroyMonsters(attacker, attackerSlot, defender, chosenSlotIndex);
-    setLog(`🛡️ คุณส่ง "${blocker.name}" เข้า Intercept! -> ${msg}`);
-  } else {
-    defender.leader.hp = Math.max(0, defender.leader.hp - 1);
-    setLog(`💥 คุณเลือกไม่ป้องกัน! Leader ของคุณเสีย 1 HP (เหลือ ${defender.leader.hp}/6)`);
-  }
-
-  renderGame();
-  checkGameOver();
-  if (onCompleteCallback) onCompleteCallback();
-}
-
-document.getElementById('btn-skip-intercept').addEventListener('click', () => {
-  resolvePlayerIntercept(null);
-});
 
 
 /* ============================================================================
-   หมวดที่ 8: ระบบปัญญาประดิษฐ์ (AI LOGIC & PHASE BUTTONS)
+   หมวดที่ 8: ระบบ AI และปุ่มเปลี่ยนเฟส
    ============================================================================ */
 document.getElementById('btn-next-phase').addEventListener('click', () => {
-  if (gameState.activeTurn !== 'player' || gameState.phase !== 'Main Phase' || gameState.isRollingDice) return;
-  if (gameState.pendingAction) {
-    setLog('⚠️ กรุณาเลือกเป้าหมายของความสามารถที่ค้างอยู่ให้เสร็จก่อนเข้าสู่ Battle Phase!');
-    return;
-  }
+  if (gameState.activeTurn !== 'player' || gameState.phase !== 'Main Phase') return;
   gameState.phase = 'Battle Phase';
   gameState.selectedHandIndex = null;
   document.getElementById('btn-next-phase').disabled = true;
-
-  if (gameState.player.isFirstPlayer && gameState.player.turnsTaken === 1) {
-    setLog('⚔️ เข้าสู่ Battle Phase (Turn 1 ของคนเริ่มก่อนไม่สามารถโจมตีได้ — กดจบเทิร์นได้เลย)');
-  } else {
-    setLog('⚔️ เข้าสู่ Battle Phase: คลิกยูนิทที่ Stand ของคุณ แล้วคลิกเป้าหมายฝั่ง AI เพื่อโจมตี!');
-  }
   renderGame();
 });
 
 document.getElementById('btn-end-turn').addEventListener('click', () => {
-  if (gameState.activeTurn !== 'player' || gameState.gameOver || gameState.isRollingDice) return;
-  if (gameState.pendingAction) {
-    setLog('⚠️ กรุณาเลือกเป้าหมายของความสามารถที่ค้างอยู่ให้เสร็จก่อนจบเทิร์น!');
-    return;
-  }
-
+  if (gameState.activeTurn !== 'player' || gameState.gameOver) return;
   executeEndPhaseCleanup(gameState.player);
-
   gameState.phase = 'End Phase';
-  gameState.selectedHandIndex = null;
-  gameState.selectedAttackerSlot = null;
   disableControls();
   renderGame();
-
   setTimeout(startAITurn, 650);
 });
 
@@ -3095,20 +1015,12 @@ function startAITurn() {
   gameState.activeTurn = 'ai';
   gameState.turnCount += 1;
   gameState.phase = 'Start Phase';
-
-  setLog('🤖 เทิร์นของ AI: จั่วการ์ด 1 ใบ และเปลี่ยนยูนิททั้งหมดเป็น Stand');
   executeStartPhase(gameState.ai, () => {
     renderGame();
     setTimeout(() => {
-      if (gameState.gameOver) return;
       gameState.phase = 'Main Phase';
       aiPlayMainPhase(() => {
-        setTimeout(() => {
-          if (gameState.gameOver) return;
-          gameState.phase = 'Battle Phase';
-          renderGame();
-          aiPlayBattlePhase(0);
-        }, 800);
+        setTimeout(() => { gameState.phase = 'Battle Phase'; renderGame(); aiPlayBattlePhase(0); }, 800);
       });
     }, 800);
   });
@@ -3116,149 +1028,26 @@ function startAITurn() {
 
 function aiPlayMainPhase(onMainComplete) {
   const ai = gameState.ai;
-  const player = gameState.player;
-
   for (let slot = 0; slot < 3; slot++) {
-    if (ai.board[slot] === null) {
-      let summonIdx = ai.hand.findIndex(c => c.type === 'Monster' && !c.cannotNormalSummon && !c.isSpy && c.id !== 'M04' && c.id !== 'M03');
-      if (summonIdx === -1) {
-        summonIdx = ai.hand.findIndex(c => c.type === 'Monster' && !c.cannotNormalSummon && !c.isSpy && c.id !== 'M04');
-      }
-
-      if (summonIdx !== -1) {
-        const summoned = ai.hand.splice(summonIdx, 1)[0];
-        resetCardStateForZoneChange(summoned);
-        summoned.state = 'Stand';
-        if (summoned.id === 'NM04') summoned.permPowerMod += 1;
-        ai.board[slot] = summoned;
-        setLog(`🤖 AI อัญเชิญ "${summoned.name}" ลงสนาม!`);
-
-        if (summoned.id === 'M01') {
-          let bestTarget = -1;
-          let maxPwr = -1;
-          player.board.forEach((m, idx) => {
-            if (m && !m.immuneToEnemyEffectsUntilEndOfTurn && getEffectivePower(m, player) > maxPwr) {
-              maxPwr = getEffectivePower(m, player);
-              bestTarget = idx;
-            }
-          });
-          if (bestTarget !== -1) {
-            destroyBoardMonster(player, bestTarget, false, true);
-            setLog(`💥 [AI บาคุจิต] ทำลายมอนสเตอร์บนสนามของคุณ!`);
-          }
-        }
-      }
+    if (ai.board[slot] === null && ai.hand.length > 0) {
+      ai.board[slot] = resetCardStateForZoneChange(ai.hand.pop());
+      ai.board[slot].state = 'Stand';
     }
   }
-
-  ai.board.forEach((m, slotIdx) => {
-    if (!m) return;
-    if (m.id === 'M02' && !m.usedSkills.todoroRecover) {
-      const bakuIdx = ai.graveyard.findIndex(c => c.id === 'M01');
-      if (bakuIdx !== -1) {
-        const baku = ai.graveyard.splice(bakuIdx, 1)[0];
-        resetCardStateForZoneChange(baku);
-        ai.hand.push(baku);
-        m.usedSkills.todoroRecover = true;
-        setLog('🤖 [AI โทโดโรจิต] นำ "บาคุจิต" จากกองนรกขึ้นมือ!');
-      }
-    }
-
-    const hasEndeInHand = ai.hand.some(c => c.id === 'M05');
-    if (m.id === 'M06' && !m.usedSkills.hawksSearch && !hasEndeInHand && getEffectivePower(m, ai) >= 2) {
-      if (ai.graveyard.some(c => c.id === 'M05')) {
-        executeHawksSearch(ai, slotIdx, 'grave');
-      } else if (ai.deck.some(c => c.id === 'M05')) {
-        executeHawksSearch(ai, slotIdx, 'deck');
-      }
-    }
-  });
-
-  for (let slot = 0; slot < 3; slot++) {
-    if (ai.board[slot] === null) {
-      const endeIdx = ai.hand.findIndex(c => c.id === 'M05');
-      if (endeIdx !== -1) {
-        const summonedEnde = ai.hand.splice(endeIdx, 1)[0];
-        resetCardStateForZoneChange(summonedEnde);
-        ai.board[slot] = summonedEnde;
-        setLog('🤖 AI อัญเชิญ "เอ็นเดจิต" ลงสนาม!');
-      }
-    }
-  }
-
-  ai.board.forEach((m, slotIdx) => {
-    if (m && m.id === 'M05' && !m.usedSkills.endeBoost && canContestantAttack(ai, m).allowed) {
-      triggerEndeSkill(ai, slotIdx);
-    }
-  });
-
-  if (ai.leader.id === 'L01' && !ai.leader.abilityUsedThisTurn) {
-    const targetAlly = ai.board.find(m => m !== null && m.state === 'Stand' && m.id !== 'NM05');
-    if (targetAlly) {
-      targetAlly.tempPowerMod += 1;
-      ai.leader.abilityUsedThisTurn = true;
-      setLog(`👑 [AI มายฮีโร่ เดจิต] เพิ่มพลังให้ "${targetAlly.name}" +1 จนจบเทิร์น!`);
-    }
-  }
-
-  if (ai.spellQuota.normalUsed < 1) {
-    const s02Idx = ai.hand.findIndex(c => c.id === 'S02');
-    const playerHasMonster = player.board.some(m => m !== null);
-    if (s02Idx !== -1 && playerHasMonster) {
-      const spell = ai.hand.splice(s02Idx, 1)[0];
-      ai.spellQuota.normalUsed += 1;
-      player.board.forEach(m => { if (m && !m.immuneToEnemyEffectsUntilEndOfTurn) m.tempPowerMod -= 3; });
-      ai.graveyard.push(spell);
-      setLog('📉 AI ใช้เวทย์ "เชี่ย หุ้นตก" ลดพลังยูนิทของคุณทุกใบลง 3 จนจบเทิร์น!');
-    }
-  }
-
   renderGame();
   onMainComplete();
 }
 
 function aiPlayBattlePhase(slotIndex) {
   if (gameState.gameOver) return;
-  const ai = gameState.ai;
-  const player = gameState.player;
+  if (slotIndex >= 3) { setTimeout(endAITurn, 700); return; }
+  const ai = gameState.ai, player = gameState.player;
+  const m = ai.board[slotIndex];
+  if (!canContestantAttack(ai, m).allowed) { aiPlayBattlePhase(slotIndex + 1); return; }
 
-  if (slotIndex >= 3) {
-    setTimeout(endAITurn, 700);
-    return;
-  }
-
-  const monster = ai.board[slotIndex];
-  const check = canContestantAttack(ai, monster);
-  if (!check.allowed || (monster && monster.id === 'NM05')) {
-    aiPlayBattlePhase(slotIndex + 1);
-    return;
-  }
-
-  const aiPower = getEffectivePower(monster, ai);
-  const playerHasTsururu = player.board.some(m => m !== null && m.id === 'DM05');
-
-  let bestTargetSlot = -1;
-  let bestTargetPower = -1;
-  player.board.forEach((m, idx) => {
-    if (m) {
-      if (m.id === 'DM03' && playerHasTsururu) return;
-      const pPower = getEffectivePower(m, player);
-      if (aiPower > pPower && pPower > bestTargetPower) {
-        bestTargetPower = pPower;
-        bestTargetSlot = idx;
-      }
-    }
-  });
-
-  if (bestTargetSlot !== -1) {
-    executeAttack(ai, player, slotIndex, 'monster', bestTargetSlot, () => {
-      setTimeout(() => aiPlayBattlePhase(slotIndex + 1), 850);
-    });
-  } else {
-    executeAttack(ai, player, slotIndex, 'leader', null, () => {
-      setTimeout(() => aiPlayBattlePhase(slotIndex + 1), 850);
-    });
-  }
+  const target = player.board.findIndex(slot => slot !== null);
+  if (target !== -1) executeAttack(ai, player, slotIndex, 'monster', target, () => setTimeout(() => aiPlayBattlePhase(slotIndex + 1), 850));
+  else executeAttack(ai, player, slotIndex, 'leader', null, () => setTimeout(() => aiPlayBattlePhase(slotIndex + 1), 850));
 }
 
 function endAITurn() {
@@ -3266,17 +1055,12 @@ function endAITurn() {
   executeEndPhaseCleanup(gameState.ai);
   gameState.phase = 'End Phase';
   renderGame();
-
-  setTimeout(() => {
-    gameState.activeTurn = 'player';
-    gameState.turnCount += 1;
-    startPlayerTurn();
-  }, 600);
+  setTimeout(() => { gameState.activeTurn = 'player'; gameState.turnCount += 1; startPlayerTurn(); }, 600);
 }
 
 
 /* ============================================================================
-   หมวดที่ 9: ระบบแสดงคำอธิบายการ์ด (TOOLTIP) และวาดหน้าจอกระดานเกม (RENDER UI)
+   หมวดที่ 9: ระบบ Tooltip และวาดหน้าจอ (RENDER UI)
    ============================================================================ */
 function getOrCreateTooltipElement() {
   let tooltip = document.getElementById('card-hover-tooltip');
@@ -3292,26 +1076,8 @@ function getOrCreateTooltipElement() {
 function showCardTooltip(event, card, ownerContestant = null) {
   if (!card) return;
   const tooltip = getOrCreateTooltipElement();
-
-  let statsHtml = '';
-  if (card.type === 'Monster') {
-    const currentPwr = getEffectivePower(card, ownerContestant);
-    const basePwr = card.basePower !== undefined ? card.basePower : card.power;
-    statsHtml = `<div class="tooltip-stats">⚔️ พลังโจมตี: ${currentPwr} (พื้นฐาน: ${basePwr}) | สถานะ: ${card.state || 'Stand'}</div>`;
-  } else if (card.type === 'Leader') {
-    const currentHp = card.hp !== undefined ? card.hp : card.maxHp;
-    statsHtml = `<div class="tooltip-stats">👑 พลังชีวิต (HP): ${currentHp} / ${card.maxHp}</div>`;
-  }
-
-  tooltip.innerHTML = `
-    <div class="tooltip-header">
-      <span class="tooltip-name">${card.name}</span>
-      <span class="tooltip-type">${card.type}</span>
-    </div>
-    ${statsHtml}
-    <div class="tooltip-desc">${card.desc || 'ไม่มีความสามารถพิเศษ'}</div>
-  `;
-
+  let statsHtml = card.type === 'Monster' ? `<div class="tooltip-stats">⚔️ พลัง: ${getEffectivePower(card, ownerContestant)}</div>` : '';
+  tooltip.innerHTML = `<div class="tooltip-header"><span class="tooltip-name">${card.name}</span><span>${card.type}</span></div>${statsHtml}<div class="tooltip-desc">${card.desc || ''}</div>`;
   tooltip.style.display = 'block';
   moveCardTooltip(event);
 }
@@ -3319,21 +1085,8 @@ function showCardTooltip(event, card, ownerContestant = null) {
 function moveCardTooltip(event) {
   const tooltip = document.getElementById('card-hover-tooltip');
   if (!tooltip || tooltip.style.display === 'none') return;
-
-  const offset = 16;
-  let left = event.clientX + offset;
-  let top = event.clientY + offset;
-
-  const rect = tooltip.getBoundingClientRect();
-  if (left + rect.width > window.innerWidth - 10) {
-    left = event.clientX - rect.width - offset;
-  }
-  if (top + rect.height > window.innerHeight - 10) {
-    top = event.clientY - rect.height - offset;
-  }
-
-  tooltip.style.left = `${Math.max(10, left)}px`;
-  tooltip.style.top = `${Math.max(10, top)}px`;
+  tooltip.style.left = `${Math.min(event.clientX + 15, window.innerWidth - 280)}px`;
+  tooltip.style.top = `${Math.min(event.clientY + 15, window.innerHeight - 150)}px`;
 }
 
 function hideCardTooltip() {
@@ -3345,37 +1098,12 @@ function attachCardTooltipEvents(element, card, ownerContestant = null) {
   element.addEventListener('mouseenter', (e) => showCardTooltip(e, card, ownerContestant));
   element.addEventListener('mousemove', (e) => moveCardTooltip(e));
   element.addEventListener('mouseleave', () => hideCardTooltip());
-  element.addEventListener('click', () => hideCardTooltip());
 }
 
 function createCardElement(card, ownerContestant = null) {
-  const effectivePower = getEffectivePower(card, ownerContestant);
   const div = document.createElement('div');
   div.className = `card ${card.type} ${card.state || ''}`;
-
-  let statusTag = '';
-  if (card.type === 'Monster') {
-    if (card.burnLeaderOnKill) statusTag += '🔥';
-    if (card.destroyAtEndOfTurn || card.returnFromDarkDimensionId) statusTag += '⏳';
-    if (card.indestructibleUntilNextTurn || card.immuneToEnemyEffectsUntilEndOfTurn) statusTag += '🛡️';
-  }
-
-  div.innerHTML = `
-    <div>
-      <div class="card-header">
-        <span class="card-type">${card.type} ${statusTag}</span>
-      </div>
-      <div class="card-art">
-        <img src="${card.image}" alt="${card.name}">
-      </div>
-      <div class="card-name">${card.name}</div>
-    </div>
-    ${card.type === 'Monster'
-      ? `<div class="card-power">⚔️ ${effectivePower}</div>`
-      : `<div class="card-desc">${card.desc}</div>`
-    }
-  `;
-
+  div.innerHTML = `<div><span class="card-type">${card.type}</span><div class="card-art"><img src="${card.image}"></div><div class="card-name">${card.name}</div></div>${card.type === 'Monster' ? `<div class="card-power">⚔️ ${getEffectivePower(card, ownerContestant)}</div>` : ''}`;
   attachCardTooltipEvents(div, card, ownerContestant);
   return div;
 }
@@ -3383,67 +1111,17 @@ function createCardElement(card, ownerContestant = null) {
 function renderBoardSlots(containerId, contestant, isPlayerBoard) {
   const container = document.getElementById(containerId);
   const slots = container.querySelectorAll('.slot');
-  const pendingType = gameState.pendingAction ? gameState.pendingAction.type : null;
-  const selectedHandCard = (gameState.selectedHandIndex !== null && gameState.player)
-    ? gameState.player.hand[gameState.selectedHandIndex]
-    : null;
-
   slots.forEach((slotEl, idx) => {
     slotEl.innerHTML = '';
     slotEl.classList.remove('valid-target', 'attack-target');
-
     const monster = contestant.board[idx];
     if (monster) {
       const cardEl = createCardElement(monster, contestant);
-      if (isPlayerBoard && gameState.selectedAttackerSlot === idx) {
-        cardEl.classList.add('selected-attacker');
-      }
+      if (isPlayerBoard && gameState.selectedAttackerSlot === idx) cardEl.classList.add('selected-attacker');
       slotEl.appendChild(cardEl);
-
-      // ไฮไลต์ช่องที่มีมอนสเตอร์ฝั่งเรา (รวมถึงกรณีวางทับเมื่อเลือกมอนสเตอร์บนมือ หรือเลือกช่องจุติ/คอลทับ)
-      if (isPlayerBoard) {
-        if (
-          (gameState.phase === 'Main Phase' && selectedHandCard && !selectedHandCard.isSpy && !pendingType) ||
-          pendingType === 'JUTI_SELECT_SLOT' ||
-          pendingType === 'CALL_FROM_EFFECT_SELECT_SLOT' ||
-          pendingType === 'LEADER_L01_TARGET' ||
-          pendingType === 'SPELL_DS01_BUFF_TARGET' ||
-          pendingType === 'RANGER_SELECT_UNIT' ||
-          pendingType === 'SPELL_S04_CHOOSE_BENEFICIARY' ||
-          ((pendingType === 'SPELL_S03_REST_TARGET' || pendingType === 'SPELL_S04_REST_FIRST' || pendingType === 'SPELL_S04_REST_SECOND') && monster.state === 'Stand')
-        ) {
-          slotEl.classList.add('valid-target');
-        }
-      }
-
-      if (!isPlayerBoard) {
-        if (
-          gameState.selectedAttackerSlot !== null ||
-          pendingType === 'BAKU_DESTROY_TARGET' ||
-          pendingType === 'SPELL_S01_DESTROY_TARGET' ||
-          pendingType === 'SPELL_NS05_BOUNCE_TARGET' ||
-          pendingType === 'CARPET_BOMB_DESTROY' ||
-          pendingType === 'RANGER_SELECT_UNIT'
-        ) {
-          slotEl.classList.add('attack-target');
-        }
-      }
     } else {
       slotEl.textContent = `ช่อง ${idx + 1}`;
-      if (isPlayerBoard && gameState.phase === 'Main Phase') {
-        if (
-          (selectedHandCard && !selectedHandCard.isSpy && !pendingType) ||
-          pendingType === 'JUTI_SELECT_SLOT' ||
-          pendingType === 'CALL_FROM_EFFECT_SELECT_SLOT'
-        ) {
-          slotEl.classList.add('valid-target');
-        }
-      }
-      if (!isPlayerBoard && gameState.phase === 'Main Phase' && selectedHandCard && selectedHandCard.isSpy && !pendingType) {
-        slotEl.classList.add('attack-target');
-      }
     }
-
     slotEl.onclick = () => isPlayerBoard ? handlePlayerSlotClick(idx) : handleAISlotClick(idx);
   });
 }
@@ -3453,72 +1131,34 @@ function renderGame() {
   if (!player || !ai) return;
 
   ensureZoneUIAndViewers();
-
   document.getElementById('ai-leader-name').textContent = ai.leader.name;
   document.getElementById('ai-leader-hp').textContent = ai.leader.hp;
   document.getElementById('ai-leader-img').src = ai.leader.image;
   document.getElementById('ai-deck-count').textContent = ai.deck.length;
   document.getElementById('ai-grave-count').textContent = ai.graveyard.length;
   document.getElementById('ai-hand-count').textContent = ai.hand.length;
-  const aiDarkCountEl = document.getElementById('ai-dark-count');
-  if (aiDarkCountEl) aiDarkCountEl.textContent = ai.darkDimension.length;
+  const aiDarkCount = document.getElementById('ai-dark-count');
+  if (aiDarkCount) aiDarkCount.textContent = ai.darkDimension.length;
 
-  const aiLeaderBox = document.getElementById('ai-leader-box');
-  if (gameState.selectedAttackerSlot !== null && !gameState.pendingAction) {
-    aiLeaderBox.classList.add('attack-target');
-  } else {
-    aiLeaderBox.classList.remove('attack-target');
-  }
-  aiLeaderBox.onmouseenter = (e) => showCardTooltip(e, ai.leader, ai);
-  aiLeaderBox.onmousemove = (e) => moveCardTooltip(e);
-  aiLeaderBox.onmouseleave = () => hideCardTooltip();
-
-  const leaderSuffix = (player.leader.id === 'L01')
-    ? (player.leader.abilityUsedThisTurn ? '(ใช้สกิลแล้ว)' : '(คลิกใช้สกิล)')
-    : '(ออโต้เข้าเทิร์น)';
-  document.getElementById('player-leader-name').textContent = `${player.leader.name} ${leaderSuffix}`;
+  document.getElementById('player-leader-name').textContent = player.leader.name;
   document.getElementById('player-leader-hp').textContent = player.leader.hp;
   document.getElementById('player-leader-img').src = player.leader.image;
   document.getElementById('player-deck-count').textContent = player.deck.length;
   document.getElementById('player-grave-count').textContent = player.graveyard.length;
-  const playerDarkCountEl = document.getElementById('player-dark-count');
-  if (playerDarkCountEl) playerDarkCountEl.textContent = player.darkDimension.length;
+  const playerDarkCount = document.getElementById('player-dark-count');
+  if (playerDarkCount) playerDarkCount.textContent = player.darkDimension.length;
 
-  const playerLeaderBox = document.getElementById('player-leader-box');
-  playerLeaderBox.style.cursor = (gameState.activeTurn === 'player' && gameState.phase === 'Main Phase' && player.leader.id === 'L01' && !player.leader.abilityUsedThisTurn) ? 'pointer' : 'default';
-  playerLeaderBox.onclick = () => {
-    hideCardTooltip();
-    handlePlayerSlotClick('leader');
-  };
-  playerLeaderBox.onmouseenter = (e) => showCardTooltip(e, player.leader, player);
-  playerLeaderBox.onmousemove = (e) => moveCardTooltip(e);
-  playerLeaderBox.onmouseleave = () => hideCardTooltip();
-
-  document.getElementById('turn-indicator').textContent =
-    `Turn ${gameState.turnCount} (${gameState.activeTurn === 'player' ? 'ตาของคุณ' : 'ตาของ AI'})`;
+  document.getElementById('turn-indicator').textContent = `Turn ${gameState.turnCount} (${gameState.activeTurn === 'player' ? 'ตาของคุณ' : 'ตาของ AI'})`;
   document.getElementById('phase-indicator').textContent = gameState.phase;
-  document.getElementById('normal-spell-quota').textContent = `Normal Spell: ${player.spellQuota.normalUsed} / 1`;
-  document.getElementById('reaction-spell-quota').textContent = `Reaction Spell: ${player.spellQuota.reactionUsed} / 1`;
 
   renderBoardSlots('ai-board', ai, false);
   renderBoardSlots('player-board', player, true);
 
   const handContainer = document.getElementById('player-hand');
   handContainer.innerHTML = '';
-  const pendingType = gameState.pendingAction ? gameState.pendingAction.type : null;
-
   player.hand.forEach((card, idx) => {
     const cardEl = createCardElement(card, player);
-    if (gameState.selectedHandIndex === idx) {
-      cardEl.classList.add('selected-hand');
-    }
-    if (
-      pendingType === 'ONAMI_DISCARD_HAND' ||
-      pendingType === 'TODORO_SKILL1_DISCARD' ||
-      (pendingType === 'SPELL_S01_DISCARD' && idx !== gameState.pendingAction.spellHandIndex)
-    ) {
-      cardEl.classList.add('selected-mulligan');
-    }
+    if (gameState.selectedHandIndex === idx) cardEl.classList.add('selected-hand');
     cardEl.addEventListener('click', () => handleHandCardClick(idx));
     handContainer.appendChild(cardEl);
   });
@@ -3529,9 +1169,7 @@ function renderMulliganModal() {
   listEl.innerHTML = '';
   gameState.player.hand.forEach((card, index) => {
     const cardEl = createCardElement(card, gameState.player);
-    if (gameState.mulliganSelected.includes(index)) {
-      cardEl.classList.add('selected-mulligan');
-    }
+    if (gameState.mulliganSelected.includes(index)) cardEl.classList.add('selected-mulligan');
     cardEl.addEventListener('click', () => {
       const pos = gameState.mulliganSelected.indexOf(index);
       if (pos !== -1) gameState.mulliganSelected.splice(pos, 1);
@@ -3540,11 +1178,6 @@ function renderMulliganModal() {
     });
     listEl.appendChild(cardEl);
   });
-
-  const mulliganTextEl = document.getElementById('mulligan-selected-text');
-  if (mulliganTextEl) {
-    mulliganTextEl.textContent = `เลือกแล้ว: ${gameState.mulliganSelected.length} / 2 ใบ`;
-  }
 }
 
 document.getElementById('btn-confirm-mulligan').addEventListener('click', () => {
@@ -3559,16 +1192,12 @@ function startPlayerTurn() {
   gameState.pendingAction = null;
   document.getElementById('btn-next-phase').disabled = false;
   document.getElementById('btn-end-turn').disabled = false;
-
-  executeStartPhase(gameState.player, () => {
-    setLog(`🟢 เทิร์นของคุณ (ครั้งที่ ${gameState.player.turnsTaken}): คลิกการ์ดในมือเพื่อลงสนาม (วางทับได้) หรือคลิกที่กล่อง Graveyard / มิติมืด เพื่อดูการ์ดข้างใน!`);
-    renderGame();
-  });
+  executeStartPhase(gameState.player, () => { setLog(`🟢 เทิร์นของคุณ (${gameState.player.turnsTaken})`); renderGame(); });
 }
 
 
 /* ============================================================================
-   หมวดที่ 10: ระบบหน้าต่างจัดเด็ค (รองรับ maxCopies 1 ใบสำหรับใบที่ 4-15)
+   หมวดที่ 10: ระบบหน้าต่างจัดเด็ค (Deck Builder)
    ============================================================================ */
 let currentDeckConfig = loadSavedDeck();
 
@@ -3577,13 +1206,9 @@ function loadSavedDeck() {
     const saved = localStorage.getItem('my_card_game_deck');
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (parsed.leaderId && Array.isArray(parsed.mainDeck) && parsed.mainDeck.length === 20) {
-        return parsed;
-      }
+      if (parsed.leaderId && Array.isArray(parsed.mainDeck) && parsed.mainDeck.length === 20) return parsed;
     }
-  } catch (e) {
-    console.warn('โหลดเด็คไม่สำเร็จ ใช้เด็คมาตรฐานแทน');
-  }
+  } catch (e) {}
   return { leaderId: 'L01', mainDeck: [...DEFAULT_DECK_LIST] };
 }
 
@@ -3604,19 +1229,9 @@ function renderDeckBuilder() {
     item.className = 'pool-item';
     const cardEl = document.createElement('div');
     cardEl.className = `card Leader ${currentDeckConfig.leaderId === leader.id ? 'selected-leader' : ''}`;
-    cardEl.innerHTML = `
-      <div>
-        <div class="card-header"><span class="card-type">LEADER</span></div>
-        <div class="card-art"><img src="${leader.image}" alt="${leader.name}"></div>
-        <div class="card-name">${leader.name}</div>
-      </div>
-      <div class="card-power" style="background:#be185d;">👑 HP: ${leader.maxHp}</div>
-    `;
+    cardEl.innerHTML = `<div><span class="card-type">LEADER</span><div class="card-art"><img src="${leader.image}"></div><div class="card-name">${leader.name}</div></div>`;
     attachCardTooltipEvents(cardEl, leader, null);
-    cardEl.addEventListener('click', () => {
-      currentDeckConfig.leaderId = leader.id;
-      renderDeckBuilder();
-    });
+    cardEl.addEventListener('click', () => { currentDeckConfig.leaderId = leader.id; renderDeckBuilder(); });
     item.appendChild(cardEl);
     leaderContainer.appendChild(item);
   });
@@ -3631,10 +1246,7 @@ function renderDeckBuilder() {
 
     cardEl.addEventListener('click', () => {
       if (countInDeck < maxAllowed) {
-        if (currentDeckConfig.mainDeck.length >= 20) {
-          alert('การ์ดใน Main Deck ครบ 20 ใบแล้ว! กรุณาคลิกเอาใบอื่นออกก่อน');
-          return;
-        }
+        if (currentDeckConfig.mainDeck.length >= 20) { alert('เด็คครบ 20 ใบแล้ว'); return; }
         currentDeckConfig.mainDeck.push(card.id);
       } else {
         currentDeckConfig.mainDeck = currentDeckConfig.mainDeck.filter(id => id !== card.id);
@@ -3644,60 +1256,26 @@ function renderDeckBuilder() {
 
     const badge = document.createElement('div');
     badge.className = `count-badge ${countInDeck === maxAllowed ? 'maxed' : ''}`;
-    badge.textContent = `ใส่ในเด็ค: ${countInDeck} / ${maxAllowed} ใบ`;
+    badge.textContent = `${countInDeck} / ${maxAllowed}`;
     item.appendChild(cardEl);
     item.appendChild(badge);
     mainContainer.appendChild(item);
   });
 
   const count = currentDeckConfig.mainDeck.length;
-  const statusEl = document.getElementById('deck-status-text');
-  const saveBtn = document.getElementById('btn-save-start');
-  statusEl.textContent = `Leader: 1/1 | Main Deck: ${count}/20 ใบ`;
-  statusEl.style.color = (count === 20) ? '#4ade80' : '#f87171';
-  saveBtn.disabled = (count !== 20);
+  document.getElementById('deck-status-text').textContent = `Main Deck: ${count}/20 ใบ`;
+  document.getElementById('btn-save-start').disabled = (count !== 20);
 }
 
 document.getElementById('btn-open-deck').addEventListener('click', openDeckBuilder);
-document.getElementById('btn-reset-deck').addEventListener('click', () => {
-  currentDeckConfig.mainDeck = [];
-  renderDeckBuilder();
-});
+document.getElementById('btn-reset-deck').addEventListener('click', () => { currentDeckConfig.mainDeck = []; renderDeckBuilder(); });
 
 document.getElementById('btn-default-deck').addEventListener('click', () => {
-  showChoiceModal(
-    '🃏 เลือกเด็คมาตรฐาน',
-    'คุณต้องการโหลดเด็คมาตรฐานชุดใดเข้าสู่กระดานจัดเด็ค?',
-    [
-      {
-        label: '🔥 โหลด "เด็คจิต" (Leader: มายฮีโร่ เดจิต + 20 ใบ)',
-        color: '#0284c7',
-        onSelect: () => {
-          currentDeckConfig.leaderId = 'L01';
-          currentDeckConfig.mainDeck = [...DEFAULT_DECK_LIST];
-          renderDeckBuilder();
-        }
-      },
-      {
-        label: '🐘 โหลด "เด็คเหนือ" (Leader: ขุนเหนือ + 20 ใบ)',
-        color: '#16a34a',
-        onSelect: () => {
-          currentDeckConfig.leaderId = 'L02';
-          currentDeckConfig.mainDeck = [...DEFAULT_NUEA_DECK_LIST];
-          renderDeckBuilder();
-        }
-      },
-      {
-        label: '⏳ โหลด "เด็ควันสิ้นโลก" (Leader: วันสิ้นโลก + 20 ใบ [ใบที่ 4-15 แบบละ 1 ใบ])',
-        color: '#7c3aed',
-        onSelect: () => {
-          currentDeckConfig.leaderId = 'L03';
-          currentDeckConfig.mainDeck = [...DEFAULT_DOOMSDAY_DECK_LIST];
-          renderDeckBuilder();
-        }
-      }
-    ]
-  );
+  showChoiceModal('🃏 เลือกเด็คมาตรฐาน', 'เลือกเด็คที่ต้องการโหลด:', [
+    { label: 'เด็คจิต', color: '#0284c7', onSelect: () => { currentDeckConfig.leaderId = 'L01'; currentDeckConfig.mainDeck = [...DEFAULT_DECK_LIST]; renderDeckBuilder(); } },
+    { label: 'เด็คเหนือ', color: '#16a34a', onSelect: () => { currentDeckConfig.leaderId = 'L02'; currentDeckConfig.mainDeck = [...DEFAULT_NUEA_DECK_LIST]; renderDeckBuilder(); } },
+    { label: 'เด็ควันสิ้นโลก', color: '#7c3aed', onSelect: () => { currentDeckConfig.leaderId = 'L03'; currentDeckConfig.mainDeck = [...DEFAULT_DOOMSDAY_DECK_LIST]; renderDeckBuilder(); } }
+  ]);
 });
 
 document.getElementById('btn-save-start').addEventListener('click', () => {
@@ -3729,9 +1307,189 @@ function initGame() {
   drawCards(gameState.ai, 5);
 
   document.getElementById('mulligan-modal').style.display = 'flex';
-  setLog('🎲 เริ่มเกมใหม่! กรุณาเลือกเปลี่ยนการ์ดเริ่มต้น (Mulligan) สูงสุด 2 ใบ');
+  setLog('🎲 เริ่มเกมใหม่! เลือกเปลี่ยนการ์ด Mulligan สูงสุด 2 ใบ');
   renderGame();
   renderMulliganModal();
 }
 
 initGame();
+
+
+/* ============================================================================
+   หมวดที่ 11: ระบบล็อบบี้ และระบบดวลกับเพื่อนออนไลน์ (PeerJS PvP)
+   ============================================================================ */
+const pvpState = { isMultiplayer: false, role: null, peer: null, conn: null, roomCode: null, localMulliganDone: false, remoteMulliganDone: false, isApplyingRemote: false };
+
+function sendPvpPacket(packet) { if (pvpState.isMultiplayer && pvpState.conn && pvpState.conn.open) pvpState.conn.send(packet); }
+
+function syncBoardToOpponent(latestLogMessage = null) {
+  if (!pvpState.isMultiplayer || !pvpState.conn || !pvpState.conn.open || pvpState.isApplyingRemote) return;
+  sendPvpPacket({
+    type: 'SYNC_BOARD', turnCount: gameState.turnCount, activeTurnOnReceiver: gameState.activeTurn === 'player' ? 'ai' : 'player',
+    phase: gameState.phase, gameOver: gameState.gameOver, senderData: gameState.player, receiverData: gameState.ai, logMessage: latestLogMessage
+  });
+}
+
+const _originalRenderGame = renderGame;
+renderGame = function () {
+  _originalRenderGame();
+  if (pvpState.isMultiplayer && !pvpState.isApplyingRemote && pvpState.localMulliganDone && pvpState.remoteMulliganDone) syncBoardToOpponent();
+};
+
+const _originalSetLog = setLog;
+setLog = function (message) {
+  _originalSetLog(message);
+  if (pvpState.isMultiplayer && !pvpState.isApplyingRemote) {
+    sendPvpPacket({ type: 'LOG_ONLY', message: message.replace('ของคุณ', 'ของฝ่ายตรงข้าม').replace('คุณ', 'ฝ่ายตรงข้าม') });
+  }
+};
+
+function bindMultiplayerButtons() {
+  const oldEndBtn = document.getElementById('btn-end-turn');
+  if (oldEndBtn) {
+    const newEndBtn = oldEndBtn.cloneNode(true);
+    oldEndBtn.parentNode.replaceChild(newEndBtn, oldEndBtn);
+    newEndBtn.addEventListener('click', () => {
+      if (gameState.activeTurn !== 'player' || gameState.gameOver || gameState.isRollingDice || gameState.pendingAction) return;
+      executeEndPhaseCleanup(gameState.player);
+      gameState.phase = 'End Phase';
+      disableControls();
+      if (pvpState.isMultiplayer) {
+        gameState.activeTurn = 'ai';
+        _originalSetLog('⏭️ จบเทิร์น — ส่งเทิร์นให้เพื่อน');
+        _originalRenderGame();
+        sendPvpPacket({ type: 'PASS_TURN', nextTurnCount: gameState.turnCount + 1, senderData: gameState.player, receiverData: gameState.ai });
+        return;
+      }
+      _originalRenderGame();
+      setTimeout(startAITurn, 650);
+    });
+  }
+
+  const confirmMulliganBtn = document.getElementById('btn-confirm-mulligan');
+  if (confirmMulliganBtn) {
+    const newMulliganBtn = confirmMulliganBtn.cloneNode(true);
+    confirmMulliganBtn.parentNode.replaceChild(newMulliganBtn, confirmMulliganBtn);
+    newMulliganBtn.addEventListener('click', () => {
+      performMulligan(gameState.player, gameState.mulliganSelected);
+      document.getElementById('mulligan-modal').style.display = 'none';
+      if (!pvpState.isMultiplayer) { startPlayerTurn(); return; }
+      pvpState.localMulliganDone = true;
+      sendPvpPacket({ type: 'MULLIGAN_READY', playerData: gameState.player });
+      checkBothPlayersMulliganReady();
+    });
+  }
+}
+
+function checkBothPlayersMulliganReady() {
+  if (!pvpState.localMulliganDone) return;
+  if (!pvpState.remoteMulliganDone) { disableControls(); _originalSetLog('⏳ รอเพื่อนเลือกการ์ด Mulligan...'); _originalRenderGame(); return; }
+  if (pvpState.role === 'host') { gameState.activeTurn = 'player'; startPlayerTurn(); syncBoardToOpponent('🎲 พร้อมแล้ว! เจ้าของห้องเริ่มเทิร์นที่ 1'); }
+  else { gameState.activeTurn = 'ai'; disableControls(); _originalSetLog('🎲 พร้อมแล้ว! รอเจ้าของห้องเล่นเทิร์น 1'); _originalRenderGame(); }
+}
+
+function handleIncomingPvpData(data) {
+  if (!data || !data.type) return;
+  pvpState.isApplyingRemote = true;
+  try {
+    if (data.type === 'START_PVP_MATCH') startPvpMatchBoard(pvpState.role);
+    else if (data.type === 'MULLIGAN_READY') { pvpState.remoteMulliganDone = true; gameState.ai = data.playerData; _originalRenderGame(); checkBothPlayersMulliganReady(); }
+    else if (data.type === 'SYNC_BOARD') {
+      gameState.turnCount = data.turnCount; gameState.activeTurn = data.activeTurnOnReceiver; gameState.phase = data.phase; gameState.gameOver = data.gameOver;
+      gameState.ai = data.senderData; gameState.player = data.receiverData;
+      if (data.logMessage) _originalSetLog(data.logMessage);
+      _originalRenderGame(); checkGameOver();
+    }
+    else if (data.type === 'PASS_TURN') {
+      gameState.turnCount = data.nextTurnCount; gameState.ai = data.senderData; gameState.player = data.receiverData;
+      gameState.activeTurn = 'player'; _originalSetLog('🟢 ตาของคุณ!'); startPlayerTurn(); syncBoardToOpponent();
+    }
+    else if (data.type === 'LOG_ONLY') _originalSetLog(`🌐 [เพื่อน] ${data.message}`);
+  } finally { pvpState.isApplyingRemote = false; }
+}
+
+function startPvpMatchBoard(role) {
+  document.getElementById('lobby-screen').style.display = 'none';
+  document.getElementById('pvp-room-modal').style.display = 'none';
+  document.querySelector('.game-container').style.display = 'flex';
+
+  pvpState.isMultiplayer = true; pvpState.role = role; pvpState.localMulliganDone = false; pvpState.remoteMulliganDone = false;
+  gameState.turnCount = 1; gameState.activeTurn = (role === 'host') ? 'player' : 'ai'; gameState.phase = 'Mulligan'; gameState.gameOver = false;
+  const scrollbox = document.getElementById('action-log-scrollbox');
+  if (scrollbox) scrollbox.innerHTML = '';
+
+  const isFirst = (role === 'host');
+  gameState.player = createContestant('Player', isFirst, isFirst ? 'P1' : 'P2', currentDeckConfig.leaderId, currentDeckConfig.mainDeck);
+  gameState.ai = createContestant('เพื่อนของคุณ', !isFirst, isFirst ? 'P2' : 'P1', 'L01', DEFAULT_DECK_LIST);
+  drawCards(gameState.player, 5);
+
+  document.getElementById('mulligan-modal').style.display = 'flex';
+  _originalSetLog(`🌐 เชื่อมต่อสำเร็จ! (${isFirst ? 'คุณเริ่มก่อน' : 'เพื่อนเริ่มก่อน'}) เลือก Mulligan`);
+  _originalRenderGame();
+  renderMulliganModal();
+}
+
+function createPvpRoomAsHost() {
+  if (typeof Peer === 'undefined') { alert('ไม่พบ PeerJS'); return; }
+  const randomCode = Math.floor(1000 + Math.random() * 9000).toString();
+  if (pvpState.peer) pvpState.peer.destroy();
+  pvpState.peer = new Peer(`my-tcg-room-${randomCode}`);
+  pvpState.roomCode = randomCode;
+
+  document.getElementById('my-room-code').textContent = 'กำลังสร้าง...';
+  document.getElementById('room-code-display').style.display = 'block';
+
+  pvpState.peer.on('open', () => { document.getElementById('my-room-code').textContent = randomCode; });
+  pvpState.peer.on('connection', (conn) => {
+    pvpState.conn = conn;
+    conn.on('open', () => { conn.send({ type: 'START_PVP_MATCH' }); startPvpMatchBoard('host'); });
+    conn.on('data', handleIncomingPvpData);
+  });
+}
+
+function joinPvpRoomAsGuest(codeInput) {
+  const code = codeInput.trim();
+  if (!code) { alert('กรุณากรอกรหัสห้อง'); return; }
+  if (pvpState.peer) pvpState.peer.destroy();
+  pvpState.peer = new Peer();
+  pvpState.peer.on('open', () => {
+    pvpState.conn = pvpState.peer.connect(`my-tcg-room-${code}`);
+    pvpState.conn.on('data', handleIncomingPvpData);
+  });
+  pvpState.peer.on('error', () => { alert('ไม่พบห้องนี้'); });
+}
+
+function setupLobbyEvents() {
+  bindMultiplayerButtons();
+  const lobbyScreen = document.getElementById('lobby-screen'), gameBoard = document.querySelector('.game-container'), mull = document.getElementById('mulligan-modal');
+  if (!lobbyScreen || !gameBoard) return;
+
+  gameBoard.style.display = 'none';
+  if (mull) mull.style.display = 'none';
+
+  const centerBtnGroup = document.getElementById('btn-open-deck')?.parentElement;
+  if (centerBtnGroup && !document.getElementById('btn-back-lobby')) {
+    const backBtn = document.createElement('button');
+    backBtn.id = 'btn-back-lobby'; backBtn.className = 'btn'; backBtn.style.background = '#475569'; backBtn.style.marginLeft = '4px'; backBtn.textContent = '🏠 ล็อบบี้';
+    backBtn.onclick = () => { if (pvpState.peer) pvpState.peer.destroy(); pvpState.isMultiplayer = false; gameBoard.style.display = 'none'; lobbyScreen.style.display = 'flex'; };
+    centerBtnGroup.appendChild(backBtn);
+  }
+
+  document.getElementById('btn-lobby-bot')?.addEventListener('click', () => { pvpState.isMultiplayer = false; lobbyScreen.style.display = 'none'; gameBoard.style.display = 'flex'; initGame(); });
+  document.getElementById('btn-lobby-pvp')?.addEventListener('click', () => { document.getElementById('pvp-room-modal').style.display = 'flex'; });
+  document.getElementById('btn-close-pvp-modal')?.addEventListener('click', () => { document.getElementById('pvp-room-modal').style.display = 'none'; });
+  document.getElementById('btn-create-room')?.addEventListener('click', createPvpRoomAsHost);
+  document.getElementById('btn-join-room')?.addEventListener('click', () => joinPvpRoomAsGuest(document.getElementById('input-join-code').value));
+
+  const openDeckFn = (e) => { if (e) e.preventDefault(); openDeckBuilder(); };
+  const openCardsFn = (e) => { if (e) e.preventDefault(); openZoneViewerModal('🔍 คลังการ์ดทั้งหมด', CARD_DATABASE, null); };
+
+  document.getElementById('card-menu-deckbuilder')?.addEventListener('click', openDeckFn);
+  document.getElementById('nav-deck')?.addEventListener('click', openDeckFn);
+  document.getElementById('card-menu-cardlist')?.addEventListener('click', openCardsFn);
+  document.getElementById('nav-cards')?.addEventListener('click', openCardsFn);
+  document.getElementById('nav-play')?.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('pvp-room-modal').style.display = 'flex'; });
+  document.getElementById('card-menu-preset')?.addEventListener('click', () => { openDeckBuilder(); document.getElementById('btn-default-deck').click(); });
+}
+
+setupLobbyEvents();
