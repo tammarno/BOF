@@ -780,3 +780,264 @@ body {
   color: #94a3b8;
   line-height: 1.4;
 }
+/* ============================================================================
+   ระบบรองรับหน้าจอมือถือและแท็บเล็ต (MOBILE RESPONSIVE UI)
+   ============================================================================ */
+@media (max-width: 768px) {
+  body {
+    padding: 4px;
+    overflow-x: hidden;
+  }
+
+  /* --- 1. ปรับหน้าล็อบบี้บนมือถือ --- */
+  .lobby-wrapper {
+    padding: 6px 10px 24px 10px;
+    gap: 16px;
+  }
+
+  .lobby-navbar {
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 0;
+  }
+
+  .lobby-hero {
+    flex-direction: column;
+    padding: 20px 16px;
+    text-align: center;
+    gap: 18px;
+  }
+
+  .hero-title {
+    font-size: 24px;
+  }
+
+  .hero-title span {
+    font-size: 17px;
+  }
+
+  .hero-desc {
+    font-size: 13px;
+    margin: 0 auto 16px auto;
+  }
+
+  .hero-buttons {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .btn-lobby-primary,
+  .btn-lobby-secondary {
+    width: 100%;
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .hero-card-fan {
+    width: 100%;
+    height: 170px;
+    transform: scale(0.85);
+  }
+
+  .lobby-feature-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* --- 2. ปรับกระดานเกม (Game Board) ให้พอดีจอมือถือ --- */
+  .game-container {
+    gap: 6px;
+  }
+
+  .side-zone {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  /* จัดเรียงสนามใหม่: ให้ Leader กับกองการ์ดอยู่แถวบน/ล่าง และช่องมอนสเตอร์ 3 ช่องอยู่ตรงกลางเต็มความกว้าง */
+  .field-row {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .leader-box {
+    order: 1;
+    width: 44% !important;
+    height: auto !important;
+    min-height: 95px;
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    gap: 8px;
+    padding: 6px 8px !important;
+    text-align: left !important;
+  }
+
+  .leader-art {
+    width: 44px;
+    height: 44px;
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  .hp-badge {
+    margin-top: 4px;
+    font-size: 12px;
+    padding: 2px 8px;
+    display: inline-block;
+  }
+
+  .pile-group {
+    order: 2;
+    width: 53%;
+    justify-content: space-between;
+    gap: 4px;
+  }
+
+  .pile-group .info-box {
+    flex: 1;
+    width: auto !important;
+    height: 95px !important;
+    padding: 4px !important;
+    font-size: 10px !important;
+  }
+
+  .pile-group .info-box h2 {
+    font-size: 16px;
+    margin: 2px 0;
+  }
+
+  /* ช่องกระดาน 3 ช่อง เรียงแถวเดียวกันตรงกลาง */
+  .board-slots {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .slot {
+    width: 31%;
+    max-width: 105px;
+    height: 142px;
+    font-size: 12px;
+  }
+
+  /* ย่อขนาดการ์ดให้พอดีกับช่องบนมือถือ */
+  .card {
+    width: 96px !important;
+    height: 136px !important;
+    padding: 4px !important;
+    font-size: 10px !important;
+  }
+
+  .card-name {
+    font-size: 11px !important;
+    padding: 1px 3px !important;
+  }
+
+  .card-power {
+    font-size: 11px !important;
+    padding: 2px !important;
+  }
+
+  .card-type {
+    font-size: 8px !important;
+  }
+
+  .card-desc {
+    display: none; /* ซ่อนข้อความยาวๆ บนหน้าไพ่จิ๋ว แล้วใช้การแตะดูรายละเอียดแทน */
+  }
+
+  /* ปรับการ์ดที่ Rest บนมือถือไม่ให้หมุนล้นกรอบช่อง */
+  .card.Rest {
+    transform: rotate(90deg) scale(0.82);
+  }
+
+  /* --- 3. แถบควบคุมกลางกระดานและ Battle Log บนมือถือ --- */
+  .center-bar {
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 10px;
+    text-align: center;
+  }
+
+  .quota-badges {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .quota-badges span {
+    margin-right: 0;
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  .center-bar > div:last-child {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .center-bar .btn {
+    flex: 1;
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+
+  .action-log-scrollbox {
+    max-height: 65px;
+  }
+
+  .log-item {
+    font-size: 12px;
+  }
+
+  /* --- 4. การ์ดบนมือ: สไลด์ซ้าย-ขวาด้วยนิ้ว (Horizontal Touch Scroll) --- */
+  .hand-row {
+    min-height: 152px;
+    padding: 10px 8px;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 8px;
+  }
+
+  .hand-row .card {
+    flex: 0 0 auto;
+  }
+
+  /* --- 5. ปรับหน้าต่าง Modal และหน้าจัดเด็คบนมือถือ --- */
+  .modal-box,
+  .deck-builder-box {
+    width: 96% !important;
+    padding: 14px !important;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .deck-builder-header {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .deck-builder-header > div:last-child {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .card-pool-grid {
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  /* ซ่อนกล่อง Tooltip ลอยตามเมาส์บนมือถือ เพื่อไม่ให้บังหน้าจอเวลาจิ้ม */
+  .card-tooltip {
+    display: none !important;
+  }
+}
