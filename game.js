@@ -277,7 +277,7 @@ const CARD_DATABASE = [
     maxCopies: 1,
     image: 'images/วันสิ้นโลก/8.png',
     ability: 'ASHILA_SKILL',
-    desc: '[ใส่ได้ 1 ใบ] สั่งใช้งานจากบนมือ: ถ้ายูนิตฝ่ายเราถูกทำลาย 2 ใบขึ้นไปในเทิร์นนี้ คอลใบนี้ลงสนามและพลังโจมตี +2 จนจบเทิร์น'
+    desc: '[ใส่ได้ 1 ใบ] สั่งใช้งานจากบนมือ: ถ้ายูนิตฝ่ายเราถูกทำลาย 2 ใบขึ้นไปในเทิร์นนี้ ทำการคอลการ์ดใบนี้ลงสนาม แล้วพลังโจมตีเพิ่มขึ้น +2 จนจบเทิร์น'
   },
   {
     id: 'DM08',
@@ -575,7 +575,7 @@ function sendOverwrittenMonsterToGrave(contestant, slotIndex) {
   return oldMonster;
 }
 
-// ทำลายยูนิตบนสนาม (ถือว่าถูกทำลายจริง)
+// ทำลายยูนิตบนสนาม (ถือว่าถูกทำลายจริง + ตรวจสอบสกิลแอชชี่ล่าบนมืออัตโนมัติ)
 function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEnemyEffect = false) {
   const monster = boardOwner.board[slotIndex];
   if (!monster) return { destroyed: false, reason: 'empty' };
@@ -597,6 +597,7 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
   resetCardStateForZoneChange(monster);
   boardOwner.graveyard.push(monster);
 
+  // 1. คำสั่งเสีย ทหารเกณฑ์เหนือ (NM04)
   if (monster.id === 'NM04') {
     const phraiIdx = boardOwner.graveyard.findIndex(c => c.uid !== monster.uid && isPhraiCard(c));
     if (phraiIdx !== -1) {
@@ -607,17 +608,94 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
     }
   }
 
+  // 2. คำสั่งเสีย สายลับไพร่เหนือ (NM05)
   if (monster.id === 'NM05') {
     drawCards(otherContestant, 1);
     setLog(`🕵️ [คำสั่งเสีย - สายลับไพร่เหนือ] ลงนรกของ ${boardOwner.name} และ ${otherContestant.name} ได้จั่วการ์ด 1 ใบ!`);
   }
 
+  // 3. ออโต้ โรเซเลีย (DM02)
   if (monster.id === 'DM02' && isFromBattle) {
     drawCards(boardOwner, 1);
     setLog(`🌹 [ออโต้ - โรเซเลีย] ถูกทำลายจากการต่อสู้ ${boardOwner.name} จั่วการ์ด 1 ใบ!`);
   }
 
+  // ⭐ 4. ตรวจสอบสกิลจากบนมือของ "แอชชี่ล่า" (DM07): ถ้ายูนิตฝ่ายเราถูกทำลายครบ 2 ใบขึ้นไปในเทิร์นนี้
+  checkAshilaHandTrigger(boardOwner);
+
   return { destroyed: true, monster };
+}
+
+// ฟังก์ชันเด้งถามสกิลของ แอชชี่ล่า (DM07) เมื่อการ์ดอยู่บนมือและมียูนิตถูกทำลายครบ 2 ใบขึ้นไปในเทิร์นนี้
+function checkAshilaHandTrigger(contestant) {
+  if (!contestant || contestant.unitsDestroyedThisTurn < 2) return;
+
+  const ashilaHandIdx = contestant.hand.findIndex(c => c.id === 'DM07');
+  if (ashilaHandIdx === -1) return;
+
+  // กรณีเป็น AI: หากมีช่องว่างให้คอลลงสนามพร้อมพลัง +2 ทันที
+  if (contestant.name === 'AI') {
+    const emptySlot = contestant.board.findIndex(m => m === null);
+    if (emptySlot !== -1) {
+      const summoned = contestant.hand.splice(ashilaHandIdx, 1)[0];
+      resetCardStateForZoneChange(summoned);
+      summoned.state = 'Stand';
+      summoned.tempPowerMod += 2;
+      contestant.board[emptySlot] = summoned;
+      setLog('🔥 [AI แอชชี่ล่า] ยูนิตถูกทำลายครบ 2 ใบ! คอล "แอชชี่ล่า" จากบนมือลงสนามและพลังโจมตี +2 จนจบเทิร์น!');
+      renderGame();
+    }
+    return;
+  }
+
+  // กรณีเป็นผู้เล่น (Player): เด้งหน้าต่างถามทันทีว่าต้องการคอลแอชชี่ล่าจากมือหรือไม่
+  setTimeout(() => {
+    const currentIdx = contestant.hand.findIndex(c => c.id === 'DM07');
+    if (currentIdx === -1 || gameState.gameOver) return;
+
+    showChoiceModal(
+      '🔥 เงื่อนไขสกิล "แอชชี่ล่า" บนมือทำงาน!',
+      `ยูนิตฝั่งคุณถูกทำลายครบ ${contestant.unitsDestroyedThisTurn} ใบในเทิร์นนี้แล้ว!\nต้องการสั่งใช้งาน "แอชชี่ล่า" จากบนมือ เพื่อคอลลงสนามและเพิ่มพลังโจมตี +2 จนจบเทิร์นหรือไม่?`,
+      [
+        {
+          label: '🔥 สั่งใช้งาน: คอล "แอชชี่ล่า" ลงสนาม (พลังโจมตี +2 จนจบเทิร์น!)',
+          color: '#dc2626',
+          onSelect: () => summonAshilaBySkillFromHand(contestant)
+        },
+        {
+          label: 'ยังไม่ใช้ตอนนี้ (เก็บไว้บนมือก่อน)',
+          color: '#475569',
+          onSelect: () => renderGame()
+        }
+      ]
+    );
+  }, 150);
+}
+
+// ฟังก์ชันนำ แอชชี่ล่า จากมือลงสู่สนามด้วยสกิล (+2 Power จนจบเทิร์น)
+function summonAshilaBySkillFromHand(contestant) {
+  const handIdx = contestant.hand.findIndex(c => c.id === 'DM07');
+  if (handIdx === -1) return;
+
+  const summoned = contestant.hand.splice(handIdx, 1)[0];
+  resetCardStateForZoneChange(summoned);
+  summoned.state = 'Stand';
+  summoned.tempPowerMod += 2; // พลังโจมตีเพิ่มขึ้น +2 จนจบเทิร์น (จาก 2 เป็น 4)
+
+  const emptySlot = contestant.board.findIndex(m => m === null);
+  if (emptySlot !== -1) {
+    contestant.board[emptySlot] = summoned;
+    setLog(`🔥 [สกิลแอชชี่ล่า] คอล "แอชชี่ล่า" จากบนมือลงช่องที่ ${emptySlot + 1} และพลังโจมตี +2 จนจบเทิร์น (เป็น ${getEffectivePower(summoned, contestant)})!`);
+    renderGame();
+  } else {
+    gameState.pendingAction = {
+      type: 'CALL_FROM_EFFECT_SELECT_SLOT',
+      cardToPlace: summoned,
+      onAfterPlace: null
+    };
+    setLog('🔥 [สกิลแอชชี่ล่า] สนามเต็ม 3 ช่อง — คลิกเลือกช่องบนสนามของคุณเพื่อวาง "แอชชี่ล่า" (Power 4) ทับ!');
+    renderGame();
+  }
 }
 
 
@@ -1256,6 +1334,7 @@ function triggerDebirunStartTurn(contestant, onComplete) {
   showChoiceModal('😈 ออโต้เมื่อเข้าเทิร์น: เดบิรุน', 'เลือกค้นหาการ์ดเวทจากกองหรือนรกขึ้นมือเพื่อบังคับใช้งาน (หากใช้งานไม่ได้จะชุบยูนิตจากนรก 1 ใบ):', options);
 }
 
+// เมนูเมื่อคลิกการ์ดบนมือของเด็ควันสิ้นโลก (แอชชี่ล่า DM07 & การ์ดอนาคต DM09-DM14)
 function handleDoomsdayHandMenu(handIndex) {
   const player = gameState.player;
   const ai = gameState.ai;
@@ -1266,40 +1345,22 @@ function handleDoomsdayHandMenu(handIndex) {
     const canSpecialCall = player.unitsDestroyedThisTurn >= 2;
     showChoiceModal(
       `🔥 ยืนยันการใช้การ์ด: แอชชี่ล่า`,
-      `ยูนิตฝั่งเราที่ถูกทำลายในเทิร์นนี้: ${player.unitsDestroyedThisTurn} ใบ\n\n📜 ความสามารถ:\n${card.desc}`,
+      `ยูนิตฝั่งเราที่ถูกทำลายในเทิร์นนี้: ${player.unitsDestroyedThisTurn} / 2 ใบ\n\n📜 ความสามารถ:\n${card.desc}`,
       [
         {
-          label: '✅ อัญเชิญปกติลงสนาม (Power 2)',
+          label: `💥 สั่งใช้งานสกิลจากมือ (เมื่อยูนิตถูกทำลาย 2 ใบขึ้นไป): คอลลงสนามและพลัง +2 จนจบเทิร์น ${!canSpecialCall ? '(ยูนิตถูกทำลายยังไม่ครบ 2 ใบ)' : ''}`,
+          disabled: !canSpecialCall,
+          color: '#dc2626',
+          onSelect: () => summonAshilaBySkillFromHand(player)
+        },
+        {
+          label: `✅ อัญเชิญปกติลงสนาม (Power 2 - เฉพาะใน Main Phase)`,
+          disabled: gameState.phase !== 'Main Phase',
           color: '#d97706',
           onSelect: () => {
             gameState.selectedHandIndex = handIndex;
             setLog('👉 เลือก "แอชชี่ล่า" แล้ว — คลิกที่ช่องบนสนามของคุณเพื่อลงสนาม!');
             renderGame();
-          }
-        },
-        {
-          label: `💥 สั่งใช้งานจากมือ (เมื่อยูนิตเราถูกทำลายครบ 2 ใบ): คอลลงสนามและพลัง +2 จนจบเทิร์น ${!canSpecialCall ? '(เงื่อนไขยังไม่ครบ)' : ''}`,
-          disabled: !canSpecialCall,
-          color: '#dc2626',
-          onSelect: () => {
-            const summoned = player.hand.splice(handIndex, 1)[0];
-            resetCardStateForZoneChange(summoned);
-            summoned.tempPowerMod += 2;
-
-            const emptySlot = player.board.findIndex(m => m === null);
-            if (emptySlot !== -1) {
-              player.board[emptySlot] = summoned;
-              setLog('🔥 [แอชชี่ล่า] สั่งใช้งานจากบนมือ! คอลลงสนามและได้รับพลังโจมตี +2 จนจบเทิร์น (เป็น 4)!');
-              renderGame();
-            } else {
-              gameState.pendingAction = {
-                type: 'CALL_FROM_EFFECT_SELECT_SLOT',
-                cardToPlace: summoned,
-                onAfterPlace: null
-              };
-              setLog('🔥 [แอชชี่ล่า] สนามเต็ม 3 ช่อง — คลิกเลือกช่องบนสนามของคุณเพื่อวาง "แอชชี่ล่า" ทับ!');
-              renderGame();
-            }
           }
         },
         { label: '❌ ยกเลิก', color: '#475569', onSelect: () => renderGame() }
@@ -1867,7 +1928,6 @@ function activateMonsterOnBoardPlayer(slotIndex) {
     return;
   }
 
-  // หากไม่มีสกิลกดใช้บนสนาม ให้แสดงรายละเอียดการ์ดและแจ้งให้กดปุ่ม "เฟสถัดไป (Battle Phase)" หากต้องการโจมตี
   openCardDetailModal(monster, player);
   setLog(`ℹ️ "${monster.name}" ไม่มีสกิลกดใช้บนสนาม (หากต้องการสั่งโจมตี ให้กดปุ่ม "⚔️ เฟสถัดไป (Battle Phase)" ด้านขวา)`);
 }
@@ -2222,17 +2282,20 @@ function executeEndPhaseCleanup(activeContestant) {
   });
 }
 
-// เมื่อผู้เล่นคลิกที่การ์ดบนมือตัวเอง (เฉพาะใน Main Phase)
+// เมื่อผู้เล่นคลิกที่การ์ดบนมือตัวเอง
 function handleHandCardClick(handIndex) {
-  if (gameState.gameOver || gameState.isRollingDice || gameState.activeTurn !== 'player' || gameState.phase !== 'Main Phase') {
+  const player = gameState.player;
+  const ai = gameState.ai;
+  const clickedCard = player ? player.hand[handIndex] : null;
+  if (!clickedCard) return;
+
+  // อนุญาตให้คลิกใช้สกิลของ แอชชี่ล่า (DM07) จากบนมือได้แม้จะอยู่ใน Battle Phase หากยูนิตถูกทำลายครบ 2 ใบแล้ว
+  const isAshilaReadyInBattle = (clickedCard.id === 'DM07' && player.unitsDestroyedThisTurn >= 2 && gameState.phase === 'Battle Phase');
+
+  if (gameState.gameOver || gameState.isRollingDice || gameState.activeTurn !== 'player' || (gameState.phase !== 'Main Phase' && !isAshilaReadyInBattle)) {
     setLog('⚠️ ลงการ์ดหรือใช้เวทมนตร์จากมือได้เฉพาะใน Main Phase ของคุณเท่านั้น!');
     return;
   }
-
-  const player = gameState.player;
-  const ai = gameState.ai;
-  const clickedCard = player.hand[handIndex];
-  if (!clickedCard) return;
 
   // กรณีที่ 1: อยู่ระหว่างรอคลิกเลือกการ์ดบนมือเพื่อทิ้ง
   if (gameState.pendingAction) {
@@ -3193,7 +3256,6 @@ function setupInGameControlBar() {
   }
 }
 
-// เมื่อกดปุ่ม "เฟสถัดไป": ถ้าอยู่ Main Phase จะเปลี่ยนเป็น Battle Phase / ถ้าอยู่ Battle Phase จะจบเทิร์น
 function handleNextPhaseButtonClick() {
   if (gameState.activeTurn !== 'player' || gameState.gameOver || gameState.isRollingDice) return;
   if (gameState.pendingAction) {
@@ -3470,7 +3532,7 @@ function endAITurn() {
 
 
 /* ============================================================================
-   หมวดที่ 9: ระบบแสดงคำอธิบายการ์ด (TOOLTIP) และวาดหน้าจอกระดานเกม (RENDER UI)
+   หมวดที่ 9: ระบบแสดงคำอธิบายการ์ด (TOOLTIP + แตะค้างบนมือถือ) และ RENDER UI
    ============================================================================ */
 function getOrCreateTooltipElement() {
   let tooltip = document.getElementById('card-hover-tooltip');
@@ -3749,6 +3811,11 @@ function renderGame() {
       (pendingType === 'SPELL_S01_DISCARD' && idx !== gameState.pendingAction.spellHandIndex)
     ) {
       cardEl.classList.add('selected-mulligan');
+    }
+    // ไฮไลต์การ์ดแอชชี่ล่าบนมือเป็นสีทองเมื่อเงื่อนไขยูนิตถูกทำลายครบ 2 ใบพร้อมใช้งาน
+    if (card.id === 'DM07' && player.unitsDestroyedThisTurn >= 2) {
+      cardEl.style.outline = '3px solid #f59e0b';
+      cardEl.style.boxShadow = '0 0 16px rgba(245, 158, 11, 0.9)';
     }
     cardEl.addEventListener('click', () => handleHandCardClick(idx));
     handContainer.appendChild(cardEl);
