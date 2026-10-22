@@ -6,7 +6,98 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- ==================== หน้าล็อบบี้หลัก (MAIN LOBBY) ==================== -->
+  <div id="lobby-screen" class="lobby-wrapper">
+    <!-- แถบเมนูด้านบน (Navbar) -->
+    <nav class="lobby-navbar">
+      <div class="lobby-logo">⚔️ MY CARD TCG</div>
+      <div class="lobby-nav-links">
+        <a href="#" id="nav-play">Play</a>
+        <a href="#" id="nav-deck">Deck Builder</a>
+        <a href="#" id="nav-cards">Card List</a>
+      </div>
+    </nav>
 
+    <!-- ส่วนแบนเนอร์หลัก (Hero Section) -->
+    <section class="lobby-hero">
+      <div class="hero-content">
+        <div class="hero-subtitle">WEB TCG SIMULATOR</div>
+        <h1 class="hero-title">My Custom TCG<br><span>เล่นออนไลน์ฟรี บนเบราว์เซอร์</span></h1>
+        <p class="hero-desc">
+          เกมการ์ดครบทุกเด็ค (เด็คจิต, เด็คเหนือ, เด็ควันสิ้นโลก) จัดเด็คของคุณเอง ดวลกับเพื่อนได้ทันที หรือฝึกฝีมือกับบอท ไม่ต้องติดตั้ง ไม่ต้องสมัครสมาชิก
+        </p>
+        <div class="hero-buttons">
+          <button class="btn-lobby-primary" id="btn-lobby-pvp">▷ เล่นเลย (ดวลกับเพื่อน)</button>
+          <button class="btn-lobby-secondary" id="btn-lobby-bot">🤖 เล่นกับบอท</button>
+        </div>
+      </div>
+
+      <!-- รูปการ์ดเรียงเป็นพัดทางขวา -->
+      <div class="hero-card-fan">
+        <img src="images/เด็คจิต/1.png" class="fan-card fan-1" alt="Card 1">
+        <img src="images/เด็คเหนือ/1.png" class="fan-card fan-2" alt="Card 2">
+        <img src="images/วันสิ้นโลก/1.png" class="fan-card fan-3" alt="Card 3">
+        <img src="images/วันสิ้นโลก/2.png" class="fan-card fan-4" alt="Card 4">
+      </div>
+    </section>
+
+    <!-- กล่องเมนู 3 ช่อง (Deck Builder / Card List / Deck List) -->
+    <section class="lobby-feature-grid">
+      <div class="feature-card card-purple" id="card-menu-deckbuilder">
+        <div class="feature-icon">🃏</div>
+        <div>
+          <h3>Deck Builder</h3>
+          <p>จัดเด็ค 21 ใบ บันทึกในเครื่อง หรือเลือกเด็คมาตรฐาน</p>
+        </div>
+      </div>
+
+      <div class="feature-card card-green" id="card-menu-cardlist">
+        <div class="feature-icon">🔍</div>
+        <div>
+          <h3>Card List</h3>
+          <p>ค้นหาและดูความสามารถของการ์ดทั้งหมดในเกม</p>
+        </div>
+      </div>
+
+      <div class="feature-card card-blue" id="card-menu-preset">
+        <div class="feature-icon">🏆</div>
+        <div>
+          <h3>Deck List</h3>
+          <p>เลือกโหลดเด็คจิต เด็คเหนือ และเด็ควันสิ้นโลกพร้อมเล่น</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- หน้าต่างสร้างห้อง / เข้าร่วมห้องสำหรับเล่นกับเพื่อน (Multiplayer Modal) -->
+  <div class="modal-overlay" id="pvp-room-modal" style="display: none;">
+    <div class="modal-box" style="max-width: 480px;">
+      <h2 style="color: #38bdf8;">🌐 ดวลการ์ดกับเพื่อน (ออนไลน์)</h2>
+      <p style="color: #94a3b8; font-size: 13px; margin: 8px 0 18px 0;">
+        สร้างห้องเพื่อรับรหัสส่งให้เพื่อน หรือกรอกรหัสห้องของเพื่อนเพื่อเริ่มดวล
+      </p>
+
+      <div style="background: #141724; padding: 15px; border-radius: 10px; border: 1px solid #2e344e; margin-bottom: 15px;">
+        <button class="btn" id="btn-create-room" style="width: 100%; background: #2563eb; padding: 10px;">
+          ➕ สร้างห้องใหม่ (เป็นเจ้าบ้าน)
+        </button>
+        <div id="room-code-display" style="margin-top: 12px; font-size: 18px; font-weight: bold; color: #4ade80; display: none;">
+          รหัสห้องของคุณ: <span id="my-room-code">----</span>
+          <div style="font-size: 12px; color: #cbd5e1; margin-top: 4px;">ส่งรหัสนี้ให้เพื่อนกรอกเพื่อเริ่มเกม...</div>
+        </div>
+      </div>
+
+      <div style="background: #141724; padding: 15px; border-radius: 10px; border: 1px solid #2e344e; margin-bottom: 15px;">
+        <div style="font-size: 13px; margin-bottom: 8px; color: #cbd5e1;">มีรหัสห้องของเพื่อนแล้ว?</div>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="input-join-code" placeholder="กรอกรหัสห้อง เช่น 4829" style="flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid #475569; background: #0f111a; color: #fff;">
+          <button class="btn" id="btn-join-room" style="background: #16a34a;">เข้าร่วม</button>
+        </div>
+      </div>
+
+      <button class="btn" id="btn-close-pvp-modal" style="background: #475569; width: 100%;">กลับหน้าล็อบบี้</button>
+    </div>
+  </div>
   <div class="game-container">
     <!-- โซนของ AI (ด้านบน) -->
     <div class="side-zone">
@@ -163,6 +254,7 @@
     </div>
   </div>
 
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
