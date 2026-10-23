@@ -3,6 +3,7 @@
   margin: 0;
   padding: 0;
   font-family: 'Segoe UI', Tahoma, sans-serif;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -15,61 +16,101 @@ body {
 
 .game-container {
   width: 100%;
-  max-width: 1000px;
+  max-width: 1020px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
-/* โซนผู้เล่นและ AI */
+/* ==================== โซนผู้เล่นและ AI (Desktop Base) ==================== */
 .side-zone {
   background: #1c1e29;
   border: 1px solid #2e3244;
   border-radius: 10px;
-  padding: 12px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+}
+
+.side-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.hand-counter-pill {
+  background: #141724;
+  border: 1px solid #334155;
+  color: #38bdf8;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
 }
 
 .field-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 15px;
+  gap: 12px;
 }
 
-/* กล่อง Leader, Deck, Graveyard */
+/* กล่อง Leader, Deck, Graveyard, มิติมืด */
 .info-box {
-  width: 120px;
-  height: 150px;
+  width: 112px;
+  height: 148px;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
-  padding: 8px;
-  font-size: 13px;
+  padding: 6px;
+  font-size: 12px;
+  transition: transform 0.15s, border-color 0.15s;
 }
 
 .leader-box {
+  width: 135px;
   background: linear-gradient(135deg, #4b1d3f, #2a1024);
   border: 2px solid #e06c9f;
 }
 
+.leader-role-tag {
+  font-size: 10px;
+  color: #fbcfe8;
+  opacity: 0.9;
+}
+
+.leader-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.leader-name-text {
+  font-weight: bold;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
 .hp-badge {
-  margin-top: 8px;
   background: #d92648;
-  padding: 4px 10px;
+  padding: 3px 10px;
   border-radius: 20px;
   font-weight: bold;
-  font-size: 15px;
+  font-size: 14px;
+  color: #fff;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 .pile-group {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .deck-box {
@@ -82,10 +123,20 @@ body {
   border: 2px dashed #7a5c8a;
 }
 
+.dark-box {
+  background: #131129;
+  border: 2px dashed #6366f1;
+}
+
+.pile-sub-hint {
+  font-size: 10px;
+  color: #a5b4fc;
+}
+
 /* กระดาน 3 ช่อง */
 .board-slots {
   display: flex;
-  gap: 15px;
+  gap: 14px;
 }
 
 .slot {
@@ -98,47 +149,165 @@ body {
   justify-content: center;
   align-items: center;
   position: relative;
+  color: #64748b;
+  font-size: 12px;
 }
 
-/* แถบกลางกระดาน */
+/* ==================== โซนกลางกระดาน (Control & Battle Log) ==================== */
+.middle-hud-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+
 .center-bar {
   background: #26293b;
-  padding: 10px 20px;
+  padding: 8px 16px;
   border-radius: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   border: 1px solid #3d435e;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.turn-phase-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.phase-pill {
+  background: #0f172a;
+  color: #38bdf8;
+  font-weight: bold;
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid #0284c7;
+  font-size: 12px;
+}
+
+.quota-badges {
+  display: flex;
+  gap: 6px;
 }
 
 .quota-badges span {
   background: #191b26;
-  padding: 5px 10px;
+  padding: 4px 10px;
   border-radius: 6px;
-  font-size: 13px;
-  margin-right: 8px;
+  font-size: 12px;
   border: 1px solid #454d6b;
+  white-space: nowrap;
+}
+
+.control-btn-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .btn {
   background: #3b82f6;
   color: white;
   border: none;
-  padding: 8px 16px;
+  padding: 8px 14px;
   border-radius: 6px;
   cursor: pointer;
   font-weight: bold;
+  font-size: 13px;
 }
 
 .btn:hover { background: #2563eb; }
-.btn:disabled { background: #4b5563; cursor: not-allowed; }
+.btn:disabled { background: #4b5563; cursor: not-allowed; opacity: 0.7; }
 
-/* การ์ดบนมือและบนสนาม */
+/* Battle Log Container */
+.action-log-container {
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 6px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+}
+
+.action-log-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.log-latest-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.action-log-latest-text {
+  flex: 1;
+  font-size: 13px;
+  font-weight: bold;
+  color: #fbbf24;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.log-expand-btn {
+  font-size: 11px;
+  color: #38bdf8;
+  background: #1e293b;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  flex-shrink: 0;
+}
+
+.action-log-scrollbox {
+  max-height: 72px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  scroll-behavior: smooth;
+  border-top: 1px solid #1f2937;
+  padding-top: 4px;
+}
+
+.log-item {
+  font-size: 12px;
+  color: #cbd5e1;
+  line-height: 1.35;
+}
+
+.log-item.ai-action {
+  color: #f472b6;
+}
+
+/* ==================== การ์ดบนมือและบนสนาม ==================== */
+.hand-dock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hand-dock-label {
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: bold;
+}
+
 .hand-row {
-  min-height: 170px;
+  min-height: 168px;
   background: #161822;
   border-radius: 8px;
-  padding: 10px;
+  padding: 8px 10px;
   display: flex;
   justify-content: center;
   gap: 10px;
@@ -146,170 +315,40 @@ body {
 }
 
 .card {
-  width: 115px;
-  height: 155px;
+  width: 120px;
+  height: 162px;
   border-radius: 8px;
-  padding: 8px;
+  padding: 6px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-end;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s;
   user-select: none;
   font-size: 12px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
 }
 
 .card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-4px);
 }
 
 .card.Monster { background: #2b261f; border: 2px solid #d97706; }
 .card.NormalSpell { background: #172a24; border: 2px solid #10b981; }
 .card.ReactionSpell { background: #281a2e; border: 2px solid #a855f7; }
 
-.card-type { font-size: 10px; opacity: 0.8; text-transform: uppercase; }
-.card-name { font-weight: bold; font-size: 13px; margin: 4px 0; }
-.card-power {
-  background: #b45309;
-  text-align: center;
-  padding: 3px;
-  border-radius: 4px;
-  font-weight: bold;
-}
-.card-desc { font-size: 11px; color: #cbd5e1; line-height: 1.2; }
-
-/* สถานะ Rest (วางการ์ดแนวนอน) */
-.card.Rest {
-  transform: rotate(90deg);
-  opacity: 0.75;
-}
-
-/* หน้าต่าง Modal (Mulligan) */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.85);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 100;
-}
-
-.modal-box {
-  background: #1e2130;
-  border: 2px solid #4f587a;
-  border-radius: 12px;
-  padding: 24px;
-  max-width: 750px;
-  width: 95%;
-  text-align: center;
-}
-
-.mulligan-cards {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  margin: 20px 0;
-  flex-wrap: wrap;
-}
-
-.card.selected-mulligan {
-  outline: 3px solid #ef4444;
-  transform: translateY(-8px);
-  position: relative;
-}
-
-.card.selected-mulligan::after {
-  content: "เปลี่ยนใบนี้";
-  position: absolute;
-  bottom: -22px;
-  left: 0;
-  right: 0;
-  color: #f87171;
-  font-weight: bold;
-  font-size: 11px;
-}
-/* ไฮไลต์การ์ดบนมือที่กำลังคลิกเลือก */
-.card.selected-hand {
-  outline: 3px solid #38bdf8;
-  transform: translateY(-12px);
-  box-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
-}
-
-/* ไฮไลต์ช่องกระดานที่สามารถวาง Monster ลงไปได้ */
-.slot.valid-target {
-  border-color: #22c55e;
-  background: rgba(34, 197, 94, 0.15);
-  cursor: pointer;
-}
-
-/* แถบข้อความแจ้งเตือนเหตุการณ์ & ผลทอยลูกเต๋า D6 */
-.action-log {
-  background: #111827;
-  border: 1px solid #374151;
-  color: #fbbf24;
-  padding: 8px 14px;
-  border-radius: 6px;
-  text-align: center;
-  font-size: 14px;
-  font-weight: bold;
-}
-/* ไฮไลต์ Monster ที่กำลังเลือกสั่งโจมตี */
-.card.selected-attacker {
-  outline: 3px solid #f59e0b;
-  box-shadow: 0 0 18px rgba(245, 158, 11, 0.8);
-}
-
-/* ไฮไลต์เป้าหมายที่สามารถโจมตีได้ (Monster หรือ Leader อีกฝ่าย) */
-.attack-target {
-  outline: 3px dashed #ef4444 !important;
-  cursor: crosshair !important;
-  animation: pulseTarget 1s infinite alternate;
-}
-
-@keyframes pulseTarget {
-  from { box-shadow: 0 0 5px rgba(239, 68, 68, 0.4); }
-  to { box-shadow: 0 0 18px rgba(239, 68, 68, 0.9); }
-}
-
-.intercept-options {
-  display: flex;
-  justify-content: center;
-  gap: 15px;
-  margin: 20px 0;
-  flex-wrap: wrap;
-}
-/* ==========================================
-   ส่วนแสดงผลรูปภาพการ์ด (Card Artwork)
-   ========================================== */
-.card {
-  width: 120px;
-  height: 170px;
-  padding: 6px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-}
-
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 3px;
-}
-
-.card {
-  width: 125px;
-  height: 175px;
-  padding: 6px;
-  position: relative;
-  overflow: hidden;
-  justify-content: flex-end; /* ดันชื่อและค่าพลังลงไปด้านล่าง */
+  margin-bottom: 2px;
 }
 
 .card-art {
   position: absolute;
-  inset: 0; /* ขยายรูปให้เต็มใบการ์ด 100% */
+  inset: 0;
   width: 100%;
   height: 100%;
   margin: 0;
@@ -324,22 +363,58 @@ body {
   object-position: top center;
 }
 
-/* ทำแถบเงาดำด้านล่างเพื่อให้ยังอ่านชื่อการ์ดและค่า Power ชัดเจน */
 .card-header, .card-name, .card-power, .card-desc {
   position: relative;
   z-index: 1;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.95);
+}
+
+.card-type {
+  font-size: 9px;
+  background: rgba(0, 0, 0, 0.65);
+  padding: 1px 4px;
+  border-radius: 3px;
+  text-transform: uppercase;
 }
 
 .card-name {
-  background: rgba(0, 0, 0, 0.65);
+  font-weight: bold;
+  font-size: 12px;
+  margin: 2px 0;
+  background: rgba(0, 0, 0, 0.72);
   padding: 2px 4px;
   border-radius: 4px;
   text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+.card-power {
+  background: #b45309;
+  text-align: center;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.card-desc {
+  font-size: 10px;
+  color: #cbd5e1;
+  line-height: 1.2;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .leader-art {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid #f472b6;
@@ -347,68 +422,119 @@ body {
   background: #1e1b2e;
 }
 
-/* ==========================================
-   หน้าต่างแอนิเมชันทอยลูกเต๋า D6
-   ========================================== */
+.card.Rest {
+  transform: rotate(90deg) scale(0.88);
+  opacity: 0.8;
+}
+
+.card.selected-mulligan {
+  outline: 3px solid #ef4444;
+  transform: translateY(-6px);
+  position: relative;
+}
+
+.card.selected-mulligan::after {
+  content: "เลือกใบนี้";
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  background: rgba(220, 38, 38, 0.9);
+  color: #fff;
+  font-weight: bold;
+  font-size: 10px;
+  padding: 2px;
+  border-radius: 4px;
+  z-index: 5;
+}
+
+.card.selected-hand {
+  outline: 3px solid #38bdf8;
+  transform: translateY(-8px);
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.7);
+}
+
+.slot.valid-target {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.16);
+  cursor: pointer;
+}
+
+.card.selected-attacker {
+  outline: 3px solid #f59e0b;
+  box-shadow: 0 0 18px rgba(245, 158, 11, 0.85);
+}
+
+.attack-target {
+  outline: 3px dashed #ef4444 !important;
+  cursor: crosshair !important;
+  animation: pulseTarget 1s infinite alternate;
+}
+
+@keyframes pulseTarget {
+  from { box-shadow: 0 0 5px rgba(239, 68, 68, 0.4); }
+  to { box-shadow: 0 0 18px rgba(239, 68, 68, 0.9); }
+}
+
+/* ==================== หน้าต่าง Modal & Deck Builder ==================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.modal-box {
+  background: #1e2130;
+  border: 2px solid #4f587a;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 750px;
+  width: 95%;
+  text-align: center;
+}
+
+.mulligan-cards, .intercept-options {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 16px 0;
+  flex-wrap: wrap;
+}
+
 .dice-box {
   background: #1e2130;
   border: 2px solid #a855f7;
   border-radius: 16px;
-  padding: 28px;
-  width: 340px;
+  padding: 24px;
+  width: 320px;
   text-align: center;
   box-shadow: 0 0 30px rgba(168, 85, 247, 0.5);
 }
 
 .dice-cube {
-  width: 90px;
-  height: 90px;
-  margin: 20px auto;
+  width: 84px;
+  height: 84px;
+  margin: 16px auto;
   background: linear-gradient(135deg, #ffffff, #cbd5e1);
   color: #1e1b4b;
   border-radius: 16px;
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 48px;
+  font-size: 44px;
   font-weight: 900;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6), inset 0 -4px 8px rgba(0,0,0,0.2);
   border: 3px solid #94a3b8;
 }
 
-.dice-cube.rolling {
-  animation: shakeDice 0.15s infinite;
-  background: linear-gradient(135deg, #f3e8ff, #d8b4fe);
-  border-color: #a855f7;
-}
-
-.dice-cube.success {
-  background: linear-gradient(135deg, #dcfce7, #4ade80);
-  border-color: #16a34a;
-  color: #064e3b;
-  transform: scale(1.12);
-  transition: transform 0.2s;
-}
-
-.dice-cube.fail {
-  background: linear-gradient(135deg, #fee2e2, #f87171);
-  border-color: #dc2626;
-  color: #7f1d1d;
-}
-
-@keyframes shakeDice {
-  0% { transform: rotate(-12deg) scale(1.05); }
-  50% { transform: rotate(12deg) scale(0.95); }
-  100% { transform: rotate(-12deg) scale(1.05); }
-}
-/* ==========================================
-   หน้าต่างจัดเด็ค (Deck Builder UI)
-   ========================================== */
 .deck-builder-box {
   background: #161824;
   border: 2px solid #4f587a;
   border-radius: 14px;
-  padding: 20px;
+  padding: 18px;
   max-width: 960px;
   width: 96%;
   max-height: 92vh;
@@ -422,24 +548,24 @@ body {
   align-items: center;
   border-bottom: 1px solid #2e3244;
   padding-bottom: 12px;
-  margin-bottom: 15px;
+  margin-bottom: 12px;
   flex-wrap: wrap;
   gap: 10px;
 }
 
 .deck-section-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: bold;
   color: #38bdf8;
-  margin: 12px 0 8px 0;
+  margin: 10px 0 8px 0;
 }
 
 .card-pool-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
   background: #11131c;
-  padding: 12px;
+  padding: 10px;
   border-radius: 10px;
   border: 1px solid #282c3e;
 }
@@ -448,16 +574,16 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
 }
 
 .count-badge {
   background: #1e293b;
   color: #f8fafc;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: bold;
-  padding: 3px 10px;
-  border-radius: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
   border: 1px solid #475569;
 }
 
@@ -471,48 +597,8 @@ body {
   outline: 3px solid #ec4899;
   box-shadow: 0 0 18px rgba(236, 72, 153, 0.75);
 }
-/* ==========================================
-   ระบบ Battle Log ย้อนหลัง
-   ========================================== */
-.action-log-container {
-  background: #111827;
-  border: 1px solid #374151;
-  border-radius: 8px;
-  padding: 10px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
 
-.action-log-title {
-  font-size: 12px;
-  color: #94a3b8;
-  border-bottom: 1px solid #1f2937;
-  padding-bottom: 4px;
-  font-weight: bold;
-}
-
-.action-log-scrollbox {
-  max-height: 90px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  scroll-behavior: smooth;
-}
-
-.log-item {
-  font-size: 13px;
-  color: #fbbf24;
-  line-height: 1.3;
-}
-
-.log-item.ai-action {
-  color: #f472b6; /* สีชมพูอ่อนสำหรับ Log ของ AI เพื่อให้สังเกตง่าย */
-}
-/* ==========================================
-   ระบบกล่องแสดงคำอธิบายการ์ดเมื่อเอาเมาส์ชี้ (Card Tooltip)
-   ========================================== */
+/* ==================== Card Tooltip (PC) ==================== */
 .card-tooltip {
   position: fixed;
   z-index: 9999;
@@ -523,7 +609,7 @@ body {
   padding: 12px 14px;
   color: #f8fafc;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.85);
-  pointer-events: none; /* ป้องกันไม่ให้กล่องบังการคลิกเมาส์ */
+  pointer-events: none;
   display: none;
   backdrop-filter: blur(4px);
 }
@@ -537,37 +623,12 @@ body {
   margin-bottom: 8px;
 }
 
-.tooltip-name {
-  font-weight: bold;
-  font-size: 15px;
-  color: #fbbf24;
-}
+.tooltip-name { font-weight: bold; font-size: 15px; color: #fbbf24; }
+.tooltip-type { font-size: 11px; background: #1e293b; padding: 2px 8px; border-radius: 10px; color: #94a3b8; border: 1px solid #475569; }
+.tooltip-stats { font-size: 13px; font-weight: bold; color: #4ade80; margin-bottom: 8px; }
+.tooltip-desc { font-size: 13px; color: #e2e8f0; line-height: 1.5; white-space: pre-line; }
 
-.tooltip-type {
-  font-size: 11px;
-  background: #1e293b;
-  padding: 2px 8px;
-  border-radius: 10px;
-  color: #94a3b8;
-  border: 1px solid #475569;
-}
-
-.tooltip-stats {
-  font-size: 13px;
-  font-weight: bold;
-  color: #4ade80;
-  margin-bottom: 8px;
-}
-
-.tooltip-desc {
-  font-size: 13px;
-  color: #e2e8f0;
-  line-height: 1.5;
-  white-space: pre-line;
-}
-/* ==========================================
-   สไตล์หน้าล็อบบี้หลัก (อ้างอิงดีไซน์ WUWATCG)
-   ========================================== */
+/* ==================== หน้าล็อบบี้หลัก (Lobby UI) ==================== */
 .lobby-wrapper {
   width: 100%;
   max-width: 1050px;
@@ -575,100 +636,47 @@ body {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 28px;
-  padding: 10px 16px 40px 16px;
+  gap: 24px;
+  padding: 10px 16px 36px 16px;
 }
 
 .lobby-navbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 0;
+  padding: 12px 0;
   border-bottom: 1px solid #1e2336;
 }
 
-.lobby-logo {
-  font-weight: 900;
-  font-size: 18px;
-  letter-spacing: 1px;
-  color: #f8fafc;
-}
-
-.lobby-nav-links {
-  display: flex;
-  gap: 20px;
-}
-
-.lobby-nav-links a {
-  color: #94a3b8;
-  text-decoration: none;
-  font-size: 14px;
-  transition: color 0.2s;
-}
-
-.lobby-nav-links a:hover {
-  color: #38bdf8;
-}
+.lobby-logo { font-weight: 900; font-size: 18px; letter-spacing: 1px; color: #f8fafc; }
+.lobby-nav-links { display: flex; gap: 20px; }
+.lobby-nav-links a { color: #94a3b8; text-decoration: none; font-size: 14px; }
+.lobby-nav-links a:hover { color: #38bdf8; }
 
 .lobby-hero {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 30px;
-  padding: 36px 28px;
+  gap: 24px;
+  padding: 32px 24px;
   background: radial-gradient(circle at 75% 50%, rgba(56, 189, 248, 0.14), rgba(18, 19, 26, 0.95) 70%);
   border: 1px solid #23283d;
   border-radius: 16px;
   flex-wrap: wrap;
 }
 
-.hero-content {
-  flex: 1;
-  min-width: 280px;
-}
-
-.hero-subtitle {
-  font-size: 12px;
-  letter-spacing: 2px;
-  color: #64748b;
-  margin-bottom: 8px;
-  font-weight: bold;
-}
-
-.hero-title {
-  font-size: 32px;
-  font-weight: 800;
-  color: #a5b4fc;
-  line-height: 1.25;
-  margin-bottom: 14px;
-}
-
-.hero-title span {
-  font-size: 22px;
-  color: #f8fafc;
-  display: block;
-  margin-top: 4px;
-}
-
-.hero-desc {
-  color: #94a3b8;
-  font-size: 14px;
-  line-height: 1.6;
-  margin-bottom: 22px;
-  max-width: 480px;
-}
-
-.hero-buttons {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
+.hero-content { flex: 1; min-width: 260px; }
+.hero-subtitle { font-size: 12px; letter-spacing: 2px; color: #64748b; margin-bottom: 6px; font-weight: bold; }
+.hero-title { font-size: 30px; font-weight: 800; color: #a5b4fc; line-height: 1.25; margin-bottom: 12px; }
+.hero-title span { font-size: 20px; color: #f8fafc; display: block; margin-top: 4px; }
+.hero-desc { color: #94a3b8; font-size: 14px; line-height: 1.6; margin-bottom: 20px; max-width: 480px; }
+.hero-buttons { display: flex; gap: 12px; flex-wrap: wrap; }
 
 .btn-lobby-primary {
   background: #3b82f6;
   color: #fff;
   border: none;
-  padding: 12px 24px;
+  padding: 12px 22px;
   border-radius: 10px;
   font-weight: bold;
   font-size: 15px;
@@ -676,30 +684,21 @@ body {
   box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
 }
 
-.btn-lobby-primary:hover {
-  background: #2563eb;
-}
-
 .btn-lobby-secondary {
   background: #181b28;
   color: #e2e8f0;
   border: 1px solid #333a56;
-  padding: 12px 24px;
+  padding: 12px 22px;
   border-radius: 10px;
   font-weight: bold;
   font-size: 15px;
   cursor: pointer;
 }
 
-.btn-lobby-secondary:hover {
-  background: #23283b;
-}
-
-/* การ์ดเรียงเป็นพัด (Card Fan) */
 .hero-card-fan {
   position: relative;
-  width: 300px;
-  height: 220px;
+  width: 280px;
+  height: 200px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -707,315 +706,408 @@ body {
 
 .fan-card {
   position: absolute;
-  width: 115px;
-  height: 165px;
+  width: 110px;
+  height: 158px;
   object-fit: cover;
   border-radius: 10px;
   border: 2px solid rgba(255, 255, 255, 0.25);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
-  transition: transform 0.3s;
 }
 
-.fan-1 { transform: translateX(-65px) rotate(-18deg); z-index: 1; }
-.fan-2 { transform: translateX(-20px) translateY(-10px) rotate(-6deg); z-index: 2; }
-.fan-3 { transform: translateX(25px) translateY(-8px) rotate(8deg); z-index: 3; }
-.fan-4 { transform: translateX(70px) translateY(5px) rotate(20deg); z-index: 4; }
+.fan-1 { transform: translateX(-60px) rotate(-18deg); z-index: 1; }
+.fan-2 { transform: translateX(-18px) translateY(-10px) rotate(-6deg); z-index: 2; }
+.fan-3 { transform: translateX(22px) translateY(-8px) rotate(8deg); z-index: 3; }
+.fan-4 { transform: translateX(65px) translateY(5px) rotate(20deg); z-index: 4; }
 
-.hero-card-fan:hover .fan-1 { transform: translateX(-80px) rotate(-24deg) scale(1.05); }
-.hero-card-fan:hover .fan-4 { transform: translateX(85px) rotate(26deg) scale(1.05); }
-
-/* กล่องเมนู 3 ช่อง (Feature Cards) */
 .lobby-feature-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 14px;
 }
 
 .feature-card {
   background: #171926;
   border-radius: 14px;
-  padding: 20px;
+  padding: 18px;
   display: flex;
   align-items: flex-start;
   gap: 14px;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
   border: 1px solid #2a2f45;
 }
 
-.feature-card:hover {
-  transform: translateY(-4px);
-}
+.feature-card.card-purple { background: linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(23, 25, 38, 0.95)); border-color: rgba(139, 92, 246, 0.45); }
+.feature-card.card-green { background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(23, 25, 38, 0.95)); border-color: rgba(16, 185, 129, 0.45); }
+.feature-card.card-blue { background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(23, 25, 38, 0.95)); border-color: rgba(56, 189, 248, 0.45); }
+.feature-icon { font-size: 22px; background: rgba(255, 255, 255, 0.06); padding: 10px; border-radius: 10px; }
+.feature-card h3 { font-size: 16px; margin-bottom: 4px; color: #f8fafc; }
+.feature-card p { font-size: 12px; color: #94a3b8; line-height: 1.4; }
 
-.feature-card.card-purple {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(23, 25, 38, 0.95));
-  border-color: rgba(139, 92, 246, 0.45);
-}
 
-.feature-card.card-green {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(23, 25, 38, 0.95));
-  border-color: rgba(16, 185, 129, 0.45);
-}
-
-.feature-card.card-blue {
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(23, 25, 38, 0.95));
-  border-color: rgba(56, 189, 248, 0.45);
-}
-
-.feature-icon {
-  font-size: 24px;
-  background: rgba(255, 255, 255, 0.06);
-  padding: 10px;
-  border-radius: 10px;
-}
-
-.feature-card h3 {
-  font-size: 16px;
-  margin-bottom: 4px;
-  color: #f8fafc;
-}
-
-.feature-card p {
-  font-size: 12px;
-  color: #94a3b8;
-  line-height: 1.4;
-}
 /* ============================================================================
-   ระบบรองรับหน้าจอมือถือและแท็บเล็ต (MOBILE RESPONSIVE UI)
+   📱 MOBILE-FIRST RESPONSIVE UI (360px – 768px)
+   จัดหน้าเล่นเกมการ์ดให้อยู่ในหน้าจอเดียว (100dvh) แบ่งเป็น 3 โซนชัดเจน ไม่ต้องไถหน้าเว็บ
    ============================================================================ */
 @media (max-width: 768px) {
   body {
-    padding: 4px;
+    padding: 0;
+    margin: 0;
     overflow-x: hidden;
+    background: #0d0f17;
   }
 
-  /* --- 1. ปรับหน้าล็อบบี้บนมือถือ --- */
+  /* --- หน้าล็อบบี้บนมือถือ (เลื่อนดูตามปกติได้) --- */
   .lobby-wrapper {
-    padding: 6px 10px 24px 10px;
-    gap: 16px;
+    padding: 8px 12px 24px 12px;
+    gap: 14px;
   }
-
   .lobby-navbar {
     flex-direction: column;
-    gap: 8px;
-    padding: 10px 0;
+    gap: 6px;
+    padding: 8px 0;
   }
-
   .lobby-hero {
     flex-direction: column;
-    padding: 20px 16px;
+    padding: 18px 14px;
     text-align: center;
-    gap: 18px;
+    gap: 14px;
   }
+  .hero-title { font-size: 22px; }
+  .hero-title span { font-size: 16px; }
+  .hero-desc { font-size: 12.5px; margin: 0 auto 12px auto; }
+  .btn-lobby-primary, .btn-lobby-secondary { width: 100%; padding: 11px; font-size: 14px; }
+  .hero-card-fan { width: 100%; height: 145px; transform: scale(0.8); }
+  .lobby-feature-grid { grid-template-columns: 1fr; gap: 10px; }
 
-  .hero-title {
-    font-size: 24px;
-  }
-
-  .hero-title span {
-    font-size: 17px;
-  }
-
-  .hero-desc {
-    font-size: 13px;
-    margin: 0 auto 16px auto;
-  }
-
-  .hero-buttons {
-    justify-content: center;
-    width: 100%;
-  }
-
-  .btn-lobby-primary,
-  .btn-lobby-secondary {
-    width: 100%;
-    padding: 12px;
-    font-size: 14px;
-  }
-
-  .hero-card-fan {
-    width: 100%;
-    height: 170px;
-    transform: scale(0.85);
-  }
-
-  .lobby-feature-grid {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
-  /* --- 2. ปรับกระดานเกม (Game Board) ให้พอดีจอมือถือ --- */
+  /* --- กระดานเล่นเกมหลัก: พอดีความสูงหน้าจอมือถือ 100dvh ไม่ต้องเลื่อนหน้าเว็บ --- */
   .game-container {
-    gap: 6px;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px)) 6px;
+    gap: 4px;
+    justify-content: space-between;
+    overflow: hidden;
   }
 
   .side-zone {
-    padding: 8px;
-    gap: 8px;
+    padding: 5px 6px;
+    gap: 4px;
+    border-radius: 8px;
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 0;
   }
 
-  /* จัดเรียงสนามใหม่: ให้ Leader กับกองการ์ดอยู่แถวบน/ล่าง และช่องมอนสเตอร์ 3 ช่องอยู่ตรงกลางเต็มความกว้าง */
+  .side-header-bar {
+    font-size: 11px;
+    padding: 0 2px;
+    line-height: 1.1;
+  }
+
+  .hand-counter-pill {
+    font-size: 11px;
+    padding: 1px 8px;
+  }
+
+  /* จัดเรียง .field-row ให้มี Compact Status Bar อยู่แถวหนึ่ง และช่องการ์ด 3 ช่องอยู่อีกแถวหนึ่ง */
   .field-row {
     flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 8px;
+    gap: 4px;
+    align-items: stretch;
   }
 
+  /* สลับให้ของ Player เอาช่องสนามไว้ด้านบน และแถบข้อมูล Leader/Deck ไว้ด้านล่างใกล้การ์ดบนมือ */
+  .player-side-zone .field-row .board-slots { order: 1; }
+  .player-side-zone .field-row .leader-box  { order: 2; }
+  .player-side-zone .field-row .pile-group  { order: 3; }
+
+  .ai-side-zone .field-row .leader-box  { order: 1; }
+  .ai-side-zone .field-row .pile-group  { order: 2; }
+  .ai-side-zone .field-row .board-slots { order: 3; }
+
+  /* 1. ย่อส่วน Leader + HP เป็น Compact Pill ด้านซ้าย (กว้าง 47%) */
   .leader-box {
-    order: 1;
-    width: 44% !important;
-    height: auto !important;
-    min-height: 95px;
+    width: 47% !important;
+    height: 42px !important;
+    min-height: 42px !important;
     flex-direction: row !important;
     justify-content: flex-start !important;
-    gap: 8px;
-    padding: 6px 8px !important;
+    align-items: center !important;
+    gap: 6px;
+    padding: 3px 6px !important;
     text-align: left !important;
+    border-radius: 6px;
+  }
+
+  .leader-role-tag {
+    display: none; /* ซ่อนป้ายข้อความซ้ำซ้อนบนมือถือเพื่อประหยัดที่ */
   }
 
   .leader-art {
-    width: 44px;
-    height: 44px;
-    margin: 0;
+    width: 32px !important;
+    height: 32px !important;
+    margin: 0 !important;
+    border-width: 1.5px;
     flex-shrink: 0;
   }
 
-  .hp-badge {
-    margin-top: 4px;
-    font-size: 12px;
-    padding: 2px 8px;
-    display: inline-block;
+  .leader-meta {
+    flex: 1;
+    min-width: 0;
+    align-items: flex-start;
+    gap: 1px;
   }
 
+  .leader-name-text {
+    font-size: 10.5px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    color: #f8fafc;
+  }
+
+  .hp-badge {
+    margin-top: 0 !important;
+    padding: 1px 7px !important;
+    font-size: 11px !important;
+    border-radius: 10px;
+  }
+
+  /* 2. ย่อส่วน Deck, Graveyard, มิติมืด เป็น Compact Pills ด้านขวา (กว้าง 51%) ไม่บีบหรือทับซ้อนกัน */
   .pile-group {
-    order: 2;
-    width: 53%;
-    justify-content: space-between;
-    gap: 4px;
+    width: 51% !important;
+    display: flex;
+    gap: 3px;
+    align-items: stretch;
   }
 
   .pile-group .info-box {
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 0;
     width: auto !important;
-    height: 95px !important;
-    padding: 4px !important;
-    font-size: 10px !important;
+    height: 42px !important;
+    padding: 2px 3px !important;
+    border-radius: 6px;
+    border-width: 1.5px !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .pile-group .info-box .pile-label,
+  .pile-group .info-box > div:first-child {
+    font-size: 9.5px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    line-height: 1.1;
+    color: #cbd5e1;
   }
 
   .pile-group .info-box h2 {
-    font-size: 16px;
-    margin: 2px 0;
+    font-size: 13px !important;
+    font-weight: 800;
+    margin: 0 !important;
+    line-height: 1.15;
+    color: #ffffff;
   }
 
-  /* ช่องกระดาน 3 ช่อง เรียงแถวเดียวกันตรงกลาง */
+  .pile-sub-hint {
+    display: none !important;
+  }
+
+  /* 3. จัดช่องการ์ดบนสนาม 3 ช่องให้สมดุลกับความสูงหน้าจอมือถือ */
   .board-slots {
-    order: 3;
     width: 100%;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
   }
 
   .slot {
-    width: 31%;
-    max-width: 105px;
-    height: 142px;
-    font-size: 12px;
+    flex: 1;
+    max-width: 98px;
+    height: clamp(102px, 16.5dvh, 132px);
+    font-size: 11px;
+    border-radius: 6px;
   }
 
-  /* ย่อขนาดการ์ดให้พอดีกับช่องบนมือถือ */
-  .card {
-    width: 96px !important;
-    height: 136px !important;
-    padding: 4px !important;
-    font-size: 10px !important;
+  /* ปรับการ์ดบนสนามให้เต็มช่องพอดี */
+  .slot .card {
+    width: 100% !important;
+    height: 100% !important;
+    padding: 3px !important;
   }
 
-  .card-name {
-    font-size: 11px !important;
-    padding: 1px 3px !important;
+  .slot .card.Rest {
+    transform: rotate(90deg) scale(0.78) !important;
   }
 
-  .card-power {
-    font-size: 11px !important;
-    padding: 2px !important;
+  /* 4. ย่อส่วนกลาง Turn, Phase, Spell Quota และปุ่มกดให้กระชับและกดง่าย */
+  .middle-hud-zone {
+    gap: 3px;
+    flex-shrink: 0;
+    z-index: 40;
   }
 
-  .card-type {
-    font-size: 8px !important;
-  }
-
-  .card-desc {
-    display: none; /* ซ่อนข้อความยาวๆ บนหน้าไพ่จิ๋ว แล้วใช้การแตะดูรายละเอียดแทน */
-  }
-
-  /* ปรับการ์ดที่ Rest บนมือถือไม่ให้หมุนล้นกรอบช่อง */
-  .card.Rest {
-    transform: rotate(90deg) scale(0.82);
-  }
-
-  /* --- 3. แถบควบคุมกลางกระดานและ Battle Log บนมือถือ --- */
   .center-bar {
-    flex-direction: column;
-    gap: 8px;
-    padding: 8px 10px;
-    text-align: center;
+    padding: 4px 6px;
+    gap: 4px;
+    border-radius: 6px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  .turn-phase-group {
+    font-size: 11.5px;
+    gap: 5px;
+  }
+
+  .phase-pill {
+    font-size: 10.5px;
+    padding: 1px 7px;
   }
 
   .quota-badges {
-    display: flex;
-    justify-content: center;
-    gap: 6px;
-    width: 100%;
+    gap: 4px;
+    width: auto;
   }
 
   .quota-badges span {
-    margin-right: 0;
-    font-size: 11px;
-    padding: 4px 8px;
+    font-size: 10px;
+    padding: 2px 6px;
+    margin: 0;
   }
 
-  .center-bar > div:last-child {
-    display: flex;
+  .control-btn-group {
     width: 100%;
-    justify-content: center;
-    gap: 8px;
+    display: flex;
+    gap: 6px;
   }
 
-  .center-bar .btn {
+  .control-btn-group .btn {
     flex: 1;
-    padding: 10px 8px;
-    font-size: 13px;
+    padding: 6px 8px;
+    font-size: 12px;
+    border-radius: 5px;
+    margin-right: 0 !important;
+  }
+
+  #btn-surrender-match {
+    flex: 0 0 auto !important;
+    padding: 6px 10px !important;
+  }
+
+  /* 5. ปรับ Battle Log เป็นแถบ 1 บรรทัด กดเพื่อขยายดูประวัติแบบลอย (Floating Drawer) โดยไม่ดันหน้าจอ */
+  .action-log-container {
+    padding: 4px 8px;
+    border-radius: 6px;
+    gap: 0;
+  }
+
+  .action-log-latest-text {
+    font-size: 11.5px;
+  }
+
+  .log-expand-btn {
+    font-size: 10px;
+    padding: 1px 6px;
   }
 
   .action-log-scrollbox {
-    max-height: 65px;
+    display: none; /* ซ่อนไว้เป็นค่าเริ่มต้นบนมือถือ แสดงเฉพาะบรรทัดล่าสุด */
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 4px);
+    background: rgba(15, 23, 42, 0.98);
+    border: 2px solid #38bdf8;
+    border-radius: 8px;
+    padding: 8px 10px;
+    max-height: 180px;
+    z-index: 120;
+    box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.85);
+  }
+
+  .action-log-container.expanded .action-log-scrollbox {
+    display: flex;
   }
 
   .log-item {
-    font-size: 12px;
+    font-size: 11.5px;
+    padding: 2px 0;
+    border-bottom: 1px solid rgba(51, 65, 85, 0.4);
   }
 
-  /* --- 4. การ์ดบนมือ: สไลด์ซ้าย-ขวาด้วยนิ้ว (Horizontal Touch Scroll) --- */
+  /* 6. พื้นที่การ์ดในมือผู้เล่นด้านล่าง (เลื่อนดูแนวนอนลื่นไหล) */
+  .hand-dock {
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  .hand-dock-label {
+    font-size: 10.5px;
+    padding-left: 2px;
+    line-height: 1.1;
+  }
+
   .hand-row {
-    min-height: 152px;
-    padding: 10px 8px;
+    min-height: clamp(106px, 16.5dvh, 130px);
+    height: clamp(106px, 16.5dvh, 130px);
+    padding: 4px 6px;
     flex-wrap: nowrap !important;
     justify-content: flex-start !important;
+    align-items: center;
     overflow-x: auto;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
-    gap: 8px;
+    gap: 6px;
+    border-radius: 6px;
   }
 
   .hand-row .card {
     flex: 0 0 auto;
+    width: clamp(74px, 21vw, 88px) !important;
+    height: clamp(98px, 15dvh, 120px) !important;
+    padding: 3px !important;
   }
 
-  /* --- 5. ปรับหน้าต่าง Modal และหน้าจัดเด็คบนมือถือ --- */
-  .modal-box,
-  .deck-builder-box {
-    width: 96% !important;
-    padding: 14px !important;
-    max-height: 90vh;
+  .card-name {
+    font-size: 10px !important;
+    padding: 1px 3px !important;
+  }
+
+  .card-power {
+    font-size: 10.5px !important;
+    padding: 1px 2px !important;
+  }
+
+  .card-type {
+    font-size: 7.5px !important;
+  }
+
+  .card-desc {
+    display: none;
+  }
+
+  /* ปรับขนาดการ์ดในหน้าต่าง Modal (Mulligan / Intercept / Deck Builder) */
+  .modal-box .card,
+  .deck-builder-box .card {
+    width: 92px !important;
+    height: 130px !important;
+  }
+
+  .modal-box, .deck-builder-box {
+    width: 95% !important;
+    padding: 12px !important;
+    max-height: 88dvh;
     overflow-y: auto;
   }
 
@@ -1036,8 +1128,30 @@ body {
     padding: 8px;
   }
 
-  /* ซ่อนกล่อง Tooltip ลอยตามเมาส์บนมือถือ เพื่อไม่ให้บังหน้าจอเวลาจิ้ม */
   .card-tooltip {
     display: none !important;
+  }
+}
+
+/* รองรับหน้าจอมือถือขนาดเล็กความสูงน้อย (เช่น iPhone SE / จอความสูง < 680px) */
+@media (max-width: 768px) and (max-height: 680px) {
+  .leader-box, .pile-group .info-box {
+    height: 36px !important;
+    min-height: 36px !important;
+  }
+  .leader-art {
+    width: 26px !important;
+    height: 26px !important;
+  }
+  .slot {
+    height: clamp(88px, 15dvh, 108px);
+  }
+  .hand-row {
+    min-height: 96px;
+    height: 96px;
+  }
+  .hand-row .card {
+    width: 70px !important;
+    height: 90px !important;
   }
 }
