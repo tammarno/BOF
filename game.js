@@ -2861,6 +2861,7 @@ document.getElementById('ai-leader-box').addEventListener('click', () => {
 
 /* ============================================================================
    หมวดที่ 7: ระบบการต่อสู้, มายอา, พวกเราจะช่วยเอง, ออลจิต/ออลฟอจิต และ INTERCEPT
+   (แก้ไขให้เจ้าของการ์ดฝั่งถูกโจมตีเป็นคนเลือกป้องกันและใช้สกิลเองเสมอ ทั้ง AI และ PvP)
    ============================================================================ */
 function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot, onCompleteCallback = null) {
   const attackingMonster = attacker.board[attackerSlot];
@@ -2874,6 +2875,24 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
   attacker.attacksThisTurn += 1;
   gameState.selectedAttackerSlot = null;
 
+  // 🌐 กรณีโหมด PvP และเราเป็นคนสั่งโจมตี: ส่งคำสั่งไปให้เครื่องของเพื่อนเป็นคนเลือกป้องกันเอง!
+  if (typeof pvpState !== 'undefined' && pvpState.isMultiplayer && attacker === gameState.player) {
+    pvpState.waitingForDefense = true;
+    disableControls();
+    _originalSetLog(`⚔️ สั่ง "${attackingMonster.name}" โจมตีแล้ว — ⏳ รอฝ่ายตรงข้ามตัดสินใจป้องกัน...`);
+    _originalRenderGame();
+
+    sendPvpPacket({
+      type: 'DECLARE_ATTACK',
+      attackerSlot,
+      targetType,
+      targetSlot,
+      senderData: gameState.player,
+      receiverData: gameState.ai
+    });
+    return;
+  }
+
   checkDefenderAttackReactions(attacker, defender, attackerSlot, targetType, targetSlot, onCompleteCallback);
 }
 
@@ -2883,6 +2902,8 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
     if (onCompleteCallback) onCompleteCallback();
     return;
   }
+
+  const isLocalDefender = (defender === gameState.player);
 
   const continueNormalAttackFlow = () => {
     if (targetType === 'monster') {
@@ -2906,7 +2927,59 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
     && (nonSpellsInGrave.length >= 5)
     && (defender.spellQuota.reactionUsed < 1);
 
-  if (defender.name === 'Player' && (canUseMayaOnce || canUseWeWillHelp)) {
+  // 🤖 กรณีฝ่ายตั้งรับไม่ใช่ผู้เล่นหน้าจอนี้ (เป็น AI): ให้ AI ตัดสินใจใช้สกิลเองอัตโนมัติ ไม่ต้องเด้งถามผู้เล่น
+  if (!isLocalDefender) {
+    if (canUseWeWillHelp && (targetType === 'leader' || defender.leader.hp <= 3)) {
+      const spellCard = defender.hand.splice(ds02InHandIdx, 1)[0];
+      defender.spellQuota.reactionUsed += 1;
+      let returnedCount = 0;
+      for (let i = defender.graveyard.length - 1; i >= 0 && returnedCount < 5; i--) {
+        if (defender.graveyard[i].type === 'Monster') {
+          const unit = defender.graveyard.splice(i, 1)[0];
+          resetCardStateForZoneChange(unit);
+          defender.deck.push(unit);
+          returnedCount += 1;
+        }
+      }
+      defender.deck = shuffleDeck(defender.deck);
+      defender.graveyard.push(spellCard);
+
+      if (attackingMonster.id === 'DM06') {
+        const atkRoll = Math.floor(Math.random() * 6) + 1;
+        const defRoll = Math.floor(Math.random() * 6) + 1;
+        if (atkRoll < defRoll) {
+          setLog(`🎲 [ออโต้ - โซเนบุ] โซเนบุทอยได้ [${atkRoll}] ชนะ AI [${defRoll}] -> เวทย์ "พวกเราจะช่วยเอง" ของ AI ไร้ผล!`);
+          renderGame();
+          continueNormalAttackFlow();
+          return;
+        }
+      }
+      setLog(`🛡️ [AI - พวกเราจะช่วยเอง] AI นำยูนิต 5 ใบในนรกกลับเข้ากอง — ยกเลิกการโจมตีของคุณ!`);
+      renderGame();
+      if (onCompleteCallback) onCompleteCallback();
+      return;
+    }
+
+    if (canUseMayaOnce && targetType === 'leader' && defender.leader.hp <= 2) {
+      defender.mayaOncePerGameUsed = true;
+      const topCard = defender.deck[defender.deck.length - 1];
+      if (topCard && topCard.id === 'DM06') {
+        setLog(`🔮 [AI มายอา - 1 เกม] เปิดท็อปกองพบ "โซเนบุ"! บังคับจบเทิร์นของคุณทันที!`);
+        renderGame();
+        triggerPlayerPassTurn();
+        return;
+      } else {
+        setLog(`🔮 [AI มายอา - 1 เกม] AI เปิดท็อปกองได้ "${topCard ? topCard.name : '-'}" (ไม่ใช่โซเนบุ การโจมตีดำเนินต่อ)`);
+        renderGame();
+      }
+    }
+
+    continueNormalAttackFlow();
+    return;
+  }
+
+  // 👤 กรณีเราเป็นฝ่ายถูกโจมตี (isLocalDefender === true): เด้งถามเฉพาะการ์ดของเราเอง
+  if (canUseMayaOnce || canUseWeWillHelp) {
     const options = [];
 
     if (canUseMayaOnce) {
@@ -2917,9 +2990,13 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
           defender.mayaOncePerGameUsed = true;
           const topCard = defender.deck[defender.deck.length - 1];
           if (topCard && topCard.id === 'DM06') {
-            setLog(`🔮 [มายอา - 1 เกม] เปิดท็อปกองพบ "${topCard.name}"! บังคับให้ ${attacker.name} จบเทิร์นทันที!`);
+            setLog(`🔮 [มายอา - 1 เกม] เปิดท็อปกองพบ "${topCard.name}"! บังคับให้ฝ่ายตรงข้ามจบเทิร์นทันที!`);
             renderGame();
-            endAITurn();
+            if (typeof pvpState !== 'undefined' && pvpState.isMultiplayer) {
+              if (onCompleteCallback) onCompleteCallback('FORCE_END_TURN');
+            } else {
+              endAITurn();
+            }
           } else {
             setLog(`🔮 [มายอา - 1 เกม] เปิดท็อปกองได้ "${topCard ? topCard.name : '-'}" (ไม่ใช่โซเนบุ การโจมตีดำเนินต่อ)`);
             renderGame();
@@ -2976,7 +3053,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
 
     showChoiceModal(
       '⚡ ฝ่ายตรงข้ามประกาศโจมตี!',
-      `"${attackingMonster.name}" กำลังโจมตีเข้ามา! คุณต้องการเปิดใช้ความสามารถตอบโต้หรือไม่?`,
+      `"${attackingMonster.name}" กำลังโจมตีเข้ามา! คุณต้องการเปิดใช้ความสามารถการ์ดของคุณเพื่อตอบโต้หรือไม่?`,
       options
     );
     return;
@@ -2992,6 +3069,8 @@ function checkWhenLeaderAttacked(attacker, defender, attackerSlot, onCompleteCal
     return;
   }
 
+  const isLocalDefender = (defender === gameState.player);
+
   const canUseAllForJit = defender.leader.hp <= 2
     && !defender.allForJitUsed
     && defender.graveyard.some(c => c.id === 'M04');
@@ -2999,7 +3078,8 @@ function checkWhenLeaderAttacked(attacker, defender, attackerSlot, onCompleteCal
   const canUseAllJit = defender.hand.some(c => c.id === 'M03')
     && defender.board.some(m => m === null);
 
-  if (defender.name === 'AI') {
+  // 🤖 กรณีฝ่ายตั้งรับเป็น AI: ให้ AI ตัดสินใจเองอัตโนมัติ
+  if (!isLocalDefender) {
     if (canUseAllForJit) {
       resolveAllForJitTrigger(attacker, defender, attackerSlot, onCompleteCallback);
       return;
@@ -3012,6 +3092,7 @@ function checkWhenLeaderAttacked(attacker, defender, attackerSlot, onCompleteCal
     return;
   }
 
+  // 👤 กรณีเราเป็นเจ้าของลีดเดอร์ที่กำลังถูกตี: เด้งถามเรา
   if (canUseAllForJit || canUseAllJit) {
     const options = [];
     if (canUseAllForJit) {
@@ -3029,14 +3110,14 @@ function checkWhenLeaderAttacked(attacker, defender, attackerSlot, onCompleteCal
       });
     }
     options.push({
-      label: 'ไม่ใช้ความสามารถพิเศษ (ดำเนินการต่อตามปกติ)',
+      label: 'ไม่ใช้ความสามารถพิเศษ (ไปสู่ขั้นตอนเลือก Intercept ตามปกติ)',
       color: '#475569',
       onSelect: () => proceedToStandardIntercept(attacker, defender, attackerSlot, onCompleteCallback)
     });
 
     showChoiceModal(
       '⚠️ ลีดเดอร์ของคุณกำลังถูกโจมตี!',
-      `"${attackingMonster.name}" (Power ${getEffectivePower(attackingMonster, attacker)}) กำลังโจมตีลีดเดอร์ของคุณ! ต้องการสั่งใช้ความสามารถพิเศษหรือไม่?`,
+      `"${attackingMonster.name}" (Power ${getEffectivePower(attackingMonster, attacker)}) กำลังโจมตีลีดเดอร์ของคุณ! ต้องการสั่งใช้ความสามารถการ์ดของคุณหรือไม่?`,
       options
     );
     return;
@@ -3100,6 +3181,8 @@ function proceedToStandardIntercept(attacker, defender, attackerSlot, onComplete
     return;
   }
 
+  const isLocalDefender = (defender === gameState.player);
+
   const standBlockerSlots = defender.board
     .map((m, idx) => (m && m.state === 'Stand' ? idx : null))
     .filter(idx => idx !== null);
@@ -3113,7 +3196,8 @@ function proceedToStandardIntercept(attacker, defender, attackerSlot, onComplete
     return;
   }
 
-  if (defender.name === 'AI') {
+  // 🤖 กรณีฝ่ายตั้งรับเป็น AI: ให้ AI เลือกตัวบล็อกเองโดยไม่เด้งถามผู้เล่น
+  if (!isLocalDefender) {
     const atkPower = getEffectivePower(attackingMonster, attacker);
     const validAiBlockers = standBlockerSlots.filter(idx => defender.board[idx].id !== 'NM05');
     let chosenSlot = validAiBlockers.find(idx => getEffectivePower(defender.board[idx], defender) >= atkPower);
@@ -3134,6 +3218,7 @@ function proceedToStandardIntercept(attacker, defender, attackerSlot, onComplete
     checkGameOver();
     if (onCompleteCallback) onCompleteCallback();
   } else {
+    // 👤 กรณีเราเป็นฝ่ายตั้งรับ: เปิดหน้าต่างให้เราเลือกการ์ดฝั่งเราเอง
     openInterceptModal(attacker, attackerSlot, defender, standBlockerSlots, onCompleteCallback);
   }
 }
@@ -3179,7 +3264,7 @@ function openInterceptModal(attacker, attackerSlot, defender, standBlockerSlots,
   const atkPwr = getEffectivePower(attackerMonster, attacker);
 
   document.getElementById('intercept-desc').textContent =
-    `⚠️ "${attackerMonster.name}" (Power ${atkPwr}) กำลังโจมตี Leader ของคุณ! คลิกเลือก Monster ที่ Stand อยู่เพื่อรับการโจมตีแทน:`;
+    `⚠️ "${attackerMonster.name}" (Power ${atkPwr}) กำลังโจมตี Leader ของคุณ! คลิกเลือก Monster ที่ Stand อยู่ฝั่งคุณเพื่อรับการโจมตีแทน:`;
 
   const listEl = document.getElementById('intercept-card-list');
   listEl.innerHTML = '';
@@ -3226,7 +3311,6 @@ document.getElementById('btn-skip-intercept').addEventListener('click', () => {
    หมวดที่ 8: ระบบปุ่ม "เฟสถัดไป" + ปุ่ม "ยอมแพ้" และระบบ AI
    ============================================================================ */
 function setupInGameControlBar() {
-  // ซ่อนปุ่มเดิม (เข้าสู่ Battle Phase, จบเทิร์น, จัดเด็ค, ล็อบบี้)
   ['btn-next-phase', 'btn-end-turn', 'btn-open-deck', 'btn-back-lobby'].forEach(btnId => {
     const el = document.getElementById(btnId);
     if (el) el.style.display = 'none';
@@ -3235,7 +3319,6 @@ function setupInGameControlBar() {
   const parentGroup = document.getElementById('btn-open-deck')?.parentElement;
   if (!parentGroup) return;
 
-  // สร้างปุ่ม "⚔️ เฟสถัดไป" และปุ่ม "🏳️ ยอมแพ้"
   if (!document.getElementById('btn-surrender-match')) {
     const nextPhaseBtn = document.createElement('button');
     nextPhaseBtn.id = 'btn-pass-turn-inline';
@@ -3258,6 +3341,10 @@ function setupInGameControlBar() {
 
 function handleNextPhaseButtonClick() {
   if (gameState.activeTurn !== 'player' || gameState.gameOver || gameState.isRollingDice) return;
+  if (typeof pvpState !== 'undefined' && pvpState.waitingForDefense) {
+    setLog('⏳ กรุณารอฝ่ายตรงข้ามเลือกการป้องกันให้เสร็จก่อน!');
+    return;
+  }
   if (gameState.pendingAction) {
     setLog('⚠️ กรุณาเลือกเป้าหมายของความสามารถที่ค้างอยู่ให้เสร็จก่อนเปลี่ยนเฟส!');
     return;
@@ -3317,6 +3404,10 @@ function handlePlayerSurrender() {
 
 function triggerPlayerPassTurn() {
   if (gameState.activeTurn !== 'player' || gameState.gameOver || gameState.isRollingDice) return;
+  if (typeof pvpState !== 'undefined' && pvpState.waitingForDefense) {
+    setLog('⏳ กรุณารอฝ่ายตรงข้ามเลือกการป้องกันให้เสร็จก่อน!');
+    return;
+  }
   if (gameState.pendingAction) {
     setLog('⚠️ กรุณาเลือกเป้าหมายของความสามารถที่ค้างอยู่ให้เสร็จก่อน!');
     return;
@@ -3598,7 +3689,6 @@ function hideCardTooltip() {
 }
 
 function attachCardTooltipEvents(element, card, ownerContestant = null) {
-  // 1. สำหรับคอมพิวเตอร์ (PC): เอาเมาส์ชี้เพื่อแสดง Tooltip
   element.addEventListener('mouseenter', (e) => {
     if (window.innerWidth > 768) showCardTooltip(e, card, ownerContestant);
   });
@@ -3608,7 +3698,6 @@ function attachCardTooltipEvents(element, card, ownerContestant = null) {
   element.addEventListener('mouseleave', () => hideCardTooltip());
   element.addEventListener('click', () => hideCardTooltip());
 
-  // 2. สำหรับมือถือ (Mobile Touch): แตะค้างที่การ์ด (0.45 วินาที) เพื่อเปิดหน้าต่างดูรูปใหญ่และคำอธิบายสกิล
   let touchTimer = null;
   element.addEventListener('touchstart', () => {
     touchTimer = setTimeout(() => {
@@ -3777,11 +3866,14 @@ function renderGame() {
   document.getElementById('normal-spell-quota').textContent = `Normal Spell: ${player.spellQuota.normalUsed} / 1`;
   document.getElementById('reaction-spell-quota').textContent = `Reaction Spell: ${player.spellQuota.reactionUsed} / 1`;
 
-  // อัปเดตข้อความและสีของปุ่ม "เฟสถัดไป" ตามเฟสปัจจุบัน
   const passBtn = document.getElementById('btn-pass-turn-inline');
   if (passBtn) {
-    passBtn.disabled = (gameState.activeTurn !== 'player' || gameState.gameOver);
-    if (gameState.phase === 'Main Phase') {
+    const isWaitingDefense = (typeof pvpState !== 'undefined' && pvpState.waitingForDefense);
+    passBtn.disabled = (gameState.activeTurn !== 'player' || gameState.gameOver || isWaitingDefense);
+    if (isWaitingDefense) {
+      passBtn.textContent = '⏳ รออีกฝ่ายป้องกัน...';
+      passBtn.style.background = '#475569';
+    } else if (gameState.phase === 'Main Phase') {
       passBtn.textContent = '⚔️ เฟสถัดไป (Battle Phase)';
       passBtn.style.background = '#0284c7';
     } else if (gameState.phase === 'Battle Phase') {
@@ -3812,7 +3904,6 @@ function renderGame() {
     ) {
       cardEl.classList.add('selected-mulligan');
     }
-    // ไฮไลต์การ์ดแอชชี่ล่าบนมือเป็นสีทองเมื่อเงื่อนไขยูนิตถูกทำลายครบ 2 ใบพร้อมใช้งาน
     if (card.id === 'DM07' && player.unitsDestroyedThisTurn >= 2) {
       cardEl.style.outline = '3px solid #f59e0b';
       cardEl.style.boxShadow = '0 0 16px rgba(245, 158, 11, 0.9)';
@@ -3998,7 +4089,6 @@ document.getElementById('btn-default-deck')?.addEventListener('click', () => {
   );
 });
 
-// เมื่อกดบันทึกเด็ค จะเซฟเด็คและปิดหน้าต่างจัดเด็คลงทันที โดยไม่เด้งหน้า Mulligan
 document.getElementById('btn-save-start')?.addEventListener('click', () => {
   if (currentDeckConfig.mainDeck.length !== 20) return;
   localStorage.setItem('my_card_game_deck', JSON.stringify(currentDeckConfig));
@@ -4045,7 +4135,8 @@ const pvpState = {
   roomCode: null,
   localMulliganDone: false,
   remoteMulliganDone: false,
-  isApplyingRemote: false
+  isApplyingRemote: false,
+  waitingForDefense: false
 };
 
 function sendPvpPacket(packet) {
@@ -4134,12 +4225,85 @@ function checkBothPlayersMulliganReady() {
 
 function handleIncomingPvpData(data) {
   if (!data || !data.type) return;
+
+  // 🌐 เมื่อเพื่อนสั่งโจมตีมาหาเรา: ให้เครื่องของเราซึ่งเป็นเจ้าของการ์ดฝั่งตั้งรับเป็นคนเลือกสกิลและตัวบล็อกเอง!
+  if (data.type === 'DECLARE_ATTACK') {
+    pvpState.isApplyingRemote = true;
+    gameState.ai = data.senderData;
+    gameState.player = data.receiverData;
+    gameState.ai.name = 'ฝ่ายตรงข้าม';
+    gameState.player.name = 'Player';
+    _originalRenderGame();
+    pvpState.isApplyingRemote = false;
+
+    checkDefenderAttackReactions(
+      gameState.ai,
+      gameState.player,
+      data.attackerSlot,
+      data.targetType,
+      data.targetSlot,
+      (specialResult) => {
+        if (specialResult === 'FORCE_END_TURN') {
+          executeEndPhaseCleanup(gameState.ai);
+          sendPvpPacket({
+            type: 'ATTACK_RESOLVED',
+            forceEndTurn: true,
+            nextTurnCount: gameState.turnCount + 1,
+            senderData: gameState.player,
+            receiverData: gameState.ai
+          });
+          gameState.turnCount += 1;
+          gameState.activeTurn = 'player';
+          startPlayerTurn();
+          syncBoardToOpponent();
+        } else {
+          sendPvpPacket({
+            type: 'ATTACK_RESOLVED',
+            forceEndTurn: false,
+            gameOver: gameState.gameOver,
+            senderData: gameState.player,
+            receiverData: gameState.ai
+          });
+          _originalRenderGame();
+          checkGameOver();
+        }
+      }
+    );
+    return;
+  }
+
+  // 🌐 เมื่อเพื่อนเลือกป้องกันเสร็จแล้ว ส่งผลลัพธ์กลับมาที่เครื่องคนโจมตี
+  if (data.type === 'ATTACK_RESOLVED') {
+    pvpState.isApplyingRemote = true;
+    pvpState.waitingForDefense = false;
+    gameState.ai = data.senderData;
+    gameState.player = data.receiverData;
+    gameState.ai.name = 'ฝ่ายตรงข้าม';
+    gameState.player.name = 'Player';
+
+    if (data.forceEndTurn) {
+      gameState.turnCount = data.nextTurnCount;
+      gameState.activeTurn = 'ai';
+      gameState.phase = 'Main Phase';
+      disableControls();
+      _originalSetLog('🔮 ฝ่ายตรงข้ามเปิดใช้สกิล "มายอา" พบโซเนบุ — เทิร์นของคุณถูกบังคับจบทันที!');
+    } else {
+      gameState.gameOver = data.gameOver;
+    }
+
+    _originalRenderGame();
+    checkGameOver();
+    pvpState.isApplyingRemote = false;
+    return;
+  }
+
   pvpState.isApplyingRemote = true;
   try {
     if (data.type === 'START_PVP_MATCH') startPvpMatchBoard(pvpState.role);
     else if (data.type === 'MULLIGAN_READY') {
       pvpState.remoteMulliganDone = true;
       gameState.ai = data.playerData;
+      gameState.ai.name = 'ฝ่ายตรงข้าม';
       _originalRenderGame();
       checkBothPlayersMulliganReady();
     } else if (data.type === 'SYNC_BOARD') {
@@ -4149,13 +4313,18 @@ function handleIncomingPvpData(data) {
       gameState.gameOver = data.gameOver;
       gameState.ai = data.senderData;
       gameState.player = data.receiverData;
+      gameState.ai.name = 'ฝ่ายตรงข้าม';
+      gameState.player.name = 'Player';
       if (data.logMessage) _originalSetLog(data.logMessage);
       _originalRenderGame();
       checkGameOver();
     } else if (data.type === 'PASS_TURN') {
+      pvpState.waitingForDefense = false;
       gameState.turnCount = data.nextTurnCount;
       gameState.ai = data.senderData;
       gameState.player = data.receiverData;
+      gameState.ai.name = 'ฝ่ายตรงข้าม';
+      gameState.player.name = 'Player';
       gameState.activeTurn = 'player';
       _originalSetLog('🟢 ตาของคุณ!');
       startPlayerTurn();
@@ -4177,6 +4346,7 @@ function startPvpMatchBoard(role) {
   pvpState.role = role;
   pvpState.localMulliganDone = false;
   pvpState.remoteMulliganDone = false;
+  pvpState.waitingForDefense = false;
 
   gameState.turnCount = 1;
   gameState.activeTurn = (role === 'host') ? 'player' : 'ai';
@@ -4188,7 +4358,7 @@ function startPvpMatchBoard(role) {
 
   const isFirst = (role === 'host');
   gameState.player = createContestant('Player', isFirst, isFirst ? 'P1' : 'P2', currentDeckConfig.leaderId, currentDeckConfig.mainDeck);
-  gameState.ai = createContestant('เพื่อนของคุณ', !isFirst, isFirst ? 'P2' : 'P1', 'L01', DEFAULT_DECK_LIST);
+  gameState.ai = createContestant('ฝ่ายตรงข้าม', !isFirst, isFirst ? 'P2' : 'P1', 'L01', DEFAULT_DECK_LIST);
   drawCards(gameState.player, 5);
 
   document.getElementById('mulligan-modal').style.display = 'flex';
@@ -4241,6 +4411,7 @@ function setupLobbyEvents() {
 
   document.getElementById('btn-lobby-bot')?.addEventListener('click', () => {
     pvpState.isMultiplayer = false;
+    pvpState.waitingForDefense = false;
     lobbyScreen.style.display = 'none';
     gameBoard.style.display = 'flex';
     initGame();
