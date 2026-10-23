@@ -1012,30 +1012,6 @@ function ensureZoneUIAndViewers() {
     }
   }
 }
-
-  const playerGraveCountEl = document.getElementById('player-grave-count');
-  if (playerGraveCountEl) {
-    const playerGraveBox = playerGraveCountEl.parentElement;
-    playerGraveBox.style.cursor = 'pointer';
-    playerGraveBox.title = 'คลิกเพื่อดูการ์ดในนรกของคุณ';
-    playerGraveBox.onclick = () => openZoneViewerModal('🪦 กองนรกของคุณ (Graveyard)', gameState.player.graveyard, gameState.player);
-
-    const playerPileGroup = playerGraveBox.parentElement;
-    if (playerPileGroup && !document.getElementById('player-dark-box')) {
-      const darkBox = document.createElement('div');
-      darkBox.id = 'player-dark-box';
-      darkBox.className = 'info-box';
-      darkBox.style.background = '#131129';
-      darkBox.style.border = '2px dashed #6366f1';
-      darkBox.style.cursor = 'pointer';
-      darkBox.title = 'คลิกเพื่อดูการ์ดในมิติมืดของคุณ';
-      darkBox.innerHTML = `<div>🌌 มิติมืด</div><h2 id="player-dark-count">0</h2><div style="font-size:10px; color:#a5b4fc;">(คลิกดู)</div>`;
-      darkBox.onclick = () => openZoneViewerModal('🌌 มิติมืดของคุณ (Dark Dimension)', gameState.player.darkDimension, gameState.player);
-      playerPileGroup.appendChild(darkBox);
-    }
-  }
-}
-
 function openZoneViewerModal(titleText, cardArray, ownerContestant) {
   ensureZoneUIAndViewers();
   const modal = document.getElementById('zone-viewer-modal');
