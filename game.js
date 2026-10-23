@@ -926,6 +926,7 @@ function openCardDetailModal(card, ownerContestant = null) {
   detailModal.style.display = 'flex';
 }
 
+// วางทับฟังก์ชัน ensureZoneUIAndViewers เดิมในหมวดที่ 3 ของ game.js
 function ensureZoneUIAndViewers() {
   if (!document.getElementById('zone-viewer-modal')) {
     const viewerModal = document.createElement('div');
@@ -936,12 +937,12 @@ function ensureZoneUIAndViewers() {
     viewerModal.innerHTML = `
       <div class="modal-box" style="max-width: 820px; max-height: 88vh; overflow-y: auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 8px;">
-          <h2 id="zone-viewer-title" style="color: #fbbf24;">รายการการ์ด</h2>
-          <button class="btn" id="btn-close-zone-viewer" style="background: #dc2626;">✖ ปิดหน้าต่าง</button>
+          <h2 id="zone-viewer-title" style="color: #fbbf24; font-size: 16px;">รายการการ์ด</h2>
+          <button class="btn" id="btn-close-zone-viewer" style="background: #dc2626; padding: 6px 12px;">✖ ปิด</button>
         </div>
-        <p style="font-size: 13px; color: #38bdf8; margin-bottom: 14px;">💡 คลิกที่การ์ดใบใดก็ได้เพื่อเปิดดูรูปใหญ่และรายละเอียดความสามารถ</p>
+        <p style="font-size: 12px; color: #38bdf8; margin-bottom: 12px;">💡 แตะที่การ์ดใบใดก็ได้เพื่อเปิดดูรูปใหญ่และรายละเอียดความสามารถ</p>
         <p id="zone-viewer-empty" style="color: #94a3b8; margin: 20px 0; display: none;">ไม่มีการ์ดในโซนนี้</p>
-        <div id="zone-viewer-list" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-bottom: 10px;"></div>
+        <div id="zone-viewer-list" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 10px;"></div>
       </div>
     `;
     document.body.appendChild(viewerModal);
@@ -950,27 +951,67 @@ function ensureZoneUIAndViewers() {
     };
   }
 
+  // ผูกปุ่มสลับเปิด/ปิดประวัติ Battle Log บนมือถือ
+  const logToggle = document.getElementById('action-log-toggle');
+  const logContainer = document.getElementById('action-log-container');
+  const logIndicator = document.getElementById('log-expand-indicator');
+  if (logToggle && logContainer && !logToggle.dataset.bound) {
+    logToggle.dataset.bound = 'true';
+    logToggle.onclick = (e) => {
+      e.stopPropagation();
+      const isExpanded = logContainer.classList.toggle('expanded');
+      if (logIndicator) {
+        logIndicator.textContent = isExpanded ? '▼ ปิด' : '▲ ประวัติ';
+      }
+    };
+    document.addEventListener('click', (e) => {
+      if (logContainer.classList.contains('expanded') && !logContainer.contains(e.target)) {
+        logContainer.classList.remove('expanded');
+        if (logIndicator) logIndicator.textContent = '▲ ประวัติ';
+      }
+    });
+  }
+
   const aiGraveCountEl = document.getElementById('ai-grave-count');
   if (aiGraveCountEl) {
     const aiGraveBox = aiGraveCountEl.parentElement;
     aiGraveBox.style.cursor = 'pointer';
-    aiGraveBox.title = 'คลิกเพื่อดูการ์ดในนรกของฝ่ายตรงข้าม';
+    aiGraveBox.title = 'แตะเพื่อดูการ์ดในนรกของฝ่ายตรงข้าม';
     aiGraveBox.onclick = () => openZoneViewerModal('🪦 กองนรกของฝ่ายตรงข้าม (Graveyard)', gameState.ai.graveyard, gameState.ai);
 
     const aiPileGroup = aiGraveBox.parentElement;
     if (aiPileGroup && !document.getElementById('ai-dark-box')) {
       const darkBox = document.createElement('div');
       darkBox.id = 'ai-dark-box';
-      darkBox.className = 'info-box';
-      darkBox.style.background = '#131129';
-      darkBox.style.border = '2px dashed #6366f1';
+      darkBox.className = 'info-box dark-box';
       darkBox.style.cursor = 'pointer';
-      darkBox.title = 'คลิกเพื่อดูการ์ดในมิติมืดของฝ่ายตรงข้าม';
-      darkBox.innerHTML = `<div>🌌 มิติมืด</div><h2 id="ai-dark-count">0</h2><div style="font-size:10px; color:#a5b4fc;">(คลิกดู)</div>`;
+      darkBox.title = 'แตะเพื่อดูการ์ดในมิติมืดของฝ่ายตรงข้าม';
+      darkBox.innerHTML = `<div class="pile-label">🌌 มิติมืด</div><h2 id="ai-dark-count">0</h2><div class="pile-sub-hint">(คลิกดู)</div>`;
       darkBox.onclick = () => openZoneViewerModal('🌌 มิติมืดของฝ่ายตรงข้าม (Dark Dimension)', gameState.ai.darkDimension, gameState.ai);
       aiPileGroup.appendChild(darkBox);
     }
   }
+
+  const playerGraveCountEl = document.getElementById('player-grave-count');
+  if (playerGraveCountEl) {
+    const playerGraveBox = playerGraveCountEl.parentElement;
+    playerGraveBox.style.cursor = 'pointer';
+    playerGraveBox.title = 'แตะเพื่อดูการ์ดในนรกของคุณ';
+    playerGraveBox.onclick = () => openZoneViewerModal('🪦 กองนรกของคุณ (Graveyard)', gameState.player.graveyard, gameState.player);
+
+    const playerPileGroup = playerGraveBox.parentElement;
+    if (playerPileGroup && !document.getElementById('player-dark-box')) {
+      const darkBox = document.createElement('div');
+      darkBox.id = 'player-dark-box';
+      darkBox.className = 'info-box dark-box';
+      darkBox.style.cursor = 'pointer';
+      darkBox.title = 'แตะเพื่อดูการ์ดในมิติมืดของคุณ';
+      darkBox.innerHTML = `<div class="pile-label">🌌 มิติมืด</div><h2 id="player-dark-count">0</h2><div class="pile-sub-hint">(คลิกดู)</div>`;
+      darkBox.onclick = () => openZoneViewerModal('🌌 มิติมืดของคุณ (Dark Dimension)', gameState.player.darkDimension, gameState.player);
+      playerPileGroup.appendChild(darkBox);
+    }
+  }
+}
 
   const playerGraveCountEl = document.getElementById('player-grave-count');
   if (playerGraveCountEl) {
@@ -4539,12 +4580,15 @@ function renderBoardSlots(containerId, contestant, isPlayerBoard) {
   });
 }
 
+// วางทับฟังก์ชัน renderGame เดิมในหมวดที่ 9 ของ game.js (ปรับข้อความโควตาและชื่อ Leader ให้กระชับบนมือถือ)
 function renderGame() {
   const { player, ai } = gameState;
   if (!player || !ai) return;
 
   ensureZoneUIAndViewers();
   setupInGameControlBar();
+
+  const isMobileView = window.innerWidth <= 768;
 
   document.getElementById('ai-leader-name').textContent = ai.leader.name;
   document.getElementById('ai-leader-hp').textContent = ai.leader.hp;
@@ -4561,14 +4605,21 @@ function renderGame() {
   } else {
     aiLeaderBox.classList.remove('attack-target');
   }
+  aiLeaderBox.onclick = () => {
+    if (gameState.activeTurn === 'player' && gameState.phase === 'Battle Phase' && gameState.selectedAttackerSlot !== null && !gameState.pendingAction) {
+      return; // ปล่อยให้ event โจมตีทำงานตามปกติ
+    }
+    openCardDetailModal(ai.leader, ai);
+  };
   aiLeaderBox.onmouseenter = (e) => showCardTooltip(e, ai.leader, ai);
   aiLeaderBox.onmousemove = (e) => moveCardTooltip(e);
   aiLeaderBox.onmouseleave = () => hideCardTooltip();
 
-  const leaderSuffix = (player.leader.id === 'L01')
-    ? (player.leader.abilityUsedThisTurn ? '(ใช้สกิลแล้ว)' : '(คลิกใช้สกิล)')
-    : '(คลิกดูรายละเอียด)';
-  document.getElementById('player-leader-name').textContent = `${player.leader.name} ${leaderSuffix}`;
+  const leaderSuffix = isMobileView
+    ? (player.leader.id === 'L01' ? (player.leader.abilityUsedThisTurn ? '✓' : '⚡') : '')
+    : (player.leader.id === 'L01' ? (player.leader.abilityUsedThisTurn ? '(ใช้สกิลแล้ว)' : '(คลิกใช้สกิล)') : '(คลิกดูรายละเอียด)');
+
+  document.getElementById('player-leader-name').textContent = `${player.leader.name} ${leaderSuffix}`.trim();
   document.getElementById('player-leader-hp').textContent = player.leader.hp;
   document.getElementById('player-leader-img').src = player.leader.image;
   document.getElementById('player-deck-count').textContent = player.deck.length;
@@ -4587,10 +4638,15 @@ function renderGame() {
   playerLeaderBox.onmouseleave = () => hideCardTooltip();
 
   document.getElementById('turn-indicator').textContent =
-    `Turn ${gameState.turnCount} (${gameState.activeTurn === 'player' ? 'ตาของคุณ' : 'ตาของฝ่ายตรงข้าม'})`;
+    `Turn ${gameState.turnCount} (${gameState.activeTurn === 'player' ? 'ตาคุณ' : 'ตาอีกฝ่าย'})`;
   document.getElementById('phase-indicator').textContent = gameState.phase;
-  document.getElementById('normal-spell-quota').textContent = `Normal Spell: ${player.spellQuota.normalUsed} / 1`;
-  document.getElementById('reaction-spell-quota').textContent = `Reaction Spell: ${player.spellQuota.reactionUsed} / 1`;
+
+  document.getElementById('normal-spell-quota').textContent = isMobileView
+    ? `✨ ปกติ: ${player.spellQuota.normalUsed}/1`
+    : `Normal Spell: ${player.spellQuota.normalUsed} / 1`;
+  document.getElementById('reaction-spell-quota').textContent = isMobileView
+    ? `🛡️ รีแอค: ${player.spellQuota.reactionUsed}/1`
+    : `Reaction Spell: ${player.spellQuota.reactionUsed} / 1`;
 
   const passBtn = document.getElementById('btn-pass-turn-inline');
   if (passBtn) {
@@ -4638,7 +4694,6 @@ function renderGame() {
     handContainer.appendChild(cardEl);
   });
 }
-
 function renderMulliganModal() {
   const listEl = document.getElementById('mulligan-card-list');
   listEl.innerHTML = '';
