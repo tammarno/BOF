@@ -160,8 +160,8 @@
     });
   }
 
-  // ---------- เมนูบนล็อบบี้ (Play / Deck Builder / Card List) ----------
-  $$('.lobby-nav-links a').forEach(a => {
+  // ---------- เมนูบนล็อบบี้ (จัดเด็ค / คลังการ์ด) ----------
+  $$('.lb-top .lb-toplink').forEach(a => {
     a.classList.add('pm-nav');
     if (reduce) return;
     a.addEventListener('pointerdown', () => gsap.to(a, { scale: .92, duration: .06, ease: 'power1.out', overwrite: 'auto' }));

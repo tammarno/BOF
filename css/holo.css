@@ -28,39 +28,10 @@ body {
   background: radial-gradient(120% 70% at 50% 0%, #1d2350 0%, var(--ui-bg) 62%) fixed, var(--ui-bg);
   color: var(--ui-fg);
 }
-h1, h2, h3, .btn, .lobby-logo, .hero-title, .hero-subtitle, .card-name, .card-power, .card-type,
-.leader-name-text, .phase-pill, #turn-indicator, .pile-label, .deck-section-title,
-.btn-lobby-primary, .btn-lobby-secondary {
+h1, h2, h3, .btn, .card-name, .card-power, .card-type,
+.leader-name-text, .phase-pill, #turn-indicator, .pile-label, .deck-section-title {
   font-family: var(--font-display);
 }
-
-/* ---------- ล็อบบี้ ---------- */
-.lobby-navbar {
-  /* PERF v0.3: ไม่ใช้ backdrop-filter เพราะอยู่บนอนุภาคที่ขยับตลอด */
-  background: rgba(22, 26, 52, .92); border: 1px solid var(--ui-line); border-radius: 16px;
-}
-.lobby-logo { letter-spacing: .04em; }
-.hero-subtitle { color: var(--ui-ice); letter-spacing: .22em; }
-.hero-title {
-  background: linear-gradient(100deg, #fff 25%, var(--ui-gold) 55%, #fff 85%);
-  -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 700;
-}
-.hero-title span { -webkit-text-fill-color: var(--ui-fg); color: var(--ui-fg); font-weight: 400; }
-.hero-desc { color: var(--ui-muted); }
-.btn-lobby-primary {
-  background: linear-gradient(135deg, #f7d77f, #e0a83c); color: #1a1405; border: 0;
-  box-shadow: 0 8px 22px rgba(243, 201, 105, .28), inset 0 1px 0 rgba(255,255,255,.5);
-  transition: transform .2s var(--ease-out), box-shadow .2s;
-}
-.btn-lobby-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(243, 201, 105, .4), inset 0 1px 0 rgba(255,255,255,.5); }
-.btn-lobby-secondary {
-  background: rgba(22, 26, 52, .92); border: 1px solid var(--ui-line); color: var(--ui-fg);
-}
-.fan-card { box-shadow: 0 16px 34px rgba(0,0,0,.55), 0 0 0 1.5px rgba(243, 201, 105, .55), 0 0 22px rgba(243, 201, 105, .25); }
-.feature-card {
-  transition: transform .25s var(--ease-out), box-shadow .25s;
-}
-.feature-card:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(0,0,0,.4); }
 
 /* ---------- โมดอลและ Deck Builder: กระจกเบลอ ---------- */
 /* PERF: ไม่ใช้ backdrop-filter เต็มจอ เพราะการ์ดด้านหลังขยับตลอด ต้องเบลอใหม่ทุกเฟรม */

@@ -13,66 +13,139 @@
   <link rel="stylesheet" href="css/ui-motion.css">
   <link rel="stylesheet" href="css/choice-ui.css">
   <link rel="stylesheet" href="css/panel-motion.css">
+  <link rel="stylesheet" href="css/lobby.css">
   <script>document.documentElement.classList.add('lm-pre');setTimeout(function(){document.documentElement.classList.remove('lm-pre')},1500);</script>
 </head>
 <body>
   <!-- ==================== หน้าล็อบบี้หลัก (MAIN LOBBY) ==================== -->
-  <div id="lobby-screen" class="lobby-wrapper">
-    <nav class="lobby-navbar">
-      <div class="lobby-logo"><span class="lm-logo" aria-hidden="true"><i class="lm-sword lm-l">🗡️</i><i class="lm-sword lm-r">🗡️</i><i class="lm-spark"></i></span>MY CARD TCG</div>
-      <div class="lobby-nav-links">
-        <a href="#" id="nav-play">Play</a>
-        <a href="#" id="nav-deck">Deck Builder</a>
-        <a href="#" id="nav-cards">Card List</a>
-      </div>
-    </nav>
+  <div id="lobby-screen">
+    <!-- 0. Hero: ชื่อเกม + แฟ้มสี 5 แฟ้มที่เป็นสารบัญของหน้า -->
+    <section id="lb-hero" class="lb-chapter lb-hero">
+      <header class="lb-top">
+        <a href="#" id="nav-deck" class="lb-toplink">จัดเด็ค</a>
+        <span class="lb-wordmark" role="img" aria-label="MY CARD TCG">
+          <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><path d="M6 4l14 14-2 2L4 6V4h2zm20 0h2v2L14 20l-2-2L26 4zM9 21l2 2-4 4H5v-2l4-4zm14 0l4 4v2h-2l-4-4 2-2z" fill="currentColor"/></svg>
+        </span>
+        <a href="#" id="nav-cards" class="lb-toplink">คลังการ์ด</a>
+      </header>
+      <h1 class="lb-title"><span class="lb-line"><span>MY CARD</span></span> <span class="lb-line"><span>TCG</span></span></h1>
+      <p class="lb-lead">เกมการ์ดดวลฟรีบนเบราว์เซอร์ 3 เด็ค 39 การ์ด ไม่ต้องติดตั้ง ไม่ต้องสมัคร</p>
 
-    <section class="lobby-hero">
-      <div class="hero-content">
-        <div class="hero-subtitle">WEB TCG SIMULATOR</div>
-        <h1 class="hero-title">My Custom TCG<br><span>เล่นออนไลน์ฟรี บนเบราว์เซอร์</span></h1>
-        <p class="hero-desc">
-          เกมการ์ดครบทุกเด็ค (เด็คจิต, เด็คเหนือ, เด็ควันสิ้นโลก) จัดเด็คของคุณเอง ดวลกับเพื่อนได้ทันที หรือฝึกฝีมือกับบอท ไม่ต้องติดตั้ง ไม่ต้องสมัครสมาชิก
-        </p>
-        <div class="hero-buttons">
-          <button class="btn-lobby-primary" id="btn-lobby-pvp"><span class="lm-ico">▷</span> เล่นเลย (ดวลกับเพื่อน)</button>
-          <button class="btn-lobby-secondary" id="btn-lobby-bot"><span class="lm-ico">🤖</span> เล่นกับบอท</button>
+      <nav class="lb-folders" aria-label="ส่วนต่างๆ ในหน้านี้">
+        <a class="lb-folder lb-f-stats" href="#lb-stats"><span class="lb-tab">ภาพรวม</span></a>
+        <a class="lb-folder lb-f-decks" href="#lb-decks"><span class="lb-tab">เด็ค</span></a>
+        <a class="lb-folder lb-f-gallery" href="#lb-gallery"><span class="lb-tab">การ์ด</span></a>
+        <a class="lb-folder lb-f-how" href="#lb-how"><span class="lb-tab">วิธีเล่น</span></a>
+        <div class="lb-folder lb-folder-front">
+          <span class="lb-tab">เล่นเลย</span>
+          <div class="lb-front-inner">
+            <div class="lb-front-play">
+              <div class="lb-actions">
+                <button type="button" class="lb-btn lb-btn-primary" id="btn-lobby-pvp">ดวลกับเพื่อน</button>
+                <button type="button" class="lb-btn lb-btn-secondary" id="btn-lobby-bot">เล่นกับบอท</button>
+              </div>
+              <form id="lb-join" class="lb-join" novalidate>
+                <label for="lb-join-code">มีรหัสห้องจากเพื่อน?</label>
+                <div class="lb-join-row">
+                  <input id="lb-join-code" type="text" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="เช่น 4829">
+                  <button type="submit" class="lb-btn lb-btn-dark">เข้าร่วม</button>
+                </div>
+                <p id="lb-join-error" class="lb-join-error" aria-live="polite"></p>
+              </form>
+            </div>
+            <div class="lb-leaders" aria-label="ลีดเดอร์ทั้ง 3 เด็ค"></div>
+          </div>
+        </div>
+      </nav>
+    </section>
+
+    <!-- 1. ตัวเลข: ยอดรวม 39 กับใบเสร็จที่บวกกันได้ -->
+    <section id="lb-stats" class="lb-chapter lb-stats">
+      <div class="lb-stats-text">
+        <h2>การ์ดในเกมทั้งหมด</h2>
+        <p class="lb-note">ทุกใบเล่นได้ฟรี ไม่มีสุ่มกาชา</p>
+        <p class="lb-total"><span class="lb-total-num" data-stat="total">39</span></p>
+        <p class="lb-total-note">ใบ ใน 3 เด็ค เด็คละ 21 ใบ (ลีดเดอร์ 1 + การ์ด 20)</p>
+      </div>
+      <table class="lb-receipt">
+        <caption>แยกตามระดับความหายาก</caption>
+        <tbody>
+          <tr data-rar="Legend"><th scope="row"><i class="lb-dot" aria-hidden="true"></i>Legend</th><td class="num">5</td></tr>
+          <tr data-rar="SR"><th scope="row"><i class="lb-dot" aria-hidden="true"></i>SR</th><td class="num">12</td></tr>
+          <tr data-rar="R"><th scope="row"><i class="lb-dot" aria-hidden="true"></i>R</th><td class="num">17</td></tr>
+          <tr data-rar="N"><th scope="row"><i class="lb-dot" aria-hidden="true"></i>N</th><td class="num">5</td></tr>
+        </tbody>
+        <tfoot><tr><th scope="row">รวม</th><td class="num-total" data-stat="total">39</td></tr></tfoot>
+      </table>
+    </section>
+
+    <!-- 2. เลือกเด็ค (live thing): กดชื่อเด็ค เวทีเปลี่ยนสีและการ์ด -->
+    <section id="lb-decks" class="lb-chapter lb-decks">
+      <div class="lb-deck-side">
+        <h2>เลือกเด็คของคุณ</h2>
+        <div class="lb-deck-list" role="group" aria-label="เด็ค">
+          <button type="button" class="lb-deck-btn" data-leader="L01" aria-pressed="true">เด็คจิต</button>
+          <button type="button" class="lb-deck-btn" data-leader="L02" aria-pressed="false">เด็คเหนือ</button>
+          <button type="button" class="lb-deck-btn" data-leader="L03" aria-pressed="false">เด็ควันสิ้นโลก</button>
         </div>
       </div>
-
-      <div class="hero-card-fan">
-        <img src="images/เด็คจิต/1.png" class="fan-card fan-1" alt="Card 1">
-        <img src="images/เด็คเหนือ/1.png" class="fan-card fan-2" alt="Card 2">
-        <img src="images/วันสิ้นโลก/1.png" class="fan-card fan-3" alt="Card 3">
-        <img src="images/วันสิ้นโลก/2.png" class="fan-card fan-4" alt="Card 4">
+      <div class="lb-stage" style="--stage:#0f4d3c; --stage-hi:#3ee08f">
+        <div class="lb-stage-meta">
+          <p class="lb-stage-leader">ลีดเดอร์ <strong>มายฮีโร่ เดจิต</strong></p>
+          <p class="lb-stage-facts">HP 6 · 21 ใบ</p>
+          <p class="lb-stage-style">เสริมพลังยูนิทแล้วบุกให้แรงที่สุดในเทิร์นเดียว</p>
+          <div class="lb-stage-actions">
+            <button type="button" class="lb-btn lb-btn-primary" id="lb-play-deck">เล่นเด็คนี้</button>
+            <a href="#" id="lb-deck-all" class="lb-link">ดูทั้ง 11 ใบในเด็ค</a>
+          </div>
+        </div>
+        <div class="lb-stage-cards"></div>
       </div>
     </section>
 
-    <section class="lobby-feature-grid">
-      <div class="feature-card card-purple" id="card-menu-deckbuilder">
-        <div class="feature-icon"><span class="lm-ico">🃏</span></div>
-        <div>
-          <h3>Deck Builder</h3>
-          <p>จัดเด็ค 21 ใบ บันทึกในเครื่อง หรือเลือกเด็คมาตรฐาน</p>
-        </div>
-      </div>
-
-      <div class="feature-card card-green" id="card-menu-cardlist">
-        <div class="feature-icon"><span class="lm-ico">🔍</span></div>
-        <div>
-          <h3>Card List</h3>
-          <p>ค้นหาและดูความสามารถของการ์ดทั้งหมดในเกม</p>
-        </div>
-      </div>
-
-      <div class="feature-card card-blue" id="card-menu-preset">
-        <div class="feature-icon"><span class="lm-ico">🏆</span></div>
-        <div>
-          <h3>Deck List</h3>
-          <p>เลือกโหลดเด็คจิต เด็คเหนือ และเด็ควันสิ้นโลกพร้อมเล่น</p>
-        </div>
+    <!-- 3. แกลเลอรี: ตารางภาพการ์ดจริงแทรกช่องคำระดับความหายาก -->
+    <section id="lb-gallery" class="lb-chapter lb-gallery">
+      <div class="lb-grid">
+        <div class="lb-tile lb-tile-head"><h2>การ์ดเด่น</h2></div>
+        <a href="#" id="lb-gallery-all" class="lb-tile-wide">ดูการ์ดทั้งหมด 39 ใบ</a>
       </div>
     </section>
+
+    <!-- 4. วิธีเล่น: แถบเดียว ยาวตามเวลาจริงของแต่ละขั้น -->
+    <section id="lb-how" class="lb-chapter lb-how">
+      <h2>เริ่มดวลใน 3 ขั้น</h2>
+      <ol class="lb-bar">
+        <li class="lb-seg lb-seg-1"><span class="lb-seg-block"><span class="lb-seg-time">ไม่กี่วินาที</span></span><span class="lb-seg-text">ก่อนอื่น เลือกเด็คมาตรฐานหรือจัดเด็คเอง</span></li>
+        <li class="lb-seg lb-seg-2"><span class="lb-seg-block"><span class="lb-seg-time">ไม่ถึงนาที</span></span><span class="lb-seg-text">จากนั้น สร้างห้องแล้วส่งรหัสให้เพื่อน หรือเลือกเล่นกับบอท</span></li>
+        <li class="lb-seg lb-seg-3"><span class="lb-seg-block"><span class="lb-seg-time">ราว 10 นาที</span></span><span class="lb-seg-text">สุดท้าย ทอยเต๋า ลงการ์ด ทำให้ HP ลีดเดอร์อีกฝ่ายหมด</span></li>
+      </ol>
+    </section>
+
+    <!-- 5. Footer: ปุ่มชวนเล่นครั้งสุดท้าย -->
+    <footer id="lb-footer" class="lb-chapter lb-footer">
+      <div class="lb-foot-top">
+        <span class="lb-foot-name">MY CARD TCG</span>
+        <p>เกมการ์ดแฟนเมด เล่นฟรีบนเบราว์เซอร์</p>
+        <a href="#lb-hero" class="lb-link">กลับขึ้นบน</a>
+      </div>
+      <h2 class="lb-sr">เริ่มเล่น</h2>
+      <button type="button" class="lb-cta" id="lb-footer-cta">ดวลเลย →</button>
+      <div class="lb-foot-meta">
+        <a href="https://github.com/tammarno/BOF" class="lb-link">GitHub</a>
+        <span>ทำโดย tammarno</span>
+        <span>2026</span>
+      </div>
+    </footer>
+
+    <!-- เลือกโหมดหลังกด "เล่นเด็คนี้" -->
+    <dialog id="lb-mode-dialog" class="lb-dialog" aria-labelledby="lb-mode-title">
+      <h2 id="lb-mode-title">เล่นเด็คนี้แบบไหน?</h2>
+      <div class="lb-dialog-actions">
+        <button type="button" class="lb-btn lb-btn-primary" id="lb-mode-pvp">ดวลกับเพื่อน</button>
+        <button type="button" class="lb-btn lb-btn-secondary" id="lb-mode-bot">เล่นกับบอท</button>
+      </div>
+      <button type="button" class="lb-link lb-dialog-close" id="lb-mode-close">ยกเลิก</button>
+    </dialog>
   </div>
 
   <!-- หน้าต่างสร้างห้อง / เข้าร่วมห้องสำหรับเล่นกับเพื่อน (Multiplayer Modal) -->
@@ -278,6 +351,7 @@
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="js/game.js"></script>
   <script src="js/holo.js"></script>
+  <script src="js/lobby.js"></script>
   <script src="vendor/gsap.min.js"></script>
   <script src="js/lobby-motion.js"></script>
   <script src="js/ui-motion.js"></script>
