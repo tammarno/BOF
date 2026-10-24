@@ -5877,17 +5877,11 @@ function setupLobbyEvents() {
   const openDeckFn = (e) => { if (e) e.preventDefault(); openDeckBuilder(); };
   const openCardsFn = (e) => { if (e) e.preventDefault(); openZoneViewerModal('🔍 คลังการ์ดทั้งหมด (คลิกที่การ์ดเพื่อดูรายละเอียด)', CARD_DATABASE, null); };
 
-  document.getElementById('card-menu-deckbuilder')?.addEventListener('click', openDeckFn);
   document.getElementById('nav-deck')?.addEventListener('click', openDeckFn);
-  document.getElementById('card-menu-cardlist')?.addEventListener('click', openCardsFn);
   document.getElementById('nav-cards')?.addEventListener('click', openCardsFn);
-  document.getElementById('nav-play')?.addEventListener('click', (e) => {
-    e.preventDefault();
+  document.getElementById('lb-gallery-all')?.addEventListener('click', openCardsFn);
+  document.getElementById('lb-footer-cta')?.addEventListener('click', () => {
     document.getElementById('pvp-room-modal').style.display = 'flex';
-  });
-  document.getElementById('card-menu-preset')?.addEventListener('click', () => {
-    openDeckBuilder();
-    document.getElementById('btn-default-deck').click();
   });
 }
 

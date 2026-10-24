@@ -25,7 +25,7 @@ const scale = (p, sel) => p.evaluate(s => gsap.getProperty(document.querySelecto
 const lobbyOk = p => p.evaluate(() => {
   const op = s => +getComputedStyle(document.querySelector(s)).opacity;
   const vis = s => getComputedStyle(document.querySelector(s)).visibility;
-  return { title: op('.hero-title'), nav: vis('.lobby-navbar'), btn: op('#btn-lobby-pvp'), card: op('.feature-card'), wide: document.documentElement.scrollWidth > innerWidth + 1 };
+  return { title: op('.lb-title'), nav: vis('#lb-hero .lb-folders'), btn: op('#btn-lobby-pvp'), card: op('.lb-folder-front'), wide: document.documentElement.scrollWidth > innerWidth + 1 };
 });
 const assertLobby = (v, when) => {
   assert(v.title > .99 && v.btn > .99 && v.card > .99 && v.nav === 'visible', `lobby blank ${when}: ${JSON.stringify(v)}`);
@@ -41,7 +41,7 @@ test('B1 lobby visible after closing PvP window', async b => {
 });
 test('B2 lobby visible after Deck Builder save', async b => {
   const p = await openPage(b);
-  await p.click('#card-menu-deckbuilder'); await p.waitForTimeout(700);
+  await p.click('#nav-deck'); await p.waitForTimeout(700);
   await p.evaluate(() => { currentDeckConfig.mainDeck = [...DEFAULT_DECK_LIST]; renderDeckBuilder(); });
   await p.click('#btn-save-start'); await p.waitForTimeout(700);
   assert(!(await shown(p, '#deck-builder-modal')), 'deck builder did not close');
@@ -49,14 +49,14 @@ test('B2 lobby visible after Deck Builder save', async b => {
 });
 test('B3 lobby visible after Card List close', async b => {
   const p = await openPage(b);
-  await p.click('#card-menu-cardlist'); await p.waitForTimeout(700);
+  await p.click('#nav-cards'); await p.waitForTimeout(700);
   await p.click('#btn-close-zone-viewer'); await p.waitForTimeout(700);
   assert(!(await shown(p, '#zone-viewer-modal')), 'card list did not close');
   assertLobby(await lobbyOk(p), 'after card list');
 });
 test('B4 window opened during intro then closed', async b => {
   const p = await openPage(b, { fresh: true, wait: 300 });
-  await p.click('#card-menu-cardlist', { force: true }); await p.waitForTimeout(800); // กล่องเมนูกดได้ระหว่างฉากเปิด (เมนูบนยังล่องหน)
+  await p.click('#nav-cards', { force: true }); await p.waitForTimeout(800); // กล่องเมนูกดได้ระหว่างฉากเปิด (เมนูบนยังล่องหน)
   await p.click('#btn-close-zone-viewer'); await p.waitForTimeout(800);
   assertLobby(await lobbyOk(p), 'after intro-time open/close');
 });
@@ -72,7 +72,7 @@ test('B5 idle loops resume after close', async b => {
 // ---------- หน้าต่าง ----------
 test('P1 deck builder opens with animation', async b => {
   const p = await openPage(b); await recordOpen(p, '.deck-builder-box');
-  await p.click('#card-menu-deckbuilder'); await p.waitForTimeout(900);
+  await p.click('#nav-deck'); await p.waitForTimeout(900);
   const r = await p.evaluate(() => window._rec);
   assert(r.y > 5 && r.curtain, 'no open animation ' + JSON.stringify(r));
   assert(await p.evaluate(() => !document.querySelector('.pm-curtain')), 'curtain left behind');
@@ -81,7 +81,7 @@ test('P1 deck builder opens with animation', async b => {
   assert(tiles, 'card tiles left transparent');
 });
 test('P2 card list opens and closes with animation', async b => {
-  const p = await openPage(b); await p.click('#card-menu-cardlist'); await p.waitForTimeout(600); // สร้างหน้าต่างครั้งแรก
+  const p = await openPage(b); await p.click('#nav-cards'); await p.waitForTimeout(600); // สร้างหน้าต่างครั้งแรก
   await p.click('#btn-close-zone-viewer'); await p.waitForTimeout(500);
   await recordOpen(p, '#zone-viewer-modal .modal-box'); await p.click('#nav-cards'); await p.waitForTimeout(900);
   const r = await p.evaluate(() => window._rec); assert(r.y > 5 && r.curtain, 'no open animation ' + JSON.stringify(r));
@@ -92,14 +92,14 @@ test('P2 card list opens and closes with animation', async b => {
   assert(await opacity(p, '#zone-viewer-modal .modal-box') > .99, 'reopened box transparent');
 });
 test('P3 double-click close closes once, reopen stays open', async b => {
-  const p = await openPage(b); await p.click('#card-menu-cardlist'); await p.waitForTimeout(600);
+  const p = await openPage(b); await p.click('#nav-cards'); await p.waitForTimeout(600);
   await p.dblclick('#btn-close-zone-viewer'); await p.waitForTimeout(80);
   await p.waitForTimeout(400); assert(!(await shown(p, '#zone-viewer-modal')), 'did not close');
   await p.click('#nav-cards'); await p.waitForTimeout(700);
   assert(await shown(p, '#zone-viewer-modal'), 'reopened window closed itself');
 });
 test('P4 save with incomplete deck: no animation, stays open', async b => {
-  const p = await openPage(b); await p.click('#card-menu-deckbuilder'); await p.waitForTimeout(600);
+  const p = await openPage(b); await p.click('#nav-deck'); await p.waitForTimeout(600);
   await p.click('#btn-reset-deck'); await p.waitForTimeout(100);
   assert(await p.evaluate(() => document.getElementById('btn-save-start').disabled), 'save not disabled');
   assert(await opacity(p, '.deck-builder-box') > .99, 'box faded on reset');
@@ -116,15 +116,15 @@ test('P5 mulligan cards dealt in', async b => {
 
 // ---------- ปุ่ม / เมนู / การ์ด ----------
 test('S1 old buttons themed', async b => {
-  const p = await openPage(b); await p.click('#card-menu-deckbuilder'); await p.waitForTimeout(500);
+  const p = await openPage(b); await p.click('#nav-deck'); await p.waitForTimeout(500);
   const v = await p.evaluate(() => ['btn-save-start', 'btn-default-deck', 'btn-reset-deck'].map(id => document.getElementById(id).className));
   assert(v[0].includes('pm-btn-primary') && v[1].includes('pm-btn-ice') && v[2].includes('pm-btn-ghost'), v.join('|'));
   await p.click('#btn-save-start').catch(() => {}); await p.waitForTimeout(500);
-  await p.click('#card-menu-cardlist'); await p.waitForTimeout(500);
+  await p.click('#nav-cards'); await p.waitForTimeout(500);
   assert(await p.evaluate(() => document.getElementById('btn-close-zone-viewer').classList.contains('pm-btn-danger')), 'close not themed');
 });
 test('S2 deck builder button hover + press', async b => {
-  const p = await openPage(b); await p.click('#card-menu-deckbuilder'); await p.waitForTimeout(600);
+  const p = await openPage(b); await p.click('#nav-deck'); await p.waitForTimeout(600);
   await p.hover('#btn-default-deck'); await p.waitForTimeout(250);
   assert(await scale(p, '#btn-default-deck') > 1.02, 'no hover lift');
   await p.mouse.down(); await p.waitForTimeout(90);
@@ -138,7 +138,7 @@ test('S3 nav link press + underline', async b => {
   assert(await scale(p, '#nav-deck') < 1, 'no press'); await p.mouse.up();
 });
 test('S4 deck tile add / remove / full feedback', async b => {
-  const p = await openPage(b); await p.click('#card-menu-deckbuilder'); await p.waitForTimeout(700);
+  const p = await openPage(b); await p.click('#nav-deck'); await p.waitForTimeout(700);
   await p.click('#btn-reset-deck'); await p.waitForTimeout(100);
   await p.click('#main-pool-list > .pool-item:nth-child(1) .card'); await p.waitForTimeout(30);
   assert(await p.evaluate(() => !!document.querySelector('#main-pool-list > .pool-item:nth-child(1) .pm-flash-add')), 'no add flash');
@@ -155,20 +155,20 @@ test('S4 deck tile add / remove / full feedback', async b => {
   assert(await p.evaluate(i => !!document.querySelector(`#main-pool-list > .pool-item:nth-child(${i}) .pm-flash-deny`), free + 1), 'no deny shake when full');
 });
 test('S5 save button breathes only when deck complete', async b => {
-  const p = await openPage(b); await p.click('#card-menu-deckbuilder'); await p.waitForTimeout(500);
+  const p = await openPage(b); await p.click('#nav-deck'); await p.waitForTimeout(500);
   await p.evaluate(() => { currentDeckConfig.mainDeck = [...DEFAULT_DECK_LIST]; renderDeckBuilder(); }); await p.waitForTimeout(50);
   assert(await p.evaluate(() => document.getElementById('btn-save-start').classList.contains('lm-breathe')), 'not breathing at 20/20');
   await p.click('#btn-reset-deck'); await p.waitForTimeout(50);
   assert(!(await p.evaluate(() => document.getElementById('btn-save-start').classList.contains('lm-breathe'))), 'breathing when incomplete');
 });
 test('S6 reduced motion: themed, opens instantly, no errors', async b => {
-  const p = await openPage(b, { reduced: true }); await p.click('#card-menu-deckbuilder'); await p.waitForTimeout(40);
+  const p = await openPage(b, { reduced: true }); await p.click('#nav-deck'); await p.waitForTimeout(40);
   assert(await opacity(p, '.deck-builder-box') > .99, 'animated under reduced motion');
   assert(await p.evaluate(() => document.getElementById('btn-save-start').classList.contains('pm-btn-primary')), 'not themed');
   assert(!p.errors.length, p.errors.join('|'));
 });
 test('S7 deck builder open is smooth', async b => {
-  const p = await openPage(b); await p.click('#card-menu-deckbuilder');
+  const p = await openPage(b); await p.click('#nav-deck');
   const p95 = await p.evaluate(() => new Promise(res => { const d = []; let last = performance.now(); const t0 = last; const f = t => { d.push(t - last); last = t; if (t - t0 < 700) requestAnimationFrame(f); else { d.splice(0, 2); d.sort((a, b) => a - b); res(d[Math.floor(d.length * .95)]); } }; requestAnimationFrame(f); }));
   assert(p95 < 40, 'p95 frame ' + p95.toFixed(1) + 'ms');
   assert(!p.errors.length, p.errors.join('|'));

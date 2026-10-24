@@ -87,9 +87,9 @@
     ['--rx', '--ry', '--px', '--py', '--hyp'].forEach(p => el.style.removeProperty(p));
   }
 
-  // การ์ดบนมือ: เอียงตามเมาส์ (มือถือเว้นไว้ เพราะแถวการ์ดต้องเลื่อนด้วยนิ้ว)
-  function bindHandTilt() {
-    const hand = document.getElementById('player-hand');
+  // เอียงการ์ดตามเมาส์ภายใน container (มือถือเว้นไว้ เพราะแถวการ์ดต้องเลื่อนด้วยนิ้ว)
+  // ใช้กับการ์ดบนมือ และการ์ดในหน้าล็อบบี้ (ผ่าน window.HoloTilt.bind)
+  function bindTilt(hand, maxDeg = 12, selector = '.card') {
     if (!hand || reduceMotion || !canHover) return;
     let lastEl = null, pending = null, raf = 0;
     const flush = () => {
@@ -98,11 +98,11 @@
       if (!el.isConnected) return;
       const r = el.getBoundingClientRect(); // อ่านก่อน แล้วค่อยเขียน (ไม่สลับอ่าน/เขียน)
       el.classList.add('holo-live');
-      applyTilt(el, (x - r.left) / r.width, (y - r.top) / r.height, 12);
+      applyTilt(el, (x - r.left) / r.width, (y - r.top) / r.height, maxDeg);
     };
     hand.addEventListener('pointermove', e => {
       if (e.pointerType !== 'mouse' || document.body.classList.contains('holo-inspecting')) return;
-      const el = e.target.closest('.card');
+      const el = e.target.closest(selector);
       if (lastEl && lastEl !== el) resetTilt(lastEl);
       lastEl = el; if (!el) { pending = null; return; }
       pending = { el, x: e.clientX, y: e.clientY };
@@ -382,6 +382,7 @@
     return r;
   };
 
-  bindHandTilt();
+  bindTilt(document.getElementById('player-hand'), 12);
   bindLongPress();
+  window.HoloTilt = { bind: bindTilt };
 })();
