@@ -66,7 +66,8 @@
   const hasSavedDeck = () => {
     try {
       const d = JSON.parse(localStorage.getItem('my_card_game_deck'));
-      return !!(d && d.leaderId && Array.isArray(d.mainDeck) && d.mainDeck.length === 20);
+      // ต้องเป็นลีดเดอร์ที่มีอยู่จริง (เด็คเก่า/แก้มือ/เสียหาย อาจมี leaderId แปลก ๆ)
+      return !!(d && STANDARD.includes(d.leaderId) && Array.isArray(d.mainDeck) && d.mainDeck.length === 20);
     } catch (e) { return false; }
   };
   const leaderIdOf = key => (key === 'mine' ? loadSavedDeck().leaderId : key);
@@ -187,6 +188,7 @@
       }
       error.textContent = '';
       input.removeAttribute('aria-invalid');
+      if ($('#lb-join-dialog')?.open) $('#lb-join-dialog').close();
       applySelectedDeck();
       window.joinPvpRoomAsGuest(code); // เรียกผ่าน window ให้เทสต์แทนที่ได้
     });
@@ -242,6 +244,15 @@
       applySelectedDeck();
       const dialog = $('#lb-mode-dialog'); if (dialog?.open) dialog.close();
     }, true));
+    // หน้าจัดเด็คต้องเริ่มจากเด็คที่บันทึกไว้ ไม่ใช่เด็คที่ล็อบบี้ตั้งไว้ตอนเล่นรอบก่อน
+    // (ไม่งั้นกดบันทึกแล้วเด็คที่จัดเองจะถูกเขียนทับ) — capture: ก่อน openDeckBuilder ของ game.js
+    $('#nav-deck')?.addEventListener('click', () => { currentDeckConfig = loadSavedDeck(); }, true);
+    // ล็อบบี้ถูกซ่อน (เข้าเกม): ปิด dialog ที่ค้าง ไม่งั้น showModal ทำให้กระดานเกมกดไม่ได้
+    new MutationObserver(() => {
+      if ($('#lobby-screen').style.display === 'none') $$('#lobby-screen dialog[open]').forEach(d => d.close());
+    }).observe($('#lobby-screen'), { attributes: true, attributeFilter: ['style'] });
+    // เปลี่ยนขนาดข้าม 767px (หมุนจอ): สร้างกำแพงใหม่ให้จำนวนช่องตรงกับ layout
+    matchMedia('(max-width: 767px)').addEventListener('change', () => renderWall(selected));
     // บันทึกในหน้าจัดเด็คแล้ว: แสดงและเลือก "เด็คของฉัน" (หลัง handler ของ game.js เขียน localStorage)
     $('#btn-save-start')?.addEventListener('click', () => setTimeout(() => { refreshMine(); selectDeck('mine'); renderDeck(selected); }, 0));
   }
@@ -259,6 +270,9 @@
   bindDialogs();
   bindJoinForm();
   bindDeckSelection();
+  // ถอดรหัสภาพลีดเดอร์ทุกเด็คไว้ก่อน (PNG ~1MB) — ไม่งั้นถอดรหัสตอนสลับเด็คแล้วเฟรมสะดุด
+  // ทำหลังฉากเปิดจบ (≈1.6 วิ) เพื่อไม่แย่งเฟรมของฉากเปิด
+  setTimeout(() => DECKS.forEach(d => { const i = new Image(); i.src = byId(d.leaderId).image; i.decode().catch(() => {}); }), 1800);
   // ลีดเดอร์เอียงตามเมาส์ (holo.js ใส่ --rx/--ry ให้ #lb-leader · มือถือไม่เอียง)
   if (window.HoloTilt) HoloTilt.bind($('.lb-leader-wrap'), 8, '.lb-leader');
 })();

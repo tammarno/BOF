@@ -66,14 +66,14 @@ BOF/
 ต้องมี Node.js แล้วรัน `npm install` และ `npx playwright install chromium` (Playwright อยู่ใน `package.json`)
 
 ```bash
-node tests/lobby.spec.js    # ล็อบบี้ 63 ข้อ (ข้อมูล D, เข้าห้อง J, หน้า L, เด็ค G, motion T/F/M)
+node tests/lobby.spec.js    # ล็อบบี้ 72 ข้อ (ข้อมูล D, เข้าห้อง J, หน้า L, เด็ค G, motion T/F/M, แก้หลังรีวิว X)
 node tests/ui.spec.js       # หน้าต่าง/กระดาน 19 ข้อ
 node tests/choice.spec.js   # ยืนยัน/ชนะ/แพ้ 9 ข้อ
 node tests/panel.spec.js    # บั๊กล็อบบี้ว่าง + หน้าต่าง/ปุ่ม 0.6 17 ข้อ
 node tests/ui.spec.js U8    # รันเฉพาะข้อที่ชื่อมีคำนี้
 ```
 
-ผลล่าสุด: **108/108 ผ่าน** (ข้อ T7 memory วัด RAM ด้วย `ps` ซึ่งไม่มีบน Windows จึงผ่านโดยไม่ได้วัดจริง · เทสต์ความลื่นไวต่อเครื่องที่ทำงานหนัก: ถ้าตกครั้งเดียวให้รันข้อนั้นซ้ำ)
+ผลล่าสุด: **117/117 ผ่าน** (ข้อ T7 memory วัด RAM ด้วย `ps` ซึ่งไม่มีบน Windows จึงผ่านโดยไม่ได้วัดจริง · เทสต์ความลื่นไวต่อเครื่องที่ทำงานหนัก: panel S7 ตก 1 ใน 4 รอบชุดเต็มในเครื่องนี้ ถ้าตกครั้งเดียวให้รันข้อนั้นซ้ำ)
 
 ภาพย่อการ์ด: `images/thumbs/` (WebP กว้าง 240px รวม ~650KB) สร้างใหม่ด้วย `node tools/make-thumbs.js` ทุกครั้งที่เพิ่มหรือแก้รูปการ์ด
 

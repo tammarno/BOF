@@ -1184,7 +1184,7 @@ function returnToLobbyScreen() {
   const mulliganModal = document.getElementById('mulligan-modal');
   if (mulliganModal) mulliganModal.style.display = 'none';
   if (gameBoard) gameBoard.style.display = 'none';
-  if (lobbyScreen) lobbyScreen.style.display = 'flex';
+  if (lobbyScreen) lobbyScreen.style.display = ''; // ให้ css/lobby.css เลือก flex/grid ตามขนาดจอเอง
 }
 
 function disableControls() {

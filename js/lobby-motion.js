@@ -28,11 +28,13 @@
   // ใช้ opacity (ไม่ใช่ autoAlpha) เพื่อให้ปุ่มกดได้ระหว่างฉากเปิด
   function buildIntro(short) {
     const k = short ? .5 : 1;
+    // clearProps: คืน transform ให้ CSS — .lb-menu / #lb-decks ใช้ translate(-50%) จัดตำแหน่ง
+    // ถ้าค้างเป็น inline แล้วหมุนจอข้าม breakpoint ตำแหน่งจะผิด
     return gsap.timeline()
       .from('#lb-wall', { opacity: 0, duration: .8 * k, ease: 'power1.out' })
-      .from('#lb-leader', { opacity: 0, y: 40, scale: .92, duration: .7 * k, ease: 'power3.out' }, .15 * k)
-      .from('.lb-logo, .lb-info, .lb-menu, #lb-decks, .lb-join-slot', { opacity: 0, y: 16, duration: .45 * k, ease: 'power2.out', stagger: .07 * k }, .45 * k)
-      .from('#lb-play', { opacity: 0, scale: .85, duration: .5 * k, ease: 'back.out(2)' }, .85 * k);
+      .from('#lb-leader', { opacity: 0, y: 40, scale: .92, duration: .7 * k, ease: 'power3.out', clearProps: 'transform' }, .15 * k)
+      .from('.lb-logo, .lb-info, .lb-menu, #lb-decks, .lb-join-slot', { opacity: 0, y: 16, duration: .45 * k, ease: 'power2.out', stagger: .07 * k, clearProps: 'transform' }, .45 * k)
+      .from('#lb-play', { opacity: 0, scale: .85, duration: .5 * k, ease: 'back.out(2)', clearProps: 'transform' }, .85 * k);
   }
   // กดปุ่ม/ลิงก์ระหว่างฉากเปิด: ไม่ข้ามฉาก เพราะของจะกระโดดหนีจากใต้นิ้วก่อนปล่อย ทำให้คลิกหาย
   function skipIntro(e) {
@@ -43,27 +45,44 @@
   // ---------- กำแพงการ์ด: พลิกไพ่ ----------
   // พลิกแบบ 2D: หดแนวนอนจนแบน → เปลี่ยนภาพ → กางกลับ (ภาพเดียวต่อช่อง ไม่ใช้ 3D)
   // วัดแล้ว: ไพ่ 3D 60 ใบ / หมุน rotateY พร้อมกัน / บังคับ reflow ทีละใบ ต่างทำเฟรมตกเหลือ 30fps
+  // timeline ของการพลิกไม่เก็บใน ctx (พลิกตอนว่างวันละหลายพันครั้งจะค้างอยู่ใน ctx) — เก็บเฉพาะที่ยังเล่นอยู่
   let flipTimers = [];
+  const flipTls = new Set();
   const clearFlips = () => { flipTimers.forEach(clearTimeout); flipTimers = []; };
+  const killFlips = () => { flipTls.forEach(tl => tl.progress(1).kill()); flipTls.clear(); };
+  function setCard(tile, card) {
+    const img = tile.querySelector('img.front');
+    img.onerror = () => { img.onerror = null; img.src = card.image; };
+    img.src = LobbyData.thumbOf(card);
+  }
   function flipTile(tile, card, delay) {
     flipTimers.push(setTimeout(() => {
-      if (!tile.isConnected || !ctx) return;
+      if (!tile.isConnected || !running) return;
       const img = tile.querySelector('img.front');
       tile.dataset.cardId = card.id;
       tile.classList.add('flipping');
-      ctx.add(() => gsap.timeline({ onComplete: () => tile.classList.remove('flipping') })
+      const tl = gsap.timeline({ onComplete: () => { tile.classList.remove('flipping'); flipTls.delete(tl); } })
         .to(img, { scaleX: 0, duration: .22, ease: 'power1.in', overwrite: 'auto' })
-        .add(() => { img.onerror = () => { img.onerror = null; img.src = card.image; }; img.src = LobbyData.thumbOf(card); })
-        .to(img, { scaleX: 1, duration: .3, ease: 'power2.out' }));
+        .add(() => setCard(tile, card))
+        .to(img, { scaleX: 1, duration: .3, ease: 'power2.out' });
+      flipTls.add(tl);
+      if (paused) tl.pause();
     }, delay));
   }
+  // คลื่นพลิกเฉพาะไพ่ที่เห็นบนจอ · ไพ่นอกจอเปลี่ยนภาพทันที (ลดงานต่อเฟรมตอนสลับเด็ค)
   function waveTo(key) {
     clearFlips();
     const cards = LobbyData.cardsOfDeck(key);
     const tiles = $$('#lb-wall .lb-tile');
     const { cols, rows } = LobbyView.wallSize();
     const cr = (rows - 1) / 2, cc = (cols - 1) / 2;
-    tiles.forEach(t => flipTile(t, randomOf(cards), Math.hypot(t.dataset.r - cr, t.dataset.c - cc) * 70));
+    const rects = tiles.map(t => t.getBoundingClientRect()); // อ่านทั้งหมดก่อน แล้วค่อยเขียน
+    tiles.forEach((t, i) => {
+      const card = randomOf(cards), r = rects[i];
+      const onScreen = r.right > 0 && r.bottom > 0 && r.left < innerWidth && r.top < innerHeight;
+      if (onScreen) flipTile(t, card, Math.hypot(t.dataset.r - cr, t.dataset.c - cc) * 70);
+      else { t.dataset.cardId = card.id; setCard(t, card); }
+    });
   }
   function idleFlip() {
     if (!running || paused) return;
@@ -92,9 +111,10 @@
       const el = e.target.closest(PRESSABLE); if (!el) return;
       gsap.to(el, { scale: .97, duration: .06, ease: 'power1.out', overwrite: 'auto' });
     });
+    // clearProps: คืน transform ให้ CSS (เช่น .lb-deck ที่เลือกยกขึ้น 6px ด้วย CSS)
     const release = e => {
       const el = e.target.closest && e.target.closest(PRESSABLE); if (!el) return;
-      gsap.to(el, { scale: 1, duration: .3, ease: 'back.out(2)', overwrite: 'auto' });
+      gsap.to(el, { scale: 1, duration: .3, ease: 'back.out(2)', overwrite: 'auto', clearProps: 'transform' });
     };
     lobby.addEventListener('pointerup', release);
     lobby.addEventListener('pointerout', release);
@@ -177,7 +197,7 @@
   function stop() {
     P.list = []; // ออกจากล็อบบี้จริง: รอบหน้าค่อยสุ่มใหม่
     clearInterval(idleTimer); idleTimer = 0;
-    clearFlips(); $$('#lb-wall .flipping').forEach(t => t.classList.remove('flipping'));
+    clearFlips(); killFlips(); $$('#lb-wall .flipping').forEach(t => t.classList.remove('flipping'));
     if (ctx) { ctx.revert(); ctx = null; }
     $$('#lb-leader img').slice(0, -1).forEach(i => i.remove()); // ใบที่กำลังหมุนออกค้างอยู่
     intro = null; heldTweens = [];
@@ -191,9 +211,9 @@
     // ข้าม tween "จุดเริ่ม" ของ .from() (ยาว 0 วิ) — resume ตัวนี้จะวาดค่าโปร่งใสทับล็อบบี้ (บั๊ก v0.6)
     if (v) {
       heldTweens = (ctx ? ctx.getTweens() : []).filter(t => t.data !== 'isStart' && t.totalDuration() > 0 && !t.paused());
-      heldTweens.forEach(t => t.pause()); stopParticles();
+      heldTweens.forEach(t => t.pause()); flipTls.forEach(t => t.pause()); stopParticles();
     } else {
-      heldTweens.forEach(t => t.resume()); heldTweens = []; startParticles();
+      heldTweens.forEach(t => t.resume()); flipTls.forEach(t => t.resume()); heldTweens = []; startParticles();
     }
   }
 
@@ -218,6 +238,7 @@
     _particleCount: () => (P.on ? P.list.length : 0),
     _particlesActive: () => P.on,
     _particlePos: () => (P.list[0] ? { x: P.list[0].x, y: P.list[0].y } : { x: 0, y: 0 }),
+    _ctxTweens: () => (ctx ? ctx.getTweens().length : 0),
   };
 
   if (visible(lobby)) start(); else unhide();

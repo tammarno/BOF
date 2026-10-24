@@ -15,7 +15,7 @@
   --lb-gold-hi: #ffe39a;
   --lb-gold-lo: #e0a83c;
   --deck: #3ee08f;
-  --leader-h: 62vh;
+  --leader-h: min(62vh, 44vw); /* จอแคบแต่สูง (แท็บเล็ต) ลีดเดอร์เล็กลง ให้ข้อมูลเด็คมีที่ */
 
   position: relative;
   width: calc(100% + 20px);
@@ -36,7 +36,7 @@
 .lb-wall-inner { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1.1vw; }
 .lb-tile { aspect-ratio: 750 / 1050; }
 .lb-tile img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
-.lb-tint { position: absolute; inset: 0; pointer-events: none; background: var(--deck); opacity: .12; transition: background-color .6s; }
+.lb-tint { position: absolute; inset: 0; pointer-events: none; background: var(--deck); opacity: .12; } /* ไม่ทำ transition สีเต็มจอ (วาดใหม่ทั้งจอทุกเฟรม) */
 .lb-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(48% 58% at 50% 46%, rgba(11, 13, 26, .35) 0%, rgba(11, 13, 26, .9) 100%); }
 
 /* ---------- โลโก้ + เมนู ---------- */
@@ -67,7 +67,7 @@
 .lb-leader-wrap { position: absolute; left: 50%; top: 45%; height: var(--leader-h); aspect-ratio: 750 / 1050; transform: translate(-50%, -50%); perspective: 1200px; }
 .lb-leader { position: relative; width: 100%; height: 100%; }
 .lb-leader img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 12px; box-shadow: 0 24px 60px rgba(0, 0, 0, .7), 0 0 0 3px rgba(243, 201, 105, .85); }
-.lb-info { position: absolute; left: calc(50% + var(--leader-h) * .357 + 32px); top: 28%; width: min(30vw, 380px); }
+.lb-info { position: absolute; left: calc(50% + var(--leader-h) * .357 + 32px); top: 28%; width: min(380px, calc(50vw - var(--leader-h) * .357 - 56px)); }
 .lb-deck-name { font: 700 clamp(30px, 3.4vw, 48px)/1.05 var(--font-display); color: var(--deck); text-shadow: 0 0 24px rgba(0, 0, 0, .6); transition: color .6s; }
 .lb-leader-name { margin-top: 10px !important; font: 600 18px var(--font-display); }
 .lb-deck-style { margin-top: 6px !important; color: var(--lb-ink-soft); font-size: 15px; line-height: 1.5; }
@@ -76,9 +76,10 @@
 
 /* ---------- เลือกเด็ค ---------- */
 .lb-decks { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 14px; align-items: flex-end; }
-.lb-deck { position: relative; width: 60px; padding: 0; border: 0; background: none; cursor: pointer; opacity: .6; transition: opacity .2s, transform .2s; }
+.lb-deck { position: relative; width: 60px; padding: 0; border: 0; background: none; cursor: pointer; opacity: .6; transition: opacity .2s; }
 .lb-deck img { display: block; width: 100%; aspect-ratio: 750 / 1050; border-radius: 6px; }
 .lb-deck:hover { opacity: .9; }
+.lb-deck:focus-visible { opacity: 1; }
 .lb-deck[aria-pressed="true"] { opacity: 1; transform: translateY(-6px); }
 .lb-deck[aria-pressed="true"] img { outline: 3px solid var(--lb-gold); box-shadow: 0 0 18px rgba(243, 201, 105, .6); }
 .lb-deck-mine-tag { position: absolute; left: 50%; bottom: -2px; transform: translate(-50%, 50%); white-space: nowrap; padding: 1px 8px; border-radius: 999px; background: var(--lb-gold); color: var(--lb-ink-dark); font: 600 11px var(--font-display); }
@@ -113,6 +114,9 @@
 .lb-counts { margin-top: 16px !important; padding: 10px 14px; border-radius: 10px; background: #e2d5b6; font-size: 14px; }
 .lb-dialog-ok { margin-top: 18px; width: 100%; }
 #lb-join-dialog .lb-join { background: var(--lb-ink-dark); color: var(--lb-ink); }
+
+/* style.css เอา padding ของ body ออกที่ ≤ 768px → ไม่ต้องชดเชย */
+@media (max-width: 768px) { #lobby-screen { width: 100%; margin: 0; } }
 
 /* ================= มือถือ (แนวตั้ง): จัดเป็นแถว ไม่ให้ชิ้นส่วนทับกันบนจอเตี้ย ================= */
 @media (max-width: 767px) {
