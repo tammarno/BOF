@@ -163,6 +163,18 @@ test('L10 touch targets are at least 44px', async b => {
     assert(small.length === 0, viewport.width + ': ' + JSON.stringify(small));
   }
 });
+test('L12 dialogs open centred', async b => {
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+    const p = await openPage(b, { seen: true, viewport }); await p.waitForTimeout(900);
+    for (const [btn, id] of [['#lb-play', 'lb-mode-dialog'], ['#nav-howto', 'lb-howto-dialog']]) {
+      await p.click(btn); await p.waitForTimeout(150);
+      const off = await p.evaluate(id => { const r = document.getElementById(id).getBoundingClientRect();
+        return [Math.round(r.left + r.width / 2 - innerWidth / 2), Math.round(r.top + r.height / 2 - innerHeight / 2)]; }, id);
+      assert(Math.abs(off[0]) <= 2 && Math.abs(off[1]) <= 2, `${viewport.width} ${id} off-centre by ${off}`);
+      await p.keyboard.press('Escape'); await p.waitForTimeout(100);
+    }
+  }
+});
 test('L11 no console errors', async b => {
   const p = await openPage(b, { seen: true }); await p.waitForTimeout(600);
   assert(p.errors.length === 0, p.errors.join('\n'));
