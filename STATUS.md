@@ -35,10 +35,15 @@ BOF/
 ├─ css/                สไตล์ทั้งหมด
 ├─ js/                 สคริปต์ทั้งหมด
 ├─ vendor/             ไลบรารีภายนอก (gsap.min.js เล่นออฟไลน์ได้)
-├─ images/             รูปการ์ดแยกตามเด็ค
+├─ images/             รูปการ์ดแยกตามเด็ค (PNG เต็ม)
+│  └─ thumbs/          ภาพย่อ WebP สำหรับล็อบบี้ (สร้างด้วย npm run thumbs)
 ├─ tests/              ชุดทดสอบ Playwright
 ├─ tools/              สคริปต์ (make-thumbs.js สร้างภาพย่อการ์ด)
-├─ docs/               สเปกและแผนงาน
+├─ docs/
+│  ├─ specs/           สเปกที่ใช้อยู่ (ล็อบบี้ 0.8, หน้าต่าง/กระดาน 0.4)
+│  ├─ plans/           แผนงานที่ใช้อยู่
+│  └─ archive/         สเปก/แผนที่ถูกแทนที่แล้ว (ล็อบบี้ 0.3, 0.7)
+├─ package.json        คำสั่ง npm test / npm run thumbs
 └─ backups/            ไฟล์สำรองเก่า (.bak) — ลบได้เมื่อแน่ใจว่าใช้งานได้
 ```
 
@@ -63,7 +68,7 @@ BOF/
 
 ## วิธีทดสอบ
 
-ต้องมี Node.js แล้วรัน `npm install` และ `npx playwright install chromium` (Playwright อยู่ใน `package.json`)
+ต้องมี Node.js แล้วรัน `npm install` และ `npx playwright install chromium` ครั้งแรก · รันทุกชุดด้วย `npm test`
 
 ```bash
 node tests/lobby.spec.js    # ล็อบบี้ 72 ข้อ (ข้อมูล D, เข้าห้อง J, หน้า L, เด็ค G, motion T/F/M, แก้หลังรีวิว X)
@@ -75,7 +80,7 @@ node tests/ui.spec.js U8    # รันเฉพาะข้อที่ชื�
 
 ผลล่าสุด: **117/117 ผ่าน** (ข้อ T7 memory วัด RAM ด้วย `ps` ซึ่งไม่มีบน Windows จึงผ่านโดยไม่ได้วัดจริง · เทสต์ความลื่นไวต่อเครื่องที่ทำงานหนัก: panel S7 ตก 1 ใน 4 รอบชุดเต็มในเครื่องนี้ ถ้าตกครั้งเดียวให้รันข้อนั้นซ้ำ)
 
-ภาพย่อการ์ด: `images/thumbs/` (WebP กว้าง 240px รวม ~650KB) สร้างใหม่ด้วย `node tools/make-thumbs.js` ทุกครั้งที่เพิ่มหรือแก้รูปการ์ด
+ภาพย่อการ์ด: `images/thumbs/` (WebP กว้าง 240px รวม ~650KB) สร้างใหม่ด้วย `npm run thumbs` ทุกครั้งที่เพิ่มหรือแก้รูปการ์ด
 
 ---
 
@@ -117,8 +122,6 @@ node tests/ui.spec.js U8    # รันเฉพาะข้อที่ชื�
 ## เอกสารที่เกี่ยวข้อง
 
 - `docs/specs/2026-10-24-lobby-game-design.md` + `docs/plans/2026-10-24-lobby-game-plan.md` — สเปกและแผนล็อบบี้เกม (0.8)
-- `docs/specs/2026-10-24-lobby-redesign-design.md` + `docs/plans/2026-10-24-lobby-redesign-plan.md` — สเปกและแผนล็อบบี้ใหม่ (0.7)
-- `docs/specs/2026-10-24-lobby-motion-design.md` — สเปกล็อบบี้ (0.3, แทนที่แล้วโดย 0.7)
-- `docs/plans/2026-10-24-lobby-motion-plan.md` — แผนงานล็อบบี้ (0.3)
-- `docs/2026-10-24-ui-motion-spec-plan.md` — สเปก + แผน หน้าต่างและกระดาน (0.4)
+- `docs/specs/2026-10-24-ui-motion-spec-plan.md` — สเปก + แผน หน้าต่างและกระดาน (0.4)
+- `docs/archive/` — ล็อบบี้ 0.7 (Colour chapters) และ 0.3 (ฉากเปิด/การ์ดพัด) ที่ถูกแทนที่แล้ว
 - Trello "แผนงาน" → "ล่าสุด" — บันทึกการเปลี่ยนแปลงทุกเวอร์ชัน ภาษาทั่วไป อ่านง่าย

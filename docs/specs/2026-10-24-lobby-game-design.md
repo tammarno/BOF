@@ -1,6 +1,6 @@
 # สเปก: ล็อบบี้แบบเกม หน้าจอเดียว (BOF v0.8)
 
-วันที่ 2026-10-24 · สถานะ: รอผู้ใช้ตรวจ · แทนที่ล็อบบี้ Colour chapters (v0.7, `docs/specs/2026-10-24-lobby-redesign-design.md`)
+วันที่ 2026-10-24 · สถานะ: อนุมัติและทำเสร็จแล้ว (v0.8) · แทนที่ล็อบบี้ Colour chapters (v0.7, `docs/archive/2026-10-24-lobby-redesign-design.md`)
 
 ## 1. เป้าหมาย
 

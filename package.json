@@ -1,26 +1,17 @@
 {
   "name": "bof",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs",
-    "test": "tests"
-  },
+  "version": "0.8.0",
+  "description": "My Custom TCG — เกมการ์ดดวลบนเบราว์เซอร์ (เปิด index.html ได้เลย ไม่ต้อง build)",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node tests/lobby.spec.js && node tests/ui.spec.js && node tests/choice.spec.js && node tests/panel.spec.js",
+    "thumbs": "node tools/make-thumbs.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tammarno/BOF.git"
   },
-  "keywords": [],
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/tammarno/BOF/issues"
-  },
   "homepage": "https://github.com/tammarno/BOF#readme",
-  "private": "true",
   "devDependencies": {
     "playwright": "^1.64.1"
   }

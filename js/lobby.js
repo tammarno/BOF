@@ -1,7 +1,7 @@
 /* ============================================================================
-   LOBBY (BOF v0.7) — โหลดหลัง game.js และ holo.js
+   LOBBY (BOF v0.8) — โหลดหลัง game.js และ holo.js
    ข้อมูลของหน้าล็อบบี้สร้างจาก CARD_DATABASE ทั้งหมด (ไม่ฮาร์ดโค้ดตัวเลข)
-   สเปก: docs/specs/2026-10-24-lobby-redesign-design.md
+   สเปก: docs/specs/2026-10-24-lobby-game-design.md
    ============================================================================ */
 (function () {
   const RARITIES = ['Legend', 'SR', 'R', 'N'];
@@ -32,12 +32,6 @@
     return { leader, cards, total: list.length + 1, hp: leader.maxHp };
   }
 
-  function galleryCards() {
-    const legends = CARD_DATABASE.filter(c => c.rarity === 'Legend');
-    const srs = CARD_DATABASE.filter(c => c.rarity === 'SR');
-    return [...legends, ...srs].slice(0, 7);
-  }
-
   function normalizeRoomCode(raw) {
     const code = String(raw || '').trim().replace(/[๐-๙]/g, d => THAI_DIGITS.indexOf(d));
     return /^\d{4}$/.test(code) ? code : null;
@@ -53,7 +47,7 @@
   }
   const legendCount = key => cardsOfDeck(key).filter(c => c.rarity === 'Legend').length;
 
-  window.LobbyData = { DECKS, rarityCounts, deckInfo, galleryCards, normalizeRoomCode, thumbOf, cardsOfDeck, legendCount };
+  window.LobbyData = { DECKS, rarityCounts, deckInfo, normalizeRoomCode, thumbOf, cardsOfDeck, legendCount };
 
   /* ---------------- การแสดงผล (ล็อบบี้เกมหน้าจอเดียว v0.8) ---------------- */
   const $ = s => document.querySelector(s);
