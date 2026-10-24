@@ -184,22 +184,75 @@
       }
       error.textContent = '';
       input.removeAttribute('aria-invalid');
+      applySelectedDeck();
       window.joinPvpRoomAsGuest(code); // เรียกผ่าน window ให้เทสต์แทนที่ได้
     });
     input.addEventListener('input', () => { if (error.textContent) { error.textContent = ''; input.removeAttribute('aria-invalid'); } });
   }
 
+  /* ---------------- เด็คที่เลือก ---------------- */
+  const STORE = 'bof_lobby_deck';
+  const validKey = key => STANDARD.includes(key) || (key === 'mine' && hasSavedDeck());
+  function initialDeck() {
+    let stored = null;
+    try { stored = localStorage.getItem(STORE); } catch (e) {}
+    if (validKey(stored)) return stored;
+    return hasSavedDeck() ? 'mine' : 'L01'; // 'mine' ที่เด็คบันทึกหายไปแล้วก็ถอยมาที่นี่
+  }
   let selected = 'L01';
-  function render() {
-    renderDeckButtons();
-    renderCounts();
-    renderDeck(selected);
+
+  function markPressed() {
     $$('.lb-deck').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.deck === selected)));
   }
 
-  window.LobbyView = { render, renderDeck, wallSize, selectedDeck: () => selected };
+  function selectDeck(key) {
+    if (!validKey(key) || key === selected) return;
+    const prev = selected;
+    selected = key;
+    try { localStorage.setItem(STORE, key); } catch (e) {}
+    markPressed();
+    renderDeck(key);
+    $('#lb-decks')?.dispatchEvent(new CustomEvent('lobby:deck', { detail: { key, prev } }));
+  }
+
+  // ตั้งเด็คที่จะใช้เล่นจริง (ในหน่วยความจำเท่านั้น — ไม่เขียน my_card_game_deck)
+  function applySelectedDeck() {
+    currentDeckConfig = selected === 'mine'
+      ? loadSavedDeck()
+      : { leaderId: selected, mainDeck: [...getDefaultDeckForLeader(selected)] };
+  }
+
+  function refreshMine() {
+    renderDeckButtons();
+    if (!validKey(selected)) { selected = 'L01'; renderDeck(selected); }
+    markPressed();
+  }
+
+  function bindDeckSelection() {
+    $('#lb-decks')?.addEventListener('click', e => {
+      const btn = e.target.closest('.lb-deck'); if (btn) selectDeck(btn.dataset.deck);
+    });
+    // ปุ่มในหน้าต่างเลือกโหมด: ตั้งเด็คแล้วปิดหน้าต่าง ก่อน handler เดิมของ game.js (capture)
+    ['#btn-lobby-bot', '#btn-lobby-pvp'].forEach(id => $(id)?.addEventListener('click', () => {
+      applySelectedDeck();
+      const dialog = $('#lb-mode-dialog'); if (dialog?.open) dialog.close();
+    }, true));
+    // บันทึกในหน้าจัดเด็คแล้ว: แสดงและเลือก "เด็คของฉัน" (หลัง handler ของ game.js เขียน localStorage)
+    $('#btn-save-start')?.addEventListener('click', () => setTimeout(() => { refreshMine(); selectDeck('mine'); renderDeck(selected); }, 0));
+  }
+
+  function render() {
+    renderDeckButtons();
+    renderCounts();
+    selected = initialDeck();
+    renderDeck(selected);
+    markPressed();
+  }
+
+  window.LobbyView = { render, renderDeck, wallSize, selectDeck, applySelectedDeck, refreshMine, selectedDeck: () => selected };
   render();
   bindDialogs();
   bindJoinForm();
+  bindDeckSelection();
 })();
 

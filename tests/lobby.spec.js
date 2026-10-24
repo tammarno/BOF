@@ -168,6 +168,59 @@ test('L11 no console errors', async b => {
   assert(p.errors.length === 0, p.errors.join('\n'));
 });
 
+// ---------------- Game lobby v0.8: selected deck ----------------
+const SAVED = { leaderId: 'L02', mainDeck: Array(20).fill('NM01') };
+test('G1 selected deck is used and saved deck untouched', async b => {
+  const p = await openPage(b, { seen: true, savedDeck: SAVED });
+  await p.click('.lb-deck[data-deck="L03"]'); await p.click('#lb-play'); await p.click('#btn-lobby-bot'); await p.waitForTimeout(200);
+  const v = await p.evaluate(() => ({ leader: currentDeckConfig.leaderId, n: currentDeckConfig.mainDeck.length, saved: JSON.parse(localStorage.my_card_game_deck).leaderId }));
+  assert(v.leader === 'L03' && v.n === 20 && v.saved === 'L02', JSON.stringify(v));
+});
+test('G2 last deck remembered across reload', async b => {
+  const p = await openPage(b, { seen: true });
+  await p.click('.lb-deck[data-deck="L02"]'); await p.reload(); await p.waitForTimeout(300);
+  assert(await p.evaluate(() => LobbyView.selectedDeck() === 'L02' && document.querySelector('.lb-deck[data-deck="L02"]').getAttribute('aria-pressed') === 'true'), 'not remembered');
+});
+test('G3 mine fallback when saved deck missing', async b => {
+  const p = await openPage(b, { seen: true, lobbyDeck: 'mine' });
+  assert(await p.evaluate(() => LobbyView.selectedDeck() === 'L01') && p.errors.length === 0, 'no fallback: ' + p.errors.join('|'));
+});
+test('G4 mine is default and used when a deck is saved', async b => {
+  const p = await openPage(b, { seen: true, savedDeck: SAVED });
+  await p.click('#lb-play'); await p.click('#btn-lobby-bot'); await p.waitForTimeout(200);
+  const v = await p.evaluate(() => ({ sel: LobbyView.selectedDeck(), leader: currentDeckConfig.leaderId, first: currentDeckConfig.mainDeck[0] }));
+  assert(v.sel === 'mine' && v.leader === 'L02' && v.first === 'NM01', JSON.stringify(v));
+});
+test('G5 saving in deck builder selects mine', async b => {
+  const p = await openPage(b, { seen: true });
+  await p.click('#nav-deck'); await p.waitForTimeout(600);
+  await p.evaluate(() => { currentDeckConfig.leaderId = 'L03'; currentDeckConfig.mainDeck = [...DEFAULT_DOOMSDAY_DECK_LIST]; renderDeckBuilder(); });
+  await p.click('#btn-save-start'); await p.waitForTimeout(400);
+  assert(await p.evaluate(() => LobbyView.selectedDeck() === 'mine' && !!document.querySelector('.lb-deck[data-deck="mine"]') && document.querySelector('.lb-deck-name').textContent === 'เด็คของฉัน'), 'mine not selected');
+});
+test('G6 join applies selected deck', async b => {
+  const p = await openPage(b, { seen: true });
+  await p.evaluate(() => { window.joinPvpRoomAsGuest = () => { window.__leader = currentDeckConfig.leaderId; }; });
+  await p.click('.lb-deck[data-deck="L02"]'); await p.fill('#lb-join-code', '4829'); await p.press('#lb-join-code', 'Enter');
+  assert(await p.evaluate(() => window.__leader === 'L02'), 'deck not applied before join');
+});
+test('G7 cancel keeps current deck config', async b => {
+  const p = await openPage(b, { seen: true });
+  const before = await p.evaluate(() => JSON.stringify(currentDeckConfig));
+  await p.click('.lb-deck[data-deck="L03"]'); await p.click('#lb-play'); await p.click('#lb-mode-close');
+  await p.click('#lb-play'); await p.keyboard.press('Escape'); await p.waitForTimeout(100);
+  assert(await p.evaluate(b => JSON.stringify(currentDeckConfig) === b, before), 'changed on cancel');
+});
+test('G8 switching deck updates info, leader and wall', async b => {
+  const p = await openPage(b, { seen: true });
+  await p.click('.lb-deck[data-deck="L03"]'); await p.waitForTimeout(1500);
+  const v = await p.evaluate(() => { const ids = new Set(LobbyData.cardsOfDeck('L03').map(c => c.id));
+    return { name: document.querySelector('.lb-deck-name').textContent, leader: /วันสิ้นโลก/.test(decodeURI(document.querySelector('#lb-leader img').src)),
+      bad: [...document.querySelectorAll('#lb-wall .lb-tile')].filter(t => !ids.has(t.dataset.cardId)).length,
+      pressed: document.querySelector('.lb-deck[data-deck="L03"]').getAttribute('aria-pressed') }; });
+  assert(v.name === 'เด็ควันสิ้นโลก' && v.leader && v.bad === 0 && v.pressed === 'true', JSON.stringify(v));
+});
+
 (async () => {
   const filter = process.argv[2] || '';
   const browser = await chromium.launch({ args: ['--disable-dev-shm-usage'] });
