@@ -5879,10 +5879,6 @@ function setupLobbyEvents() {
 
   document.getElementById('nav-deck')?.addEventListener('click', openDeckFn);
   document.getElementById('nav-cards')?.addEventListener('click', openCardsFn);
-  document.getElementById('lb-gallery-all')?.addEventListener('click', openCardsFn);
-  document.getElementById('lb-footer-cta')?.addEventListener('click', () => {
-    document.getElementById('pvp-room-modal').style.display = 'flex';
-  });
 }
 
 setupLobbyEvents();
