@@ -25,7 +25,7 @@ const scale = (p, sel) => p.evaluate(s => gsap.getProperty(document.querySelecto
 const lobbyOk = p => p.evaluate(() => {
   const op = s => +getComputedStyle(document.querySelector(s)).opacity;
   const vis = s => getComputedStyle(document.querySelector(s)).visibility;
-  return { title: op('.lb-title'), nav: vis('#lb-hero .lb-folders'), btn: op('#btn-lobby-pvp'), card: op('.lb-folder-front'), wide: document.documentElement.scrollWidth > innerWidth + 1 };
+  return { title: op('.lb-logo'), nav: vis('.lb-menu'), btn: op('#lb-play'), card: op('#lb-leader img'), wide: document.documentElement.scrollWidth > innerWidth + 1 };
 });
 const assertLobby = (v, when) => {
   assert(v.title > .99 && v.btn > .99 && v.card > .99 && v.nav === 'visible', `lobby blank ${when}: ${JSON.stringify(v)}`);
@@ -35,7 +35,7 @@ const assertLobby = (v, when) => {
 // ---------- บั๊ก 0.6: ปิดหน้าต่างแล้วล็อบบี้ว่าง ----------
 test('B1 lobby visible after closing PvP window', async b => {
   const p = await openPage(b);
-  await p.click('#btn-lobby-pvp'); await p.waitForTimeout(500);
+  await p.click('#lb-play'); await p.click('#btn-lobby-pvp'); await p.waitForTimeout(500);
   await p.click('#btn-close-pvp-modal');
   for (const t of [300, 600, 1500]) { await p.waitForTimeout(t === 300 ? 300 : t - 300); assertLobby(await lobbyOk(p), t + 'ms after close'); }
 });
@@ -62,7 +62,7 @@ test('B4 window opened during intro then closed', async b => {
 });
 test('B5 idle loops resume after close', async b => {
   const p = await openPage(b, { wait: 2600 });
-  await p.click('#btn-lobby-pvp'); await p.waitForTimeout(500);
+  await p.click('#lb-play'); await p.click('#btn-lobby-pvp'); await p.waitForTimeout(500);
   await p.click('#btn-close-pvp-modal'); await p.waitForTimeout(500);
   const r1 = await p.evaluate(() => LobbyMotion._particlePos().y); await p.waitForTimeout(600);
   const r2 = await p.evaluate(() => LobbyMotion._particlePos().y);
@@ -105,7 +105,7 @@ test('P4 save with incomplete deck: no animation, stays open', async b => {
   assert(await opacity(p, '.deck-builder-box') > .99, 'box faded on reset');
 });
 test('P5 mulligan cards dealt in', async b => {
-  const p = await openPage(b); await p.click('#btn-lobby-bot'); await p.waitForTimeout(450);
+  const p = await openPage(b); await p.click('#lb-play'); await p.click('#btn-lobby-bot'); await p.waitForTimeout(450);
   await p.click('#btn-start-ai-match'); await p.waitForTimeout(120);
   const mid = await p.evaluate(() => [...document.querySelectorAll('#mulligan-card-list > .card')].map(e => +getComputedStyle(e).opacity));
   assert(mid.some(o => o < .99), 'cards not animating');

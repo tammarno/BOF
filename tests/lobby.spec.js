@@ -14,15 +14,22 @@ async function openPage(browser, opts = {}) {
     reducedMotion: opts.reduced ? 'reduce' : 'no-preference', hasTouch: !!opts.touch,
   });
   if (opts.seen) await ctx.addInitScript(() => { try { sessionStorage.setItem('lm-seen', '1'); } catch (e) {} });
+  // เตรียม localStorage ครั้งเดียวตอนเปิดหน้าแรก (reload แล้วไม่ทับค่าที่หน้าเขียนเอง)
+  if (opts.savedDeck || opts.lobbyDeck) await ctx.addInitScript(([deck, lobby]) => {
+    if (sessionStorage.getItem('__seeded')) return; sessionStorage.setItem('__seeded', '1');
+    if (deck) localStorage.setItem('my_card_game_deck', deck);
+    if (lobby) localStorage.setItem('bof_lobby_deck', lobby);
+  }, [opts.savedDeck ? JSON.stringify(opts.savedDeck) : '', opts.lobbyDeck || '']);
   const page = await ctx.newPage(); page.setDefaultTimeout(8000);
   page.errors = []; page.on('pageerror', e => page.errors.push(e.message));
   if (opts.blockGsap) await page.route('**/gsap.min.js', r => r.abort());
+  if (opts.blockThumbs) await page.route('**/thumbs/**', r => r.abort());
   await page.goto(URL);
   return page;
 }
 const frameStats = (page, ms) => page.evaluate(ms => new Promise(res => {
   const d = []; let last = performance.now(); const t0 = last;
-  const f = t => { d.push(t - last); last = t; if (t - t0 < ms) requestAnimationFrame(f); else { d.splice(0, 2); d.sort((a, b) => a - b); res({ avg: d.reduce((a, b) => a + b, 0) / d.length, p95: d[Math.floor(d.length * .95)] }); } };
+  const f = t => { d.push(t - last); last = t; if (t - t0 < ms) requestAnimationFrame(f); else { d.splice(0, 2); d.sort((a, b) => a - b); res({ avg: d.reduce((a, b) => a + b, 0) / d.length, p90: d[Math.floor(d.length * .9)], p95: d[Math.floor(d.length * .95)] }); } };
   requestAnimationFrame(f);
 }), ms);
 const opacityAll = (page, sel) => page.evaluate(sel => [...document.querySelectorAll(sel)].map(e => +getComputedStyle(e).opacity), sel);
@@ -45,89 +52,26 @@ test('D3 room code normalize', async b => {
   assert(JSON.stringify(r) === JSON.stringify(['4829', '4829', null, null, null]), JSON.stringify(r));
 });
 
-// ---------------- Lobby redesign: structure ----------------
-test('S1 one h1 and every section titled', async b => {
+test('D4 thumbOf maps png to webp in thumbs', async b => {
   const p = await openPage(b, { seen: true });
-  const v = await p.evaluate(() => ({ h1: document.querySelectorAll('#lobby-screen h1').length,
-    untitled: ['#lb-stats', '#lb-decks', '#lb-gallery', '#lb-how'].filter(s => !document.querySelector(s + ' h2')) }));
-  assert(v.h1 === 1 && v.untitled.length === 0, JSON.stringify(v));
+  const v = await p.evaluate(() => LobbyData.thumbOf({ image: 'images/เด็คจิต/3.png' }));
+  assert(v === 'images/thumbs/เด็คจิต/3.webp', v);
 });
-test('S2 receipt sums to 39', async b => {
+test('D5 every card has a thumbnail file', async b => {
   const p = await openPage(b, { seen: true });
-  const v = await p.evaluate(() => [...document.querySelectorAll('.lb-receipt tbody td.num')].map(t => +t.textContent));
-  assert(v.reduce((a, x) => a + x, 0) === 39 && v.length === 4, JSON.stringify(v));
+  const paths = await p.evaluate(() => CARD_DATABASE.map(c => LobbyData.thumbOf(c)));
+  const missing = paths.filter(x => !require('fs').existsSync(path.join(ROOT, x)));
+  assert(missing.length === 0, missing.slice(0, 3).join(', '));
 });
-test('S3 no horizontal scroll at 320 and 390', async b => {
-  for (const width of [320, 390]) {
-    const p = await openPage(b, { seen: true, viewport: { width, height: 800 } });
-    assert(!(await p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)), 'scroll at ' + width);
-  }
-});
-test('S4 gallery images sized and labelled', async b => {
+test('D6 legend count per deck', async b => {
   const p = await openPage(b, { seen: true });
-  const v = await p.evaluate(() => { const imgs = [...document.querySelectorAll('#lb-gallery img')];
-    return { n: imgs.length, bad: imgs.filter(i => !i.getAttribute('width') || !i.getAttribute('height') || !i.alt).length }; });
-  assert(v.n >= 5 && v.bad === 0, JSON.stringify(v));
+  const v = await p.evaluate(() => ['L01', 'L02', 'L03'].map(LobbyData.legendCount));
+  assert(JSON.stringify(v) === '[2,1,2]', JSON.stringify(v));
 });
-test('S5 house rules in lobby', async b => {
-  const p = await openPage(b, { seen: true });
-  const v = await p.evaluate(() => [...document.querySelectorAll('#lobby-screen *')].filter(e => !e.closest('.lb-card') && e.tagName !== 'CANVAS').filter(e => {
-    const s = getComputedStyle(e);
-    const text = [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.nodeValue).join('');
-    return s.backgroundImage.includes('gradient') || s.backdropFilter !== 'none' || /\p{Extended_Pictographic}/u.test(text);
-  }).map(e => e.tagName + '.' + e.className));
-  assert(v.length === 0, JSON.stringify(v.slice(0, 5)));
-});
-test('S7 sections contain their own content at 390', async b => {
-  const p = await openPage(b, { seen: true, viewport: { width: 390, height: 844 } }); await p.waitForTimeout(900); // รอฉากเปิดแบบสั้นจบ
-  const bad = await p.evaluate(() => ['#lb-hero', '#lb-stats', '#lb-decks', '#lb-how'].filter(s => {
-    const sec = document.querySelector(s), r = sec.getBoundingClientRect();
-    return [...sec.querySelectorAll('button, input, h2, .lb-leaders')].some(e => e.getBoundingClientRect().bottom > r.bottom + 1);
-  }));
-  assert(bad.length === 0, 'content spills out of ' + bad.join(', '));
-});
-test('S6 no console errors', async b => {
-  const p = await openPage(b, { seen: true }); await p.waitForTimeout(500);
-  assert(p.errors.length === 0, p.errors.join('\n'));
-});
-
-// ---------------- Lobby redesign: deck picker ----------------
-test('K1 deck switch updates stage', async b => {
-  const p = await openPage(b, { seen: true });
-  await p.click('.lb-deck-btn[data-leader="L02"]'); await p.waitForTimeout(600);
-  const v = await p.evaluate(() => ({ pressed: [...document.querySelectorAll('.lb-deck-btn')].map(x => x.getAttribute('aria-pressed')),
-    stage: getComputedStyle(document.querySelector('.lb-stage')).getPropertyValue('--stage').trim(),
-    n: document.querySelectorAll('.lb-stage-cards .lb-card').length, sel: LobbyView.selectedDeck() }));
-  assert(JSON.stringify(v.pressed) === '["false","true","false"]' && v.stage === '#6b2430' && v.n === 11 && v.sel === 'L02', JSON.stringify(v));
-});
-test('K2 deck rapid switch ends on last', async b => {
-  const p = await openPage(b, { seen: true });
-  for (const id of ['L02', 'L03', 'L01', 'L03']) await p.click(`.lb-deck-btn[data-leader="${id}"]`);
-  await p.waitForTimeout(900);
-  const n = await p.evaluate(() => document.querySelectorAll('.lb-stage-cards .lb-card').length);
-  assert(n === 17, 'cards on stage: ' + n);
-});
-test('K3 play this deck sets config without saving', async b => {
-  const p = await openPage(b, { seen: true });
-  const before = await p.evaluate(() => localStorage.getItem('my_card_game_deck'));
-  await p.click('.lb-deck-btn[data-leader="L03"]'); await p.click('#lb-play-deck'); await p.waitForTimeout(300);
-  const open = await p.evaluate(() => document.getElementById('lb-mode-dialog').open);
-  await p.click('#lb-mode-bot'); await p.waitForTimeout(300);
-  const v = await p.evaluate(() => ({ leader: currentDeckConfig.leaderId, n: currentDeckConfig.mainDeck.length,
-    saved: localStorage.getItem('my_card_game_deck') }));
-  assert(v.leader === 'L03' && v.n === 20 && v.saved === before && open, JSON.stringify({ ...v, open }));
-});
-test('K4 mode dialog routes to bot setup', async b => {
-  const p = await openPage(b, { seen: true });
-  await p.click('#lb-play-deck'); await p.click('#lb-mode-bot'); await p.waitForTimeout(400);
-  const v = await p.evaluate(() => { const m = document.getElementById('ai-setup-modal');
-    return { ai: !!m && getComputedStyle(m).display !== 'none', dialog: document.getElementById('lb-mode-dialog').open }; });
-  assert(v.ai && !v.dialog, JSON.stringify(v));
-});
-test('K5 deck-all link opens viewer with that deck', async b => {
-  const p = await openPage(b, { seen: true });
-  await p.click('.lb-deck-btn[data-leader="L02"]'); await p.click('#lb-deck-all'); await p.waitForTimeout(500);
-  assert(await p.evaluate(() => getComputedStyle(document.getElementById('zone-viewer-modal')).display !== 'none'), 'viewer not open');
+test('D7 cardsOfDeck returns leader plus unique cards', async b => {
+  const p = await openPage(b, { seen: true, savedDeck: { leaderId: 'L02', mainDeck: [...Array(10).fill('NM01'), ...Array(10).fill('NM02')] } });
+  const v = await p.evaluate(() => ['L01', 'L03', 'mine'].map(k => LobbyData.cardsOfDeck(k).map(c => c.id)));
+  assert(v[0].length === 11 && v[0][0] === 'L01' && v[1].length === 17 && JSON.stringify(v[2]) === '["L02","NM01","NM02"]', JSON.stringify(v.map(x => x.length)) + JSON.stringify(v[2]));
 });
 
 // ---------------- Lobby redesign: join form ----------------
@@ -148,48 +92,165 @@ test('J2 valid code joins directly', async b => {
   assert(v.joined === '4829' && v.modal !== 'flex' && v.err === '', JSON.stringify(v));
 });
 
-// ---------------- Lobby redesign: wiring ----------------
-test('W1 old menu cards gone, nav still opens tools', async b => {
+test('J3 pasted code with spaces joins', async b => {
   const p = await openPage(b, { seen: true });
-  assert(await p.evaluate(() => !document.querySelector('[id^="card-menu-"]')), 'old menu cards still in DOM');
-  await p.click('#nav-cards'); await p.waitForTimeout(500);
-  assert(await p.evaluate(() => getComputedStyle(document.getElementById('zone-viewer-modal')).display !== 'none'), 'card list did not open');
+  await p.evaluate(() => { window.__joined = null; window.joinPvpRoomAsGuest = c => { window.__joined = c; }; });
+  await p.focus('#lb-join-code'); await p.keyboard.insertText(' 4829 '); await p.press('#lb-join-code', 'Enter');
+  const v = await p.evaluate(() => ({ joined: window.__joined, value: document.getElementById('lb-join-code').value }));
+  assert(v.joined === '4829', JSON.stringify(v));
 });
-test('W2 footer CTA opens pvp', async b => {
+// ---------------- Game lobby v0.8: layout ----------------
+test('L1 no scroll and no spill', async b => {
+  for (const [width, height] of [[1440, 900], [1316, 620], [390, 844], [320, 640]]) {
+    const p = await openPage(b, { seen: true, viewport: { width, height } }); await p.waitForTimeout(1700);
+    const v = await p.evaluate(() => ({ scroll: document.documentElement.scrollHeight > innerHeight + 1 || document.documentElement.scrollWidth > innerWidth + 1,
+      spill: [...document.querySelectorAll('#lobby-screen *')].filter(e => !e.closest('#lb-wall, dialog, #lm-particles') && e.getClientRects().length)
+        .filter(e => { const r = e.getBoundingClientRect(); return r.right > innerWidth + 1 || r.bottom > innerHeight + 1 || r.left < -1 || r.top < -1; }).map(e => e.id || e.className).slice(0, 4) }));
+    assert(!v.scroll && v.spill.length === 0, `${width}x${height} ` + JSON.stringify(v));
+  }
+});
+test('L2 play opens mode dialog; bot reaches AI setup in two clicks', async b => {
   const p = await openPage(b, { seen: true });
-  await p.click('#lb-footer-cta'); await p.waitForTimeout(400);
-  assert(await p.evaluate(() => document.getElementById('pvp-room-modal').style.display === 'flex'), 'pvp not open');
+  await p.click('#lb-play'); await p.click('#btn-lobby-bot'); await p.waitForTimeout(400);
+  assert(await p.evaluate(() => { const m = document.getElementById('ai-setup-modal'); return !!m && getComputedStyle(m).display !== 'none'; }), 'ai setup not open');
 });
-test('W3 leader cards tilt on mouse', async b => {
-  const p = await openPage(b, { seen: true }); const card = p.locator('.lb-leaders .lb-card').nth(1);
-  await card.scrollIntoViewIfNeeded(); const bb = await card.boundingBox();
-  await p.mouse.move(bb.x + bb.width * .5, bb.y + bb.height * .3); await p.mouse.move(bb.x + bb.width * .7, bb.y + bb.height * .2, { steps: 3 }); await p.waitForTimeout(150);
-  assert(await p.evaluate(() => document.querySelectorAll('.lb-leaders .lb-card')[1].style.getPropertyValue('--ry') !== ''), 'no tilt');
-});
-test('W4 gallery card opens detail and wide link opens list', async b => {
+test('L3 howto dialog shows steps and real counts', async b => {
   const p = await openPage(b, { seen: true });
-  await p.click('.lb-tile-card'); await p.waitForTimeout(600);
-  assert(await p.evaluate(() => { const o = document.querySelector('.holo-inspect'); return !!o && !o.hidden; }), 'card detail did not open');
-  await p.keyboard.press('Escape'); await p.waitForTimeout(500);
-  await p.click('#lb-gallery-all'); await p.waitForTimeout(500);
-  assert(await p.evaluate(() => getComputedStyle(document.getElementById('zone-viewer-modal')).display !== 'none'), 'card list did not open');
+  await p.click('#nav-howto');
+  const t = await p.evaluate(() => document.getElementById('lb-howto-dialog').open ? document.getElementById('lb-howto-dialog').innerText : '');
+  assert(/39/.test(t) && /Legend 5/.test(t) && /SR 12/.test(t) && /R 17/.test(t) && /N 5/.test(t) && /ก่อนอื่น/.test(t) && /จากนั้น/.test(t) && /สุดท้าย/.test(t), t.slice(0, 160));
+});
+test('L4 wall shows only the selected deck', async b => {
+  const p = await openPage(b, { seen: true });
+  const v = await p.evaluate(() => { const ids = new Set(LobbyData.cardsOfDeck('L01').map(c => c.id));
+    const shown = [...document.querySelectorAll('#lb-wall .lb-tile')].map(t => t.dataset.cardId); return { n: shown.length, bad: shown.filter(id => !ids.has(id)) }; });
+  assert(v.n === 60 && v.bad.length === 0, JSON.stringify(v));
+});
+test('L5 mine thumb only when a deck is saved', async b => {
+  let p = await openPage(b, { seen: true });
+  assert(!(await p.$('.lb-deck[data-deck="mine"]')), 'mine shown without saved deck');
+  p = await openPage(b, { seen: true, savedDeck: { leaderId: 'L02', mainDeck: Array(20).fill('NM01') } });
+  assert(!!(await p.$('.lb-deck[data-deck="mine"]')), 'mine missing with saved deck');
+});
+test('L6 missing thumb falls back to full image', async b => {
+  const p = await openPage(b, { seen: true, blockThumbs: true }); await p.waitForTimeout(1500);
+  const v = await p.evaluate(() => [...document.querySelectorAll('#lb-decks img')].map(i => i.complete && i.naturalWidth > 0 && /\.png$/.test(i.src)));
+  assert(v.length >= 3 && v.every(Boolean), JSON.stringify(v));
+});
+test('L7 leader card has no glow or ring', async b => {
+  const p = await openPage(b, { seen: true });
+  const v = await p.evaluate(() => ({ ring: !!document.querySelector('#lobby-screen .lb-ring, #lobby-screen .lb-glow'),
+    shadow: getComputedStyle(document.querySelector('#lb-leader img')).boxShadow }));
+  assert(!v.ring && !/rgb\((62, 224, 143|240, 163, 71|95, 208, 255)/.test(v.shadow), JSON.stringify(v));
+});
+test('L8 wall and deck thumbs use webp thumbnails; leader uses full art', async b => {
+  const p = await openPage(b, { seen: true });
+  const v = await p.evaluate(() => ({ wall: [...document.querySelectorAll('#lb-wall img.front')].every(i => /\/thumbs\/.*\.webp$/.test(decodeURI(i.src))),
+    decks: [...document.querySelectorAll('#lb-decks img')].every(i => /\.webp$/.test(i.src)), leader: /\.png$/.test(document.querySelector('#lb-leader img').src) }));
+  assert(v.wall && v.decks && v.leader, JSON.stringify(v));
+});
+test('L9 info shows deck name, leader, HP, 21 cards and real legend count', async b => {
+  const p = await openPage(b, { seen: true, viewport: { width: 1440, height: 900 } });
+  const t = await p.evaluate(() => document.querySelector('.lb-info').innerText);
+  assert(/เด็คจิต/.test(t) && /มายฮีโร่ เดจิต/.test(t) && /HP 6/.test(t) && /21 ใบ/.test(t) && /Legend 2/.test(t), t);
+});
+test('L10 touch targets are at least 44px', async b => {
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+    const p = await openPage(b, { seen: true, viewport }); await p.waitForTimeout(1700);
+    const small = await p.evaluate(() => [...document.querySelectorAll('#lobby-screen button, #lobby-screen a, #lobby-screen input')]
+      .filter(e => !e.closest('dialog') && e.getClientRects().length).filter(e => { const r = e.getBoundingClientRect(); return r.width < 44 || r.height < 44; })
+      .map(e => e.id || e.className || e.textContent.trim()).slice(0, 5));
+    assert(small.length === 0, viewport.width + ': ' + JSON.stringify(small));
+  }
+});
+test('L12 dialogs open centred', async b => {
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+    const p = await openPage(b, { seen: true, viewport }); await p.waitForTimeout(900);
+    for (const [btn, id] of [['#lb-play', 'lb-mode-dialog'], ['#nav-howto', 'lb-howto-dialog']]) {
+      await p.click(btn); await p.waitForTimeout(150);
+      const off = await p.evaluate(id => { const r = document.getElementById(id).getBoundingClientRect();
+        return [Math.round(r.left + r.width / 2 - innerWidth / 2), Math.round(r.top + r.height / 2 - innerHeight / 2)]; }, id);
+      assert(Math.abs(off[0]) <= 2 && Math.abs(off[1]) <= 2, `${viewport.width} ${id} off-centre by ${off}`);
+      await p.keyboard.press('Escape'); await p.waitForTimeout(100);
+    }
+  }
+});
+test('L11 no console errors', async b => {
+  const p = await openPage(b, { seen: true }); await p.waitForTimeout(600);
+  assert(p.errors.length === 0, p.errors.join('\n'));
 });
 
-// ---------------- Lobby redesign: motion (ย้ายจากชุด v0.3 + ของใหม่) ----------------
-const INTRO_PARTS = '.lb-line > span, .lb-lead, .lb-folder, #btn-lobby-pvp, #btn-lobby-bot';
+// ---------------- Game lobby v0.8: selected deck ----------------
+const SAVED = { leaderId: 'L02', mainDeck: Array(20).fill('NM01') };
+test('G1 selected deck is used and saved deck untouched', async b => {
+  const p = await openPage(b, { seen: true, savedDeck: SAVED });
+  await p.click('.lb-deck[data-deck="L03"]'); await p.click('#lb-play'); await p.click('#btn-lobby-bot'); await p.waitForTimeout(200);
+  const v = await p.evaluate(() => ({ leader: currentDeckConfig.leaderId, n: currentDeckConfig.mainDeck.length, saved: JSON.parse(localStorage.my_card_game_deck).leaderId }));
+  assert(v.leader === 'L03' && v.n === 20 && v.saved === 'L02', JSON.stringify(v));
+});
+test('G2 last deck remembered across reload', async b => {
+  const p = await openPage(b, { seen: true });
+  await p.click('.lb-deck[data-deck="L02"]'); await p.reload(); await p.waitForTimeout(300);
+  assert(await p.evaluate(() => LobbyView.selectedDeck() === 'L02' && document.querySelector('.lb-deck[data-deck="L02"]').getAttribute('aria-pressed') === 'true'), 'not remembered');
+});
+test('G3 mine fallback when saved deck missing', async b => {
+  const p = await openPage(b, { seen: true, lobbyDeck: 'mine' });
+  assert(await p.evaluate(() => LobbyView.selectedDeck() === 'L01') && p.errors.length === 0, 'no fallback: ' + p.errors.join('|'));
+});
+test('G4 mine is default and used when a deck is saved', async b => {
+  const p = await openPage(b, { seen: true, savedDeck: SAVED });
+  await p.click('#lb-play'); await p.click('#btn-lobby-bot'); await p.waitForTimeout(200);
+  const v = await p.evaluate(() => ({ sel: LobbyView.selectedDeck(), leader: currentDeckConfig.leaderId, first: currentDeckConfig.mainDeck[0] }));
+  assert(v.sel === 'mine' && v.leader === 'L02' && v.first === 'NM01', JSON.stringify(v));
+});
+test('G5 saving in deck builder selects mine', async b => {
+  const p = await openPage(b, { seen: true });
+  await p.click('#nav-deck'); await p.waitForTimeout(600);
+  await p.evaluate(() => { currentDeckConfig.leaderId = 'L03'; currentDeckConfig.mainDeck = [...DEFAULT_DOOMSDAY_DECK_LIST]; renderDeckBuilder(); });
+  await p.click('#btn-save-start'); await p.waitForTimeout(400);
+  assert(await p.evaluate(() => LobbyView.selectedDeck() === 'mine' && !!document.querySelector('.lb-deck[data-deck="mine"]') && document.querySelector('.lb-deck-name').textContent === 'เด็คของฉัน'), 'mine not selected');
+});
+test('G6 join applies selected deck', async b => {
+  const p = await openPage(b, { seen: true });
+  await p.evaluate(() => { window.joinPvpRoomAsGuest = () => { window.__leader = currentDeckConfig.leaderId; }; });
+  await p.click('.lb-deck[data-deck="L02"]'); await p.fill('#lb-join-code', '4829'); await p.press('#lb-join-code', 'Enter');
+  assert(await p.evaluate(() => window.__leader === 'L02'), 'deck not applied before join');
+});
+test('G7 cancel keeps current deck config', async b => {
+  const p = await openPage(b, { seen: true });
+  const before = await p.evaluate(() => JSON.stringify(currentDeckConfig));
+  await p.click('.lb-deck[data-deck="L03"]'); await p.click('#lb-play'); await p.click('#lb-mode-close');
+  await p.click('#lb-play'); await p.keyboard.press('Escape'); await p.waitForTimeout(100);
+  assert(await p.evaluate(b => JSON.stringify(currentDeckConfig) === b, before), 'changed on cancel');
+});
+test('G8 switching deck updates info, leader and wall', async b => {
+  const p = await openPage(b, { seen: true });
+  await p.click('.lb-deck[data-deck="L03"]'); await p.waitForTimeout(1500);
+  const v = await p.evaluate(() => { const ids = new Set(LobbyData.cardsOfDeck('L03').map(c => c.id));
+    return { name: document.querySelector('.lb-deck-name').textContent, leader: /วันสิ้นโลก/.test(decodeURI(document.querySelector('#lb-leader img').src)),
+      bad: [...document.querySelectorAll('#lb-wall .lb-tile')].filter(t => !ids.has(t.dataset.cardId)).length,
+      pressed: document.querySelector('.lb-deck[data-deck="L03"]').getAttribute('aria-pressed') }; });
+  assert(v.name === 'เด็ควันสิ้นโลก' && v.leader && v.bad === 0 && v.pressed === 'true', JSON.stringify(v));
+});
+
+// ---------------- Game lobby v0.8: motion (ย้ายจากชุดเดิม + ของใหม่) ----------------
+const INTRO_PARTS = '#lb-leader, .lb-info, .lb-menu, #lb-decks, #lb-play';
+const startBotGame = async p => { await p.click('#lb-play'); await p.click('#btn-lobby-bot'); await p.click('#btn-start-ai-match'); };
 const lobbyTweens = p => p.evaluate(() => gsap.globalTimeline.getChildren(true, true, false)
   .filter(t => (t.isActive() || t.repeat() === -1) && t.targets().some(e => e.closest && e.closest('#lobby-screen'))).length);
+const wallBad = (p, key) => p.evaluate(key => { const ids = new Set(LobbyData.cardsOfDeck(key).map(c => c.id));
+  return [...document.querySelectorAll('#lb-wall .lb-tile')].filter(t => !ids.has(t.dataset.cardId)).length; }, key);
 
 test('T1 loads gsap and LobbyMotion', async b => {
   const p = await openPage(b);
-  assert(await p.evaluate(() => typeof gsap === 'object' && typeof LobbyMotion === 'object' && typeof LobbyMotion.start === 'function'), 'gsap/LobbyMotion missing');
+  assert(await p.evaluate(() => typeof gsap === 'object' && typeof LobbyMotion.start === 'function'), 'gsap/LobbyMotion missing');
   assert(p.errors.length === 0, 'page errors: ' + p.errors.join(' | '));
 });
 test('T2 stops when leaving lobby', async b => {
-  const p = await openPage(b); await p.waitForTimeout(2200);
-  await p.click('#btn-lobby-bot'); await p.click('#btn-start-ai-match'); await p.waitForTimeout(600);
-  const s = await p.evaluate(() => LobbyMotion.isRunning());
-  assert(s === false, 'still running'); const k = await lobbyTweens(p); assert(k === 0, 'active tweens left: ' + k);
+  const p = await openPage(b); await p.waitForTimeout(1800);
+  await startBotGame(p); await p.waitForTimeout(600);
+  assert(await p.evaluate(() => LobbyMotion.isRunning()) === false, 'still running');
+  const k = await lobbyTweens(p); assert(k === 0, 'active tweens left: ' + k);
 });
 test('T2 restarts on return', async b => {
   const p = await openPage(b); await p.waitForTimeout(300);
@@ -202,113 +263,102 @@ test('T2 no stacking on double start', async b => {
   assert(Math.abs(n2 - n1) <= 2, `tween count grew ${n1} -> ${n2}`);
 });
 test('T2 pauses under modal and resumes', async b => {
-  const p = await openPage(b); await p.waitForTimeout(2200);
-  await p.click('#btn-lobby-bot'); await p.waitForTimeout(300);
+  const p = await openPage(b); await p.waitForTimeout(1800);
+  await p.click('#lb-play'); await p.click('#btn-lobby-bot'); await p.waitForTimeout(300);
   assert(await p.evaluate(() => LobbyMotion.isPaused()), 'not paused under modal');
   await p.click('#btn-cancel-ai-setup'); await p.waitForTimeout(650);
   assert(await p.evaluate(() => !LobbyMotion.isPaused() && LobbyMotion.isRunning()), 'not resumed');
 });
 test('T2 pauses under mode dialog', async b => {
   const p = await openPage(b, { seen: true }); await p.waitForTimeout(900);
-  await p.click('#lb-play-deck'); await p.waitForTimeout(300);
+  await p.click('#lb-play'); await p.waitForTimeout(300);
   assert(await p.evaluate(() => LobbyMotion.isPaused()), 'not paused under dialog');
   await p.click('#lb-mode-close'); await p.waitForTimeout(400);
   assert(await p.evaluate(() => !LobbyMotion.isPaused()), 'not resumed after dialog');
 });
-test('T3 intro finishes by 2s', async b => {
-  const p = await openPage(b); await p.waitForTimeout(2100);
-  const o = await opacityAll(p, INTRO_PARTS);
-  assert(o.every(x => x > .99), 'not all visible: ' + o);
+test('T3 intro finishes by 1.7s', async b => {
+  const p = await openPage(b); await p.waitForTimeout(1700);
+  const o = await opacityAll(p, INTRO_PARTS); assert(o.every(x => x > .99), 'not all visible: ' + o);
 });
 test('T3 intro hides parts at start', async b => {
   const p = await openPage(b); await p.waitForTimeout(150);
-  const y = await p.evaluate(() => [...document.querySelectorAll('.lb-line > span')].map(e => gsap.getProperty(e, 'yPercent')));
-  assert(y.some(v => v > 20), 'headline lines already in place at 150ms: ' + y);
+  const o = await opacityAll(p, '#lb-leader'); assert(o[0] < .5, 'leader already visible at 150ms: ' + o);
 });
 test('T3 skip on click', async b => {
   const p = await openPage(b); await p.waitForTimeout(300);
   await p.mouse.click(5, 300); await p.waitForTimeout(100);
-  const o = await opacityAll(p, INTRO_PARTS);
-  const y = await p.evaluate(() => [...document.querySelectorAll('.lb-line > span')].map(e => gsap.getProperty(e, 'yPercent')));
-  assert(o.every(x => x > .99) && y.every(v => Math.abs(v) < 1), 'not skipped: ' + o + ' / ' + y);
+  const o = await opacityAll(p, INTRO_PARTS); assert(o.every(x => x > .99), 'not skipped: ' + o);
 });
-test('T3 bot button single click during intro', async b => {
+test('T3 play button single click during intro', async b => {
   const p = await openPage(b); await p.waitForTimeout(300);
-  await p.click('#btn-lobby-bot', { force: true }); await p.waitForTimeout(300);
-  assert(await p.evaluate(() => { const m = document.getElementById('ai-setup-modal'); return m && getComputedStyle(m).display !== 'none'; }), 'bot modal not opened');
+  await p.click('#lb-play', { force: true }); await p.waitForTimeout(300);
+  assert(await p.evaluate(() => document.getElementById('lb-mode-dialog').open), 'dialog not opened');
 });
 test('T3 short on return', async b => {
   const p = await openPage(b, { seen: true }); await p.waitForTimeout(800);
-  const o = await opacityAll(p, INTRO_PARTS);
-  assert(o.every(x => x > .99), 'short intro not done by 0.8s: ' + o);
+  const o = await opacityAll(p, INTRO_PARTS); assert(o.every(x => x > .99), 'short intro not done by 0.8s: ' + o);
 });
 test('T3 reduced motion', async b => {
   const p = await openPage(b, { reduced: true }); await p.waitForTimeout(100);
-  const o = await opacityAll(p, INTRO_PARTS + ', #lobby-screen h2');
-  assert(o.every(x => x > .99), 'hidden under reduced motion: ' + o);
+  const o = await opacityAll(p, INTRO_PARTS); assert(o.every(x => x > .99), 'hidden under reduced motion: ' + o);
   assert(await p.evaluate(() => !LobbyMotion._particlesActive()), 'stars moving under reduced motion');
 });
 test('T3 intro smooth', async b => {
   const p = await openPage(b); const s = await frameStats(p, 1800);
   assert(s.p95 <= 17.5, 'intro p95 ' + s.p95.toFixed(1));
 });
-const ALLOWED = new Set(['x', 'y', 'xPercent', 'yPercent', 'rotation', 'rotationX', 'rotationY', 'rotate', 'scale', 'scaleX', 'scaleY', 'opacity', 'autoAlpha', 'transformOrigin', 'z', 'skewX', 'skewY', 'transformPerspective', 'visibility', 'display', 'clearProps', 'immediateRender', 'force3D', '--stage', '--stage-hi']);
+const ALLOWED = new Set(['x', 'y', 'xPercent', 'yPercent', 'rotation', 'rotationX', 'rotationY', 'rotate', 'scale', 'scaleX', 'scaleY', 'opacity', 'autoAlpha', 'transformOrigin', 'z', 'skewX', 'skewY', 'transformPerspective', 'visibility', 'display', 'clearProps', 'immediateRender', 'force3D']);
 test('T4 only transform/opacity', async b => {
-  const p = await openPage(b); await p.waitForTimeout(600);
-  await p.click('.lb-deck-btn[data-leader="L02"]'); await p.waitForTimeout(150);
+  const p = await openPage(b); await p.waitForTimeout(1800);
+  await p.click('.lb-deck[data-deck="L02"]'); await p.waitForTimeout(150);
   const keys = await p.evaluate(() => { const s = new Set(); gsap.globalTimeline.getChildren(true, true, false).forEach(t => Object.keys(t.vars).forEach(k => s.add(k))); return [...s]; });
-  const meta = new Set(['duration', 'ease', 'repeat', 'yoyo', 'delay', 'repeatDelay', 'stagger', 'onComplete', 'onStart', 'onUpdate', 'overwrite', 'id', 'paused', 'keyframes', 'repeatRefresh', 'callbackScope', 'data', 'onRepeat', 'startAt', 'runBackwards', 'parent', 'lazy', 'onReverseComplete', 'inherit', 'defaults', 'smoothChildTiming', 'autoRemoveChildren', 'onInterrupt', 'yoyoEase']);
-  const bad = keys.filter(k => !ALLOWED.has(k) && !meta.has(k));
-  assert(bad.length === 0, 'non-compositor props: ' + bad);
+  const meta = new Set(['duration', 'ease', 'repeat', 'yoyo', 'delay', 'repeatDelay', 'stagger', 'onComplete', 'onStart', 'onUpdate', 'overwrite', 'id', 'paused', 'keyframes', 'repeatRefresh', 'callbackScope', 'data', 'onRepeat', 'startAt', 'runBackwards', 'parent', 'lazy', 'onReverseComplete', 'inherit', 'defaults', 'smoothChildTiming', 'autoRemoveChildren', 'onInterrupt', 'yoyoEase', 'onCompleteParams', 'onReverseCompleteParams']);
+  const bad = keys.filter(k => !ALLOWED.has(k) && !meta.has(k)); assert(bad.length === 0, 'non-compositor props: ' + bad);
 });
 test('T4 idle is smooth', async b => {
-  const p = await openPage(b); await p.waitForTimeout(2600);
+  const p = await openPage(b); await p.waitForTimeout(2000);
   const s = await frameStats(p, 3000); assert(s.p95 <= 17.5, 'idle p95 ' + s.p95.toFixed(1));
 });
 const scaleOf = (p, sel) => p.evaluate(sel => gsap.getProperty(document.querySelector(sel), 'scaleX'), sel);
-test('T5 button press is fast', async b => {
+test('T5 play press is fast', async b => {
   const p = await openPage(b, { seen: true }); await p.waitForTimeout(900);
-  await p.locator('#btn-lobby-pvp').scrollIntoViewIfNeeded();
-  const bb = await p.locator('#btn-lobby-pvp').boundingBox();
+  const bb = await p.locator('#lb-play').boundingBox();
   await p.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await p.waitForTimeout(200);
   await p.mouse.down(); await p.waitForTimeout(80);
-  const s = await scaleOf(p, '#btn-lobby-pvp'); await p.mouse.up();
+  const s = await scaleOf(p, '#lb-play'); await p.mouse.up();
   assert(s <= .97, 'scale after 80ms press = ' + s);
 });
-test('T5 buttons still work', async b => {
+test('T5 leader tilts on mouse', async b => {
   const p = await openPage(b, { seen: true }); await p.waitForTimeout(900);
-  await p.click('#btn-lobby-pvp');
-  assert(await p.evaluate(() => getComputedStyle(document.getElementById('pvp-room-modal')).display !== 'none'), 'pvp modal not shown');
-  await p.click('#btn-close-pvp-modal'); await p.waitForTimeout(200);
-  await p.click('#nav-cards'); await p.waitForTimeout(300);
-  assert(await p.evaluate(() => { const m = document.getElementById('zone-viewer-modal'); return m && getComputedStyle(m).display !== 'none'; }), 'card list not opened');
+  const bb = await p.locator('#lb-leader').boundingBox();
+  await p.mouse.move(bb.x + bb.width * .5, bb.y + bb.height * .4); await p.mouse.move(bb.x + bb.width * .8, bb.y + bb.height * .2, { steps: 3 }); await p.waitForTimeout(150);
+  assert(await p.evaluate(() => document.getElementById('lb-leader').style.getPropertyValue('--ry') !== ''), 'no tilt');
 });
 test('T5 touch has no tilt', async b => {
   const p = await openPage(b, { seen: true, touch: true }); await p.waitForTimeout(900);
-  const card = p.locator('.lb-leaders .lb-card').nth(1); await card.scrollIntoViewIfNeeded();
-  const bb = await card.boundingBox();
+  const bb = await p.locator('#lb-leader').boundingBox();
   await p.touchscreen.tap(bb.x + bb.width * .9, bb.y + bb.height / 2); await p.waitForTimeout(500);
-  assert(await p.evaluate(() => document.querySelectorAll('.lb-leaders .lb-card')[1].style.getPropertyValue('--ry') === ''), 'touch tilted');
+  assert(await p.evaluate(() => document.getElementById('lb-leader').style.getPropertyValue('--ry') === ''), 'touch tilted');
 });
 const particleCount = p => p.evaluate(() => LobbyMotion._particleCount());
 test('T6 particle count desktop', async b => {
-  const p = await openPage(b); await p.waitForTimeout(2600);
+  const p = await openPage(b); await p.waitForTimeout(2000);
   const n = await particleCount(p); assert(n > 0 && n <= 30, 'count ' + n);
 });
 test('T6 particle count small screen', async b => {
-  const p = await openPage(b, { viewport: { width: 600, height: 800 } }); await p.waitForTimeout(2600);
+  const p = await openPage(b, { viewport: { width: 600, height: 800 } }); await p.waitForTimeout(2000);
   const n = await particleCount(p); assert(n > 0 && n <= 15, 'count ' + n);
 });
-test('T6 canvas covers hero only', async b => {
+test('T6 canvas sits in the lobby and resizes', async b => {
   const p = await openPage(b); await p.waitForTimeout(800);
   await p.setViewportSize({ width: 1000, height: 700 }); await p.waitForTimeout(400);
-  const v = await p.evaluate(() => { const c = document.getElementById('lm-particles'), h = document.getElementById('lb-hero');
-    return { inHero: c.parentElement === h, w: c.width, want: Math.round(h.clientWidth * Math.min(devicePixelRatio, 2)) }; });
-  assert(v.inHero && Math.abs(v.w - v.want) <= 1, JSON.stringify(v));
+  const v = await p.evaluate(() => { const c = document.getElementById('lm-particles'), l = document.getElementById('lobby-screen');
+    return { inLobby: c.parentElement === l, w: c.width, want: Math.round(l.clientWidth * Math.min(devicePixelRatio, 2)) }; });
+  assert(v.inLobby && Math.abs(v.w - v.want) <= 1, JSON.stringify(v));
 });
 test('T6 particles stop in game', async b => {
-  const p = await openPage(b); await p.waitForTimeout(2600);
-  await p.click('#btn-lobby-bot'); await p.click('#btn-start-ai-match'); await p.waitForTimeout(500);
+  const p = await openPage(b); await p.waitForTimeout(2000);
+  await startBotGame(p); await p.waitForTimeout(500);
   assert(await p.evaluate(() => LobbyMotion._particlesActive() === false), 'particles still ticking');
 });
 test('T7 memory stable 30s', async b => {
@@ -319,8 +369,8 @@ test('T7 memory stable 30s', async b => {
 test('T7 round trips', async b => {
   const p = await openPage(b);
   for (let i = 0; i < 5; i++) {
-    await p.waitForTimeout(i === 0 ? 2200 : 900);
-    await p.click('#btn-lobby-bot'); await p.click('#btn-start-ai-match'); await p.waitForTimeout(400);
+    await p.waitForTimeout(i === 0 ? 1800 : 900);
+    await startBotGame(p); await p.waitForTimeout(400);
     const n = await p.evaluate(() => gsap.globalTimeline.getChildren(true, true, true).filter(t => t.repeat() === -1).length);
     assert(n === 0, `round ${i}: ${n} loops alive in game`);
     await p.evaluate(() => returnToLobbyScreen()); await p.waitForTimeout(300);
@@ -329,82 +379,132 @@ test('T7 round trips', async b => {
   assert(p.errors.length === 0, 'errors: ' + p.errors.join(' | '));
 });
 test('F1 no flash on return to lobby', async b => {
-  const p = await openPage(b); await p.waitForTimeout(2200);
-  await p.click('#btn-lobby-bot'); await p.click('#btn-start-ai-match'); await p.waitForTimeout(400);
-  const o = await p.evaluate(() => new Promise(r => { returnToLobbyScreen(); requestAnimationFrame(() => r(+getComputedStyle(document.querySelector('.lb-folder-front')).opacity)); }));
+  const p = await openPage(b); await p.waitForTimeout(1800);
+  await startBotGame(p); await p.waitForTimeout(400);
+  const o = await p.evaluate(() => new Promise(r => { returnToLobbyScreen(); requestAnimationFrame(() => r(+getComputedStyle(document.getElementById('lb-leader')).opacity)); }));
   assert(o < .5, 'lobby painted fully before intro (opacity ' + o + ')');
 });
 test('F4 particles keep position across modal', async b => {
-  const p = await openPage(b); await p.waitForTimeout(2300);
+  const p = await openPage(b); await p.waitForTimeout(2000);
   const a = await p.evaluate(() => LobbyMotion._particlePos());
-  await p.click('#btn-lobby-bot'); await p.waitForTimeout(300); await p.click('#btn-cancel-ai-setup'); await p.waitForTimeout(250);
+  await p.click('#lb-play'); await p.click('#btn-lobby-bot'); await p.waitForTimeout(300); await p.click('#btn-cancel-ai-setup'); await p.waitForTimeout(250);
   const c = await p.evaluate(() => LobbyMotion._particlePos());
   assert(Math.abs(a.x - c.x) < 40, `particle jumped ${a.x.toFixed(0)} -> ${c.x.toFixed(0)}`);
 });
-test('M1 sections reveal once on scroll', async b => {
-  const p = await openPage(b, { seen: true }); await p.waitForTimeout(800);
-  const before = await opacityAll(p, '#lb-how h2');
-  await p.locator('#lb-how').scrollIntoViewIfNeeded(); await p.waitForTimeout(1000);
-  const o = await opacityAll(p, '#lb-how h2, #lb-how .lb-seg');
-  assert(before[0] < .5 && o.every(x => x > .99), 'before ' + before + ' after ' + o);
+test('M1 deck switch flips the wall as a wave', async b => {
+  const p = await openPage(b, { seen: true }); await p.waitForTimeout(1000);
+  await p.click('.lb-deck[data-deck="L02"]'); await p.waitForTimeout(120);
+  const v = await p.evaluate(() => { const t = [...document.querySelectorAll('#lb-wall .lb-tile')]; return { flipping: t.filter(x => x.classList.contains('flipping')).length, n: t.length }; });
+  assert(v.flipping > 0 && v.flipping < v.n, JSON.stringify(v));
 });
-test('M2 content visible without gsap', async b => {
+test('M2 idle flips stay within the selected deck', async b => {
+  const p = await openPage(b, { seen: true, lobbyDeck: 'L03' }); await p.waitForTimeout(800);
+  await p.evaluate(() => { window.__flips = 0; new MutationObserver(m => m.forEach(r => { if (r.target.classList.contains('flipping')) window.__flips++; })).observe(document.getElementById('lb-wall'), { subtree: true, attributes: true, attributeFilter: ['class'] }); });
+  await p.waitForTimeout(6000);
+  const flipped = await p.evaluate(() => window.__flips);
+  const bad = await wallBad(p, 'L03'); assert(flipped > 0 && bad === 0, JSON.stringify({ flipped, bad }));
+});
+test('M3 wall settles on last deck after rapid switching', async b => {
+  const p = await openPage(b, { seen: true }); await p.waitForTimeout(1000);
+  for (const k of ['L02', 'L03', 'L01', 'L02', 'L03']) await p.click(`.lb-deck[data-deck="${k}"]`);
+  await p.waitForTimeout(2500);
+  const v = await p.evaluate(() => ({ leader: document.querySelectorAll('#lb-leader img').length, name: document.querySelector('.lb-deck-name').textContent }));
+  const bad = await wallBad(p, 'L03'); assert(bad === 0 && v.leader === 1 && v.name === 'เด็ควันสิ้นโลก', JSON.stringify({ ...v, bad }));
+});
+test('M7 wall at rest shows each card on an unrotated front face', async b => {
+  const p = await openPage(b, { seen: true }); await p.waitForTimeout(1000);
+  await p.click('.lb-deck[data-deck="L02"]'); await p.waitForTimeout(1800);
+  const v = await p.evaluate(() => [...document.querySelectorAll('#lb-wall .lb-tile:not(.flipping)')].map(t => {
+    const front = t.querySelector('img.front'), card = CARD_DATABASE.find(c => c.id === t.dataset.cardId);
+    return !t.classList.contains('flip') && getComputedStyle(front).visibility === 'visible' && decodeURI(front.src).endsWith(LobbyData.thumbOf(card));
+  }));
+  assert(v.length > 40 && v.every(Boolean), `${v.filter(x => !x).length} of ${v.length} tiles not settled on front`);
+});
+test('M4 deck switch is smooth', async b => {
+  const p = await openPage(b, { seen: true }); await p.waitForTimeout(1000);
+  // สลับเด็คเป็นการกดครั้งเดียว: ยอมเฟรมตกได้ไม่เกิน 10% ของ 1.5 วิ (คลื่นพลิกไพ่บนจอ raster หนักในเบราว์เซอร์ซอฟต์แวร์)
+  const fs = frameStats(p, 1500); await p.click('.lb-deck[data-deck="L02"]');
+  const s = await fs; assert(s.p90 <= 17.5, 'switch p90 ' + s.p90.toFixed(1));
+});
+test('M5 reduced motion swaps deck instantly without flips', async b => {
+  const p = await openPage(b, { seen: true, reduced: true });
+  await p.click('.lb-deck[data-deck="L02"]'); await p.waitForTimeout(50);
+  const bad = await wallBad(p, 'L02');
+  assert(bad === 0 && await p.evaluate(() => !LobbyMotion._particlesActive() && !document.querySelector('#lb-wall .flipping')), 'not instant under reduced motion: ' + bad);
+});
+test('M6 content visible without gsap', async b => {
   const p = await openPage(b, { seen: true, blockGsap: true }); await p.waitForTimeout(600);
-  const o = await opacityAll(p, '#lobby-screen h1, #lobby-screen h2, #btn-lobby-pvp');
+  const o = await opacityAll(p, '#lb-leader img, #lb-play, .lb-deck-name, #lb-decks');
   const vis = await p.evaluate(() => getComputedStyle(document.getElementById('lobby-screen')).visibility);
   assert(o.every(x => x > .99) && vis === 'visible', JSON.stringify({ o, vis }));
 });
-test('M3 deck kept after return', async b => {
-  const p = await openPage(b, { seen: true }); await p.waitForTimeout(600);
-  await p.click('.lb-deck-btn[data-leader="L02"]'); await p.click('#btn-lobby-bot'); await p.click('#btn-start-ai-match'); await p.waitForTimeout(500);
-  await p.evaluate(() => returnToLobbyScreen()); await p.waitForTimeout(800);
-  assert(await p.evaluate(() => LobbyView.selectedDeck() === 'L02' && LobbyMotion.isRunning()), 'deck or motion lost');
-});
-test('M4 deck switch animates new cards in', async b => {
-  const p = await openPage(b, { seen: true }); await p.waitForTimeout(600);
-  await p.click('.lb-deck-btn[data-leader="L03"]'); await p.waitForTimeout(60);
-  const mid = await p.evaluate(() => gsap.isTweening(document.querySelector('.lb-stage-cards .lb-card')));
-  await p.waitForTimeout(1200);
-  const o = await opacityAll(p, '.lb-stage-cards .lb-card');
-  assert(mid && o.every(x => x > .99), JSON.stringify({ mid, min: Math.min(...o) }));
-});
 
-// ---------------- Final review fixes (0.7) ----------------
-test('R1 nothing spills past the screen edge at 320 and 390', async b => {
-  for (const width of [320, 390]) {
-    const p = await openPage(b, { seen: true, viewport: { width, height: 800 } }); await p.waitForTimeout(900);
-    const bad = await p.evaluate(() => [...document.querySelectorAll('#lobby-screen *')]
-      .filter(e => !e.closest('.lb-deck-list, .lb-stage-cards, .lb-tab, #lm-particles') && e.getClientRects().length)
-      .filter(e => e.getBoundingClientRect().right > innerWidth + 1).map(e => (e.id || e.className || e.tagName)).slice(0, 5));
-    assert(bad.length === 0, `at ${width}: ` + JSON.stringify(bad));
+// ---------------- Final review fixes (0.8) ----------------
+const spillOf = p => p.evaluate(() => [...document.querySelectorAll('#lobby-screen *')].filter(e => !e.closest('#lb-wall, dialog, #lm-particles') && e.getClientRects().length)
+  .filter(e => { const r = e.getBoundingClientRect(); return r.right > innerWidth + 1 || r.bottom > innerHeight + 1 || r.left < -1 || r.top < -1; }).map(e => e.id || e.className).slice(0, 4));
+const overlap = p => p.evaluate(() => { const r = s => document.querySelector(s).getBoundingClientRect();
+  const a = r('#lb-play'), boxes = ['.lb-menu', '#lb-decks'].map(r);
+  return boxes.some(b => b.left < a.right && a.left < b.right && b.top < a.bottom && a.top < b.bottom); });
+test('X1 mobile lobby intact after returning from a game', async b => {
+  const p = await openPage(b, { seen: true, viewport: { width: 390, height: 844 } }); await p.waitForTimeout(900);
+  await startBotGame(p); await p.waitForTimeout(400);
+  await p.evaluate(() => returnToLobbyScreen()); await p.waitForTimeout(1200);
+  const s = await spillOf(p); assert(s.length === 0, JSON.stringify(s));
+});
+test('X2 no lobby dialog stays modal once the lobby is hidden', async b => {
+  const p = await openPage(b, { seen: true, viewport: { width: 390, height: 844 } }); await p.waitForTimeout(900);
+  await p.evaluate(() => { window.joinPvpRoomAsGuest = () => { document.getElementById('lobby-screen').style.display = 'none'; document.querySelector('.game-container').style.display = 'flex'; }; });
+  await p.click('#nav-join'); await p.fill('#lb-join-code', '4829'); await p.press('#lb-join-code', 'Enter'); await p.waitForTimeout(300);
+  const v = await p.evaluate(() => ({ modal: [...document.querySelectorAll('dialog')].some(d => d.matches(':modal')), form: document.querySelectorAll('#lb-join').length }));
+  assert(!v.modal && v.form === 1, JSON.stringify(v));
+});
+test('X3 saved deck with unknown leader does not break the lobby', async b => {
+  const p = await openPage(b, { seen: true, savedDeck: { leaderId: 'L99', mainDeck: Array(20).fill('M01') }, lobbyDeck: 'mine' }); await p.waitForTimeout(400);
+  const v = await p.evaluate(() => ({ decks: document.querySelectorAll('.lb-deck').length, tiles: document.querySelectorAll('#lb-wall .lb-tile').length, sel: LobbyView.selectedDeck() }));
+  await p.click('#lb-play'); const open = await p.evaluate(() => document.getElementById('lb-mode-dialog').open);
+  assert(p.errors.length === 0 && v.decks === 3 && v.tiles > 0 && v.sel === 'L01' && open, JSON.stringify({ ...v, open, err: p.errors }));
+});
+test('X4 rotating between landscape and portrait keeps the layout', async b => {
+  for (const [from, to] of [[{ width: 844, height: 390 }, { width: 390, height: 844 }], [{ width: 390, height: 844 }, { width: 844, height: 390 }]]) {
+    const p = await openPage(b, { seen: true, viewport: from }); await p.waitForTimeout(1200);
+    await p.setViewportSize(to); await p.waitForTimeout(600);
+    const v = { spill: await spillOf(p), overlap: await overlap(p), cols: await p.evaluate(() => getComputedStyle(document.querySelector('.lb-wall-inner')).gridTemplateColumns.split(' ').length) };
+    assert(v.spill.length === 0 && !v.overlap && v.cols === (to.width < 768 ? 6 : 12), `${from.width}->${to.width} ` + JSON.stringify(v));
   }
 });
-test('R2 pasted code with spaces joins', async b => {
-  const p = await openPage(b, { seen: true });
-  await p.evaluate(() => { window.__joined = null; window.joinPvpRoomAsGuest = c => { window.__joined = c; }; });
-  await p.focus('#lb-join-code'); await p.keyboard.insertText(' 4829 '); await p.press('#lb-join-code', 'Enter');
-  const v = await p.evaluate(() => ({ joined: window.__joined, value: document.getElementById('lb-join-code').value }));
-  assert(v.joined === '4829', JSON.stringify(v));
+test('X5 tablet sizes do not overflow', async b => {
+  for (const viewport of [{ width: 768, height: 1024 }, { width: 768, height: 600 }, { width: 900, height: 700 }, { width: 820, height: 1180 }]) {
+    const p = await openPage(b, { seen: true, viewport }); await p.waitForTimeout(1200);
+    const v = await p.evaluate(() => ({ scroll: document.documentElement.scrollWidth > innerWidth + 1, info: document.querySelector('.lb-info').getBoundingClientRect().right }));
+    const s = await spillOf(p);
+    assert(!v.scroll && v.info <= viewport.width && s.length === 0, viewport.width + 'x' + viewport.height + ' ' + JSON.stringify({ ...v, s }));
+  }
 });
-test('R3 focus ring visible on gold folder and dialog', async b => {
-  const p = await openPage(b, { seen: true }); await p.waitForTimeout(900);
-  // ใช้คีย์บอร์ดล้วน เพื่อให้ :focus-visible ทำงานเหมือนผู้ใช้จริงที่กด Tab
-  const ring = () => p.evaluate(() => { const s = getComputedStyle(document.activeElement); return s.outlineStyle + ' ' + s.outlineColor; });
-  await p.focus('#btn-lobby-bot'); const a = await ring();
-  await p.focus('#lb-play-deck'); await p.keyboard.press('Enter'); await p.waitForTimeout(100); const c = await ring();
-  const dark = 'solid rgb(18, 20, 42)';
-  assert(a === dark && c === dark, JSON.stringify({ a, c }));
+test('X6 selected deck stays lifted after a mouse click', async b => {
+  const p = await openPage(b, { seen: true }); await p.waitForTimeout(1000);
+  await p.click('.lb-deck[data-deck="L02"]'); await p.mouse.move(5, 5); await p.waitForTimeout(600);
+  const ty = await p.evaluate(() => new DOMMatrix(getComputedStyle(document.querySelector('.lb-deck[data-deck="L02"]')).transform).m42);
+  assert(ty <= -5, 'translateY = ' + ty);
 });
-test('R4 cancelling the mode dialog keeps the previous deck', async b => {
-  const p = await openPage(b, { seen: true });
-  const before = await p.evaluate(() => JSON.stringify(currentDeckConfig));
-  await p.click('.lb-deck-btn[data-leader="L03"]'); await p.click('#lb-play-deck'); await p.click('#lb-mode-close');
-  const afterCancel = await p.evaluate(() => JSON.stringify(currentDeckConfig));
-  await p.click('#lb-play-deck'); await p.keyboard.press('Escape'); await p.waitForTimeout(100);
-  const afterEsc = await p.evaluate(() => JSON.stringify(currentDeckConfig));
-  await p.click('#lb-play-deck'); await p.click('#lb-mode-bot'); await p.waitForTimeout(200);
-  const chosen = await p.evaluate(() => currentDeckConfig.leaderId);
-  assert(afterCancel === before && afterEsc === before && chosen === 'L03', JSON.stringify({ same1: afterCancel === before, same2: afterEsc === before, chosen }));
+test('X7 idle flips do not pile up tweens', async b => {
+  const p = await openPage(b, { seen: true }); await p.waitForTimeout(2000);
+  const count = () => p.evaluate(() => LobbyMotion._ctxTweens());
+  const a = await count(); await p.waitForTimeout(9000); const c = await count();
+  assert(c - a <= 6, `tweens ${a} -> ${c}`);
+});
+test('X8 deck builder opens on the saved deck, not the last played one', async b => {
+  const p = await openPage(b, { seen: true, savedDeck: { leaderId: 'L02', mainDeck: Array(20).fill('NM01') } });
+  await p.click('.lb-deck[data-deck="L03"]'); await startBotGame(p); await p.waitForTimeout(300);
+  await p.evaluate(() => returnToLobbyScreen()); await p.waitForTimeout(900);
+  await p.click('#nav-deck'); await p.waitForTimeout(400);
+  assert(await p.evaluate(() => currentDeckConfig.leaderId === 'L02' && currentDeckConfig.mainDeck[0] === 'NM01'), 'deck builder shows the last played deck');
+});
+test('X9 keyboard focus on an unselected deck is fully visible', async b => {
+  const p = await openPage(b, { seen: true }); await p.waitForTimeout(1000);
+  await p.focus('.lb-deck[data-deck="L01"]'); await p.keyboard.press('Tab'); // ใช้คีย์บอร์ดจริงให้ :focus-visible ทำงาน
+  assert(await p.evaluate(() => document.activeElement.dataset.deck === 'L02'), 'tab did not reach L02'); await p.waitForTimeout(300);
+  const v = await p.evaluate(() => { const s = getComputedStyle(document.querySelector('.lb-deck[data-deck="L02"]')); return { o: +s.opacity, ring: s.outlineStyle }; });
+  assert(v.o > .99 && v.ring === 'solid', JSON.stringify(v));
 });
 
 (async () => {

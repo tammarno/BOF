@@ -46,14 +46,14 @@
 }
 
 /* ---------- เมนูบนล็อบบี้ ---------- */
-.lb-top a.pm-nav { position: relative; display: inline-block; padding: 4px 2px; transition: color .15s; }
-.lb-top a.pm-nav::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px; border-radius: 2px;
+.lb-menu .pm-nav { position: relative; transition: color .15s, background-color .2s, border-color .2s; }
+.lb-menu .pm-nav::after {
+  content: ""; position: absolute; left: 14px; right: 14px; bottom: 8px; height: 2px; border-radius: 2px;
   background: #f3c969;
   transform: scaleX(0); transform-origin: 0 50%; transition: transform .22s cubic-bezier(.2, .8, .2, 1);
 }
-.lb-top a.pm-nav:hover, .lb-top a.pm-nav:focus-visible { color: #f3f6ff; }
-.lb-top a.pm-nav:hover::after, .lb-top a.pm-nav:focus-visible::after { transform: scaleX(1); }
+.lb-menu .pm-nav:hover, .lb-menu .pm-nav:focus-visible { color: #f3f6ff; }
+.lb-menu .pm-nav:hover::after, .lb-menu .pm-nav:focus-visible::after { transform: scaleX(1); }
 
 /* ---------- การ์ดในหน้าจัดเด็ค / Mulligan: แสงตอบสนอง ---------- */
 .pm-tile { position: relative; }

@@ -1,21 +1,18 @@
 /* ============================================================================
-   LOBBY MOTION (BOF v0.7) — ใช้คู่กับ lobby-motion.js
+   LOBBY MOTION (BOF v0.8) — ใช้คู่กับ lobby-motion.js
    กฎ: ขยับด้วย transform/opacity เท่านั้น · ไม่มี backdrop-filter / mix-blend-mode
    ============================================================================ */
 
 /* กันภาพกะพริบก่อนฉากเปิดเริ่ม (สคริปต์ใน <head> ใส่ class นี้ และถอดเองภายใน 1.5 วิ ถ้า JS ล้มเหลว) */
 html.lm-pre #lobby-screen { visibility: hidden; }
 
-/* ดาวอยู่เฉพาะใน Hero และอยู่ใต้เนื้อหา */
-#lm-particles { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
-.lb-hero > :not(#lm-particles) { position: relative; z-index: 1; }
+/* ประกาย: อยู่เหนือกำแพง ใต้เนื้อหา (lobby-motion.js แทรกต่อจาก .lb-vignette) */
+#lm-particles { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 
-/* สีเวทีเปลี่ยนนุ่มๆ เมื่อสลับเด็ค */
-.lb-stage { transition: background-color .4s cubic-bezier(.2, .9, .25, 1); }
-
-/* หัวข้อ Hero: บรรทัดลอยขึ้นจากหลังเส้นฐาน (mask อยู่ที่ .lb-line ใน lobby.css) */
-.lb-line > span { will-change: transform; }
+/* ลีดเดอร์เอียงตามเมาส์ (holo.js ใส่ --rx/--ry) — เอียงที่ภาพใบล่าสุด ไม่ชนกับการลอยของ #lb-leader */
+.lb-leader img { transition: transform .35s cubic-bezier(.2, .9, .25, 1); }
+.lb-leader.holo-live img:last-child { transition: transform .08s linear; transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); }
 
 @media (prefers-reduced-motion: reduce) {
-  .lb-stage, .lb-card img, .lb-card::after { transition: none !important; }
+  .lb-tint, .lb-deck-name, .lb-leader img { transition: none !important; }
 }

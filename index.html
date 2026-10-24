@@ -19,132 +19,88 @@
 <body>
   <!-- ==================== หน้าล็อบบี้หลัก (MAIN LOBBY) ==================== -->
   <div id="lobby-screen">
-    <!-- 0. Hero: ชื่อเกม + แฟ้มสี 5 แฟ้มที่เป็นสารบัญของหน้า -->
-    <section id="lb-hero" class="lb-chapter lb-hero">
-      <header class="lb-top">
-        <a href="#" id="nav-deck" class="lb-toplink">จัดเด็ค</a>
-        <span class="lb-wordmark" role="img" aria-label="MY CARD TCG">
-          <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><path d="M6 4l14 14-2 2L4 6V4h2zm20 0h2v2L14 20l-2-2L26 4zM9 21l2 2-4 4H5v-2l4-4zm14 0l4 4v2h-2l-4-4 2-2z" fill="currentColor"/></svg>
-        </span>
-        <a href="#" id="nav-cards" class="lb-toplink">คลังการ์ด</a>
-      </header>
-      <h1 class="lb-title"><span class="lb-line"><span>MY CARD</span></span> <span class="lb-line"><span>TCG</span></span></h1>
-      <p class="lb-lead">เกมการ์ดดวลฟรีบนเบราว์เซอร์ 3 เด็ค 39 การ์ด ไม่ต้องติดตั้ง ไม่ต้องสมัคร</p>
+    <!-- ชั้นหลัง: กำแพงการ์ดของเด็คที่เลือก (lobby.js เติมไพ่) -->
+    <div id="lb-wall" aria-hidden="true"><div class="lb-wall-inner"></div></div>
+    <div class="lb-tint" aria-hidden="true"></div>
+    <div class="lb-vignette" aria-hidden="true"></div>
 
-      <nav class="lb-folders" aria-label="ส่วนต่างๆ ในหน้านี้">
-        <a class="lb-folder lb-f-stats" href="#lb-stats"><span class="lb-tab">ภาพรวม</span></a>
-        <a class="lb-folder lb-f-decks" href="#lb-decks"><span class="lb-tab">เด็ค</span></a>
-        <a class="lb-folder lb-f-gallery" href="#lb-gallery"><span class="lb-tab">การ์ด</span></a>
-        <a class="lb-folder lb-f-how" href="#lb-how"><span class="lb-tab">วิธีเล่น</span></a>
-        <div class="lb-folder lb-folder-front">
-          <span class="lb-tab">เล่นเลย</span>
-          <div class="lb-front-inner">
-            <div class="lb-front-play">
-              <div class="lb-actions">
-                <button type="button" class="lb-btn lb-btn-primary" id="btn-lobby-pvp">ดวลกับเพื่อน</button>
-                <button type="button" class="lb-btn lb-btn-secondary" id="btn-lobby-bot">เล่นกับบอท</button>
-              </div>
-              <form id="lb-join" class="lb-join" novalidate>
-                <label for="lb-join-code">มีรหัสห้องจากเพื่อน?</label>
-                <div class="lb-join-row">
-                  <input id="lb-join-code" type="text" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="เช่น 4829">
-                  <button type="submit" class="lb-btn lb-btn-dark">เข้าร่วม</button>
-                </div>
-                <p id="lb-join-error" class="lb-join-error" aria-live="polite"></p>
-              </form>
-            </div>
-            <div class="lb-leaders" aria-label="ลีดเดอร์ทั้ง 3 เด็ค"></div>
-          </div>
-        </div>
-      </nav>
-    </section>
+    <h1 class="lb-logo">MY CARD TCG</h1>
 
-    <!-- 1. ตัวเลข: ยอดรวม 39 กับใบเสร็จที่บวกกันได้ -->
-    <section id="lb-stats" class="lb-chapter lb-stats">
-      <div class="lb-stats-text">
-        <h2>การ์ดในเกมทั้งหมด</h2>
-        <p class="lb-note">ทุกใบเล่นได้ฟรี ไม่มีสุ่มกาชา</p>
-        <p class="lb-total"><span class="lb-total-num" data-stat="total">39</span></p>
-        <p class="lb-total-note">ใบ ใน 3 เด็ค เด็คละ 21 ใบ (ลีดเดอร์ 1 + การ์ด 20)</p>
-      </div>
-      <table class="lb-receipt">
-        <caption>แยกตามระดับความหายาก</caption>
-        <tbody>
-          <tr data-rar="Legend"><th scope="row"><i class="lb-dot" aria-hidden="true"></i>Legend</th><td class="num">5</td></tr>
-          <tr data-rar="SR"><th scope="row"><i class="lb-dot" aria-hidden="true"></i>SR</th><td class="num">12</td></tr>
-          <tr data-rar="R"><th scope="row"><i class="lb-dot" aria-hidden="true"></i>R</th><td class="num">17</td></tr>
-          <tr data-rar="N"><th scope="row"><i class="lb-dot" aria-hidden="true"></i>N</th><td class="num">5</td></tr>
-        </tbody>
-        <tfoot><tr><th scope="row">รวม</th><td class="num-total" data-stat="total">39</td></tr></tfoot>
-      </table>
-    </section>
+    <nav class="lb-menu" aria-label="เมนู">
+      <a href="#" id="nav-deck" class="lb-menu-item">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="12" height="16" rx="2"/><path d="M8 21h10a2 2 0 0 0 2-2V7"/></svg>
+        <span>จัดเด็ค</span>
+      </a>
+      <a href="#" id="nav-cards" class="lb-menu-item">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+        <span>คลังการ์ด</span>
+      </a>
+      <button type="button" id="nav-howto" class="lb-menu-item">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"/></svg>
+        <span>วิธีเล่น</span>
+      </button>
+      <button type="button" id="nav-join" class="lb-menu-item lb-mobile-only">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+        <span>รหัสห้อง</span>
+      </button>
+    </nav>
 
-    <!-- 2. เลือกเด็ค (live thing): กดชื่อเด็ค เวทีเปลี่ยนสีและการ์ด -->
-    <section id="lb-decks" class="lb-chapter lb-decks">
-      <div class="lb-deck-side">
-        <h2>เลือกเด็คของคุณ</h2>
-        <div class="lb-deck-list" role="group" aria-label="เด็ค">
-          <button type="button" class="lb-deck-btn" data-leader="L01" aria-pressed="true">เด็คจิต</button>
-          <button type="button" class="lb-deck-btn" data-leader="L02" aria-pressed="false">เด็คเหนือ</button>
-          <button type="button" class="lb-deck-btn" data-leader="L03" aria-pressed="false">เด็ควันสิ้นโลก</button>
-        </div>
-      </div>
-      <div class="lb-stage" style="--stage:#0f4d3c; --stage-hi:#3ee08f">
-        <div class="lb-stage-meta">
-          <p class="lb-stage-leader">ลีดเดอร์ <strong>มายฮีโร่ เดจิต</strong></p>
-          <p class="lb-stage-facts">HP 6 · 21 ใบ</p>
-          <p class="lb-stage-style">เสริมพลังยูนิทแล้วบุกให้แรงที่สุดในเทิร์นเดียว</p>
-          <div class="lb-stage-actions">
-            <button type="button" class="lb-btn lb-btn-primary" id="lb-play-deck">เล่นเด็คนี้</button>
-            <a href="#" id="lb-deck-all" class="lb-link">ดูทั้ง 11 ใบในเด็ค</a>
-          </div>
-        </div>
-        <div class="lb-stage-cards"></div>
-      </div>
-    </section>
+    <!-- เข้าห้องด้วยรหัส: desktop อยู่มุมขวาบน · มือถือย้ายเข้า #lb-join-dialog -->
+    <div class="lb-join-slot">
+      <form id="lb-join" class="lb-join" novalidate>
+        <label for="lb-join-code">มีรหัสห้อง?</label>
+        <input id="lb-join-code" type="text" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="4829">
+        <button type="submit" class="lb-join-btn">เข้าร่วม</button>
+        <p id="lb-join-error" class="lb-join-error" aria-live="polite"></p>
+      </form>
+    </div>
 
-    <!-- 3. แกลเลอรี: ตารางภาพการ์ดจริงแทรกช่องคำระดับความหายาก -->
-    <section id="lb-gallery" class="lb-chapter lb-gallery">
-      <div class="lb-grid">
-        <div class="lb-tile lb-tile-head"><h2>การ์ดเด่น</h2></div>
-        <a href="#" id="lb-gallery-all" class="lb-tile-wide">ดูการ์ดทั้งหมด 39 ใบ</a>
-      </div>
-    </section>
+    <!-- กลาง: ลีดเดอร์ของเด็คที่เลือก -->
+    <div class="lb-leader-wrap"><div id="lb-leader" class="lb-leader"></div></div>
 
-    <!-- 4. วิธีเล่น: แถบเดียว ยาวตามเวลาจริงของแต่ละขั้น -->
-    <section id="lb-how" class="lb-chapter lb-how">
-      <h2>เริ่มดวลใน 3 ขั้น</h2>
-      <ol class="lb-bar">
-        <li class="lb-seg lb-seg-1"><span class="lb-seg-block"><span class="lb-seg-time">ไม่กี่วินาที</span></span><span class="lb-seg-text">ก่อนอื่น เลือกเด็คมาตรฐานหรือจัดเด็คเอง</span></li>
-        <li class="lb-seg lb-seg-2"><span class="lb-seg-block"><span class="lb-seg-time">ไม่ถึงนาที</span></span><span class="lb-seg-text">จากนั้น สร้างห้องแล้วส่งรหัสให้เพื่อน หรือเลือกเล่นกับบอท</span></li>
-        <li class="lb-seg lb-seg-3"><span class="lb-seg-block"><span class="lb-seg-time">ราว 10 นาที</span></span><span class="lb-seg-text">สุดท้าย ทอยเต๋า ลงการ์ด ทำให้ HP ลีดเดอร์อีกฝ่ายหมด</span></li>
-      </ol>
-    </section>
+    <div class="lb-info" aria-live="polite">
+      <h2 class="lb-deck-name">เด็คจิต</h2>
+      <p class="lb-leader-name">มายฮีโร่ เดจิต</p>
+      <p class="lb-deck-style">เสริมพลังยูนิทแล้วบุกให้แรงที่สุดในเทิร์นเดียว</p>
+      <p class="lb-chips"><span>HP 6</span><span>21 ใบ</span><span>Legend 2</span></p>
+    </div>
 
-    <!-- 5. Footer: ปุ่มชวนเล่นครั้งสุดท้าย -->
-    <footer id="lb-footer" class="lb-chapter lb-footer">
-      <div class="lb-foot-top">
-        <span class="lb-foot-name">MY CARD TCG</span>
-        <p>เกมการ์ดแฟนเมด เล่นฟรีบนเบราว์เซอร์</p>
-        <a href="#lb-hero" class="lb-link">กลับขึ้นบน</a>
-      </div>
-      <h2 class="lb-sr">เริ่มเล่น</h2>
-      <button type="button" class="lb-cta" id="lb-footer-cta">ดวลเลย →</button>
-      <div class="lb-foot-meta">
-        <a href="https://github.com/tammarno/BOF" class="lb-link">GitHub</a>
-        <span>ทำโดย tammarno</span>
-        <span>2026</span>
-      </div>
-    </footer>
+    <div id="lb-decks" class="lb-decks" role="group" aria-label="เลือกเด็ค"></div>
 
-    <!-- เลือกโหมดหลังกด "เล่นเด็คนี้" -->
+    <button type="button" id="lb-play" class="lb-play">
+      <span class="lb-play-glow" aria-hidden="true"></span>
+      <span class="lb-play-label">เริ่มดวล ▶</span>
+      <small>เลือกเล่นกับบอทหรือเพื่อน</small>
+    </button>
+
+    <a class="lb-github" href="https://github.com/tammarno/BOF">GitHub</a>
+
+    <!-- หน้าต่าง: เลือกโหมดหลังกดเริ่มดวล -->
     <dialog id="lb-mode-dialog" class="lb-dialog" aria-labelledby="lb-mode-title">
       <h2 id="lb-mode-title">เล่นเด็คนี้แบบไหน?</h2>
       <div class="lb-dialog-actions">
-        <button type="button" class="lb-btn lb-btn-primary" id="lb-mode-pvp">ดวลกับเพื่อน</button>
-        <button type="button" class="lb-btn lb-btn-secondary" id="lb-mode-bot">เล่นกับบอท</button>
+        <button type="button" class="lb-btn lb-btn-primary" id="btn-lobby-bot">เล่นกับบอท</button>
+        <button type="button" class="lb-btn lb-btn-secondary" id="btn-lobby-pvp">ดวลกับเพื่อน (สร้างห้อง)</button>
       </div>
-      <button type="button" class="lb-link lb-dialog-close" id="lb-mode-close">ยกเลิก</button>
+      <button type="button" class="lb-dialog-close" id="lb-mode-close">ยกเลิก</button>
+    </dialog>
+
+    <!-- หน้าต่าง: วิธีเล่น -->
+    <dialog id="lb-howto-dialog" class="lb-dialog" aria-labelledby="lb-howto-title">
+      <h2 id="lb-howto-title">เริ่มดวลใน 3 ขั้น</h2>
+      <ol class="lb-steps">
+        <li><b>ไม่กี่วินาที</b> ก่อนอื่น เลือกเด็คมาตรฐานหรือจัดเด็คเอง</li>
+        <li><b>ไม่ถึงนาที</b> จากนั้น สร้างห้องแล้วส่งรหัสให้เพื่อน หรือเลือกเล่นกับบอท</li>
+        <li><b>ราว 10 นาที</b> สุดท้าย ทอยเต๋า ลงการ์ด ทำให้ HP ลีดเดอร์อีกฝ่ายหมด</li>
+      </ol>
+      <p class="lb-counts" data-counts>การ์ดทั้งหมด 39 ใบ · Legend 5 · SR 12 · R 17 · N 5 · เด็คละ 21 ใบ</p>
+      <button type="button" class="lb-btn lb-btn-primary lb-dialog-ok" data-close>เข้าใจแล้ว</button>
+    </dialog>
+
+    <!-- หน้าต่าง (มือถือ): เข้าห้องด้วยรหัส -->
+    <dialog id="lb-join-dialog" class="lb-dialog" aria-label="เข้าห้องด้วยรหัส">
+      <div class="lb-join-dialog-slot"></div>
+      <button type="button" class="lb-dialog-close" data-close>ปิด</button>
     </dialog>
   </div>
 

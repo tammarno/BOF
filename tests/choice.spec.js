@@ -10,7 +10,7 @@ async function openPage(b, opts = {}) {
   const p = await ctx.newPage(); p.setDefaultTimeout(8000);
   p.errors = []; p.on('pageerror', e => p.errors.push(e.message));
   await p.goto(URL); await p.waitForTimeout(800);
-  await p.click('#btn-lobby-bot'); await p.waitForTimeout(400); await p.click('#btn-start-ai-match');
+  await p.click('#lb-play'); await p.click('#btn-lobby-bot'); await p.waitForTimeout(400); await p.click('#btn-start-ai-match');
   await p.waitForTimeout(1300); const m = await p.$('#btn-confirm-mulligan'); if (m && await m.isVisible()) await m.click();
   await p.waitForTimeout(1200);
   return p;
