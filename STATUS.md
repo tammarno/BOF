@@ -64,14 +64,14 @@ BOF/
 ต้องมี Node.js แล้วรัน `npm install` และ `npx playwright install chromium` (Playwright อยู่ใน `package.json`)
 
 ```bash
-node tests/lobby.spec.js    # ล็อบบี้ 51 ข้อ (ข้อมูล D, โครง S, เด็ค K, เข้าห้อง J, ปุ่ม W, motion T/F/M)
+node tests/lobby.spec.js    # ล็อบบี้ 55 ข้อ (ข้อมูล D, โครง S, เด็ค K, เข้าห้อง J, ปุ่ม W, motion T/F/M, แก้หลังรีวิว R)
 node tests/ui.spec.js       # หน้าต่าง/กระดาน 19 ข้อ
 node tests/choice.spec.js   # ยืนยัน/ชนะ/แพ้ 9 ข้อ
 node tests/panel.spec.js    # บั๊กล็อบบี้ว่าง + หน้าต่าง/ปุ่ม 0.6 17 ข้อ
 node tests/ui.spec.js U8    # รันเฉพาะข้อที่ชื่อมีคำนี้
 ```
 
-ผลล่าสุด: **96/96 ผ่าน** (ข้อ T7 memory วัด RAM ด้วย `ps` ซึ่งไม่มีบน Windows จึงผ่านโดยไม่ได้วัดจริง)
+ผลล่าสุด: **100/100 ผ่าน** (ข้อ T7 memory วัด RAM ด้วย `ps` ซึ่งไม่มีบน Windows จึงผ่านโดยไม่ได้วัดจริง)
 
 ตรวจหน้าตาด้วยสกิล design-taste-frontend: `lint.mjs` 0 FAIL · `inspect.mjs` 0 FAIL ที่ 1440/768/390 (WARN ที่เหลือมีเหตุผล: สีครีมมาจากกล่องข้อความบนการ์ดจริง, ไม่มีคลิปวิดีโอ, ช่องว่างใน footer เป็นจังหวะพัก)
 

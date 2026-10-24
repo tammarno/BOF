@@ -111,9 +111,11 @@ test('K3 play this deck sets config without saving', async b => {
   const p = await openPage(b, { seen: true });
   const before = await p.evaluate(() => localStorage.getItem('my_card_game_deck'));
   await p.click('.lb-deck-btn[data-leader="L03"]'); await p.click('#lb-play-deck'); await p.waitForTimeout(300);
+  const open = await p.evaluate(() => document.getElementById('lb-mode-dialog').open);
+  await p.click('#lb-mode-bot'); await p.waitForTimeout(300);
   const v = await p.evaluate(() => ({ leader: currentDeckConfig.leaderId, n: currentDeckConfig.mainDeck.length,
-    saved: localStorage.getItem('my_card_game_deck'), open: document.getElementById('lb-mode-dialog').open }));
-  assert(v.leader === 'L03' && v.n === 20 && v.saved === before && v.open, JSON.stringify(v));
+    saved: localStorage.getItem('my_card_game_deck') }));
+  assert(v.leader === 'L03' && v.n === 20 && v.saved === before && open, JSON.stringify({ ...v, open }));
 });
 test('K4 mode dialog routes to bot setup', async b => {
   const p = await openPage(b, { seen: true });
@@ -365,6 +367,44 @@ test('M4 deck switch animates new cards in', async b => {
   await p.waitForTimeout(1200);
   const o = await opacityAll(p, '.lb-stage-cards .lb-card');
   assert(mid && o.every(x => x > .99), JSON.stringify({ mid, min: Math.min(...o) }));
+});
+
+// ---------------- Final review fixes (0.7) ----------------
+test('R1 nothing spills past the screen edge at 320 and 390', async b => {
+  for (const width of [320, 390]) {
+    const p = await openPage(b, { seen: true, viewport: { width, height: 800 } }); await p.waitForTimeout(900);
+    const bad = await p.evaluate(() => [...document.querySelectorAll('#lobby-screen *')]
+      .filter(e => !e.closest('.lb-deck-list, .lb-stage-cards, .lb-tab, #lm-particles') && e.getClientRects().length)
+      .filter(e => e.getBoundingClientRect().right > innerWidth + 1).map(e => (e.id || e.className || e.tagName)).slice(0, 5));
+    assert(bad.length === 0, `at ${width}: ` + JSON.stringify(bad));
+  }
+});
+test('R2 pasted code with spaces joins', async b => {
+  const p = await openPage(b, { seen: true });
+  await p.evaluate(() => { window.__joined = null; window.joinPvpRoomAsGuest = c => { window.__joined = c; }; });
+  await p.focus('#lb-join-code'); await p.keyboard.insertText(' 4829 '); await p.press('#lb-join-code', 'Enter');
+  const v = await p.evaluate(() => ({ joined: window.__joined, value: document.getElementById('lb-join-code').value }));
+  assert(v.joined === '4829', JSON.stringify(v));
+});
+test('R3 focus ring visible on gold folder and dialog', async b => {
+  const p = await openPage(b, { seen: true }); await p.waitForTimeout(900);
+  // ใช้คีย์บอร์ดล้วน เพื่อให้ :focus-visible ทำงานเหมือนผู้ใช้จริงที่กด Tab
+  const ring = () => p.evaluate(() => { const s = getComputedStyle(document.activeElement); return s.outlineStyle + ' ' + s.outlineColor; });
+  await p.focus('#btn-lobby-bot'); const a = await ring();
+  await p.focus('#lb-play-deck'); await p.keyboard.press('Enter'); await p.waitForTimeout(100); const c = await ring();
+  const dark = 'solid rgb(18, 20, 42)';
+  assert(a === dark && c === dark, JSON.stringify({ a, c }));
+});
+test('R4 cancelling the mode dialog keeps the previous deck', async b => {
+  const p = await openPage(b, { seen: true });
+  const before = await p.evaluate(() => JSON.stringify(currentDeckConfig));
+  await p.click('.lb-deck-btn[data-leader="L03"]'); await p.click('#lb-play-deck'); await p.click('#lb-mode-close');
+  const afterCancel = await p.evaluate(() => JSON.stringify(currentDeckConfig));
+  await p.click('#lb-play-deck'); await p.keyboard.press('Escape'); await p.waitForTimeout(100);
+  const afterEsc = await p.evaluate(() => JSON.stringify(currentDeckConfig));
+  await p.click('#lb-play-deck'); await p.click('#lb-mode-bot'); await p.waitForTimeout(200);
+  const chosen = await p.evaluate(() => currentDeckConfig.leaderId);
+  assert(afterCancel === before && afterEsc === before && chosen === 'L03', JSON.stringify({ same1: afterCancel === before, same2: afterEsc === before, chosen }));
 });
 
 (async () => {

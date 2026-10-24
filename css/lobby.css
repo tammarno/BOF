@@ -43,7 +43,9 @@
 #lobby-screen h1, #lobby-screen h2 { font-family: var(--font-display); font-weight: 700; margin: 0; letter-spacing: -0.02em; line-height: 1; }
 #lobby-screen p { margin: 0; }
 #lobby-screen a { color: inherit; }
-#lobby-screen :focus-visible { outline: 3px solid var(--lb-gold); outline-offset: 3px; }
+#lobby-screen :focus-visible { outline: 3px solid var(--lb-ring, var(--lb-gold)); outline-offset: 3px; }
+/* บนพื้นทองและพื้นครีม กรอบทองมองไม่เห็น → ใช้สีเข้ม */
+.lb-folder-front, .lb-dialog, .lb-stats, .lb-gallery, .lb-footer { --lb-ring: var(--lb-ink-dark); }
 
 .lb-chapter { position: relative; flex-shrink: 0; padding: 96px var(--lb-margin); }
 .lb-hero.lb-chapter { padding-top: 28px; }
@@ -238,7 +240,7 @@ tr[data-rar="R"] .lb-dot { background: var(--rar-r); }
 
 /* ================= มือถือ / แท็บเล็ต ================= */
 @media (max-width: 1024px) {
-  .lb-front-inner { grid-template-columns: 1fr; }
+  .lb-front-inner { grid-template-columns: minmax(0, 1fr); }
   .lb-leaders { padding-bottom: 0; }
 }
 @media (max-width: 768px) {

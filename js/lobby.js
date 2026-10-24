@@ -129,10 +129,13 @@
     $('#lb-decks')?.dispatchEvent(new CustomEvent('lobby:deck', { detail: { leaderId } }));
   }
 
-  // ตั้งเด็คมาตรฐานไว้ในหน่วยความจำเท่านั้น — เด็คที่ผู้เล่นบันทึกไว้ใน localStorage ไม่ถูกเขียนทับ
+  // เด็คมาตรฐานถูกตั้งตอนเลือกโหมดเท่านั้น (ในหน่วยความจำ ไม่เขียน localStorage)
+  // ถ้ากดยกเลิก/Esc เด็คเดิมของผู้เล่นต้องอยู่ครบ
   function playSelectedDeck() {
-    currentDeckConfig = { leaderId: selected, mainDeck: [...getDefaultDeckForLeader(selected)] };
     $('#lb-mode-dialog')?.showModal();
+  }
+  function useSelectedDeck() {
+    currentDeckConfig = { leaderId: selected, mainDeck: [...getDefaultDeckForLeader(selected)] };
   }
 
   function bindDeckPicker() {
@@ -146,7 +149,7 @@
     });
     const dialog = $('#lb-mode-dialog');
     if (!dialog) return;
-    const route = id => () => { dialog.close(); $(id)?.click(); };
+    const route = id => () => { useSelectedDeck(); dialog.close(); $(id)?.click(); };
     // (ปุ่มใน dialog เรียกปุ่มเดิมของ Hero เพื่อใช้ flow เดียวกันทุกอย่าง)
     $('#lb-mode-pvp')?.addEventListener('click', route('#btn-lobby-pvp'));
     $('#lb-mode-bot')?.addEventListener('click', route('#btn-lobby-bot'));
