@@ -14,9 +14,16 @@ async function openPage(browser, opts = {}) {
     reducedMotion: opts.reduced ? 'reduce' : 'no-preference', hasTouch: !!opts.touch,
   });
   if (opts.seen) await ctx.addInitScript(() => { try { sessionStorage.setItem('lm-seen', '1'); } catch (e) {} });
+  // เตรียม localStorage ครั้งเดียวตอนเปิดหน้าแรก (reload แล้วไม่ทับค่าที่หน้าเขียนเอง)
+  if (opts.savedDeck || opts.lobbyDeck) await ctx.addInitScript(([deck, lobby]) => {
+    if (sessionStorage.getItem('__seeded')) return; sessionStorage.setItem('__seeded', '1');
+    if (deck) localStorage.setItem('my_card_game_deck', deck);
+    if (lobby) localStorage.setItem('bof_lobby_deck', lobby);
+  }, [opts.savedDeck ? JSON.stringify(opts.savedDeck) : '', opts.lobbyDeck || '']);
   const page = await ctx.newPage(); page.setDefaultTimeout(8000);
   page.errors = []; page.on('pageerror', e => page.errors.push(e.message));
   if (opts.blockGsap) await page.route('**/gsap.min.js', r => r.abort());
+  if (opts.blockThumbs) await page.route('**/thumbs/**', r => r.abort());
   await page.goto(URL);
   return page;
 }
@@ -43,6 +50,28 @@ test('D3 room code normalize', async b => {
   const p = await openPage(b, { seen: true });
   const r = await p.evaluate(() => [' 4829 ', '๔๘๒๙', '48a9', '', '12345'].map(LobbyData.normalizeRoomCode));
   assert(JSON.stringify(r) === JSON.stringify(['4829', '4829', null, null, null]), JSON.stringify(r));
+});
+
+test('D4 thumbOf maps png to webp in thumbs', async b => {
+  const p = await openPage(b, { seen: true });
+  const v = await p.evaluate(() => LobbyData.thumbOf({ image: 'images/เด็คจิต/3.png' }));
+  assert(v === 'images/thumbs/เด็คจิต/3.webp', v);
+});
+test('D5 every card has a thumbnail file', async b => {
+  const p = await openPage(b, { seen: true });
+  const paths = await p.evaluate(() => CARD_DATABASE.map(c => LobbyData.thumbOf(c)));
+  const missing = paths.filter(x => !require('fs').existsSync(path.join(ROOT, x)));
+  assert(missing.length === 0, missing.slice(0, 3).join(', '));
+});
+test('D6 legend count per deck', async b => {
+  const p = await openPage(b, { seen: true });
+  const v = await p.evaluate(() => ['L01', 'L02', 'L03'].map(LobbyData.legendCount));
+  assert(JSON.stringify(v) === '[2,1,2]', JSON.stringify(v));
+});
+test('D7 cardsOfDeck returns leader plus unique cards', async b => {
+  const p = await openPage(b, { seen: true, savedDeck: { leaderId: 'L02', mainDeck: [...Array(10).fill('NM01'), ...Array(10).fill('NM02')] } });
+  const v = await p.evaluate(() => ['L01', 'L03', 'mine'].map(k => LobbyData.cardsOfDeck(k).map(c => c.id)));
+  assert(v[0].length === 11 && v[0][0] === 'L01' && v[1].length === 17 && JSON.stringify(v[2]) === '["L02","NM01","NM02"]', JSON.stringify(v.map(x => x.length)) + JSON.stringify(v[2]));
 });
 
 // ---------------- Lobby redesign: structure ----------------

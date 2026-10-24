@@ -43,7 +43,17 @@
     return /^\d{4}$/.test(code) ? code : null;
   }
 
-  window.LobbyData = { DECKS, rarityCounts, deckInfo, galleryCards, normalizeRoomCode };
+  // ภาพย่อ WebP (สร้างด้วย tools/make-thumbs.js): images/เด็คจิต/3.png → images/thumbs/เด็คจิต/3.webp
+  const thumbOf = card => card.image.replace(/^images\//, 'images/thumbs/').replace(/\.png$/, '.webp');
+
+  // เด็คมาตรฐาน (L01–L03) หรือเด็คที่ผู้เล่นบันทึกไว้ ('mine') → ลีดเดอร์ + การ์ดไม่ซ้ำ
+  function cardsOfDeck(key) {
+    const cfg = key === 'mine' ? loadSavedDeck() : { leaderId: key, mainDeck: getDefaultDeckForLeader(key) };
+    return [byId(cfg.leaderId), ...[...new Set(cfg.mainDeck)].map(byId)].filter(Boolean);
+  }
+  const legendCount = key => cardsOfDeck(key).filter(c => c.rarity === 'Legend').length;
+
+  window.LobbyData = { DECKS, rarityCounts, deckInfo, galleryCards, normalizeRoomCode, thumbOf, cardsOfDeck, legendCount };
 
   /* ---------------- การแสดงผล ---------------- */
   const DECK_COLOURS = {
