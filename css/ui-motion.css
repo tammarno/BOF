@@ -1,0 +1,128 @@
+/* ============================================================================
+   UI MOTION (BOF v0.4) — สกินและแอนิเมชันของหน้าต่างดวล / ตั้งค่าบอท / กระดาน
+   ใช้คู่กับ ui-motion.js · กฎเดียวกับ lobby-motion: transform/opacity เท่านั้น
+   (game.js ใส่ style แบบ inline ไว้ จึงต้องใช้ !important ทับ)
+   ============================================================================ */
+:root {
+  --um-panel: rgba(20, 24, 50, .96);
+  --um-panel-2: rgba(255, 255, 255, .035);
+  --um-edge: rgba(243, 201, 105, .22);
+  --um-edge-2: rgba(160, 175, 255, .16);
+  --um-gold-a: #f7d77f;
+  --um-gold-b: #e0a83c;
+  --um-ice: #7fd3ff;
+}
+
+/* ---------- หน้าต่าง ---------- */
+.modal-overlay { background: rgba(6, 8, 20, .82) !important; }
+.modal-box {
+  background: linear-gradient(180deg, rgba(30, 35, 72, .97), var(--um-panel)) !important;
+  border: 1px solid var(--um-edge) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .06) !important;
+}
+#pvp-room-modal .modal-box, #ai-setup-modal .modal-box { will-change: transform, opacity; }
+#pvp-room-modal .modal-box h2, #ai-setup-modal .modal-box h2 { font-family: var(--font-display); }
+#pvp-room-modal .modal-box h2 .lm-h-text, #ai-setup-modal .modal-box h2 .lm-h-text {
+  background: linear-gradient(100deg, #fff 20%, var(--ui-gold, #f3c969) 60%, #fff 95%);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent !important; -webkit-text-fill-color: transparent;
+  font-family: var(--font-display); letter-spacing: .01em;
+}
+.lm-h-ico { display: inline-block; margin-right: .2em; }
+#pvp-room-modal .modal-box > div {
+  background: var(--um-panel-2) !important;
+  border: 1px solid var(--um-edge-2) !important;
+  border-radius: 14px !important;
+}
+#ai-setup-modal .modal-box > div > div:first-child { letter-spacing: .02em; }
+
+/* ปุ่ม */
+.modal-box .btn, .game-container .btn {
+  border-radius: 12px !important; font-family: var(--font-display);
+  transition: box-shadow .2s, filter .2s, opacity .2s !important;
+}
+#btn-create-room:not(:disabled), #btn-start-ai-match:not(:disabled), #btn-confirm-mulligan:not(:disabled) {
+  background: linear-gradient(135deg, var(--um-gold-a), var(--um-gold-b)) !important; color: #1a1405 !important;
+  box-shadow: 0 8px 22px rgba(243, 201, 105, .28), inset 0 1px 0 rgba(255, 255, 255, .5) !important; border: 0 !important;
+}
+#btn-join-room { background: linear-gradient(135deg, #4fb3f0, #2f7fd6) !important; color: #fff !important; border: 0 !important; }
+#btn-close-pvp-modal, #btn-cancel-ai-setup {
+  background: rgba(255, 255, 255, .07) !important; color: #d7dbef !important; border: 1px solid var(--um-edge-2) !important;
+}
+.modal-box .btn:not(:disabled):hover, .game-container .btn:not(:disabled):hover { filter: brightness(1.08); }
+
+/* การ์ดตัวเลือก (ความยาก / เด็ค) */
+.ai-diff-btn, .ai-deck-btn {
+  background: rgba(255, 255, 255, .04) !important; border: 1px solid var(--um-edge-2) !important; color: #e8eaf7 !important;
+  opacity: .78; position: relative;
+}
+.ai-diff-btn.is-selected, .ai-deck-btn.is-selected { opacity: 1; }
+.ai-diff-btn[data-diff="EASY"].is-selected { --sel: 74, 222, 128; }
+.ai-diff-btn[data-diff="NORMAL"].is-selected { --sel: 250, 204, 21; }
+.ai-diff-btn[data-diff="HARD"].is-selected { --sel: 248, 113, 113; }
+.ai-deck-btn.is-selected { --sel: 127, 211, 255; }
+.ai-diff-btn.is-selected, .ai-deck-btn.is-selected {
+  background: rgba(var(--sel), .14) !important; border: 1px solid rgba(var(--sel), .9) !important;
+  box-shadow: 0 0 0 1px rgba(var(--sel), .35), 0 0 18px rgba(var(--sel), .35) !important;
+}
+
+/* ช่องกรอกรหัสห้อง */
+#input-join-code {
+  background: rgba(8, 10, 24, .8) !important; border: 1px solid var(--um-edge-2) !important; border-radius: 12px !important;
+  transition: border-color .15s, box-shadow .15s;
+}
+#input-join-code:focus { outline: none; border-color: rgba(243, 201, 105, .8) !important; box-shadow: 0 0 0 3px rgba(243, 201, 105, .18); }
+#input-join-code.um-invalid { border-color: rgba(248, 113, 113, .9) !important; }
+
+/* ---------- กระดาน ---------- */
+.game-container .side-zone, .game-container .center-bar {
+  background: linear-gradient(180deg, rgba(28, 33, 68, .9), rgba(18, 21, 44, .92)) !important;
+  border: 1px solid var(--um-edge-2) !important; border-radius: 16px !important;
+}
+.game-container .center-bar { border-color: var(--um-edge) !important; }
+.game-container .slot { border-radius: 12px; }
+/* ไม่ทับสีของช่องที่ game.js ไฮไลต์เป็นเป้าหมาย (valid-target) */
+.game-container .slot:not(.valid-target) { border-color: rgba(160, 175, 255, .18); background: rgba(10, 12, 28, .55); }
+.game-container .pile-group .info-box { border-radius: 12px; }
+.phase-pill { border-radius: 999px; }
+
+/* ปุ่ม Phase หายใจ (CSS animation บน opacity ของ pseudo-element = ทำงานบน compositor) */
+.lm-breathe { position: relative; }
+.lm-breathe::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(127, 211, 255, .65), 0 0 22px rgba(127, 211, 255, .55);
+  animation: um-breathe 2.4s ease-in-out infinite;
+}
+@keyframes um-breathe { 0%, 100% { opacity: .15; } 50% { opacity: 1; } }
+
+/* หัวใจ HP เต้นเบา ๆ */
+.hp-badge .um-heart { display: inline-block; animation: um-heart 2.4s ease-in-out infinite; }
+@keyframes um-heart { 0%, 100% { transform: scale(1); } 12% { transform: scale(1.18); } 24% { transform: scale(1); } 36% { transform: scale(1.1); } 48% { transform: scale(1); } }
+.leader-box { position: relative; }
+.um-hit { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; background: rgba(239, 68, 68, .45); box-shadow: 0 0 24px rgba(239, 68, 68, .8); }
+
+/* ช่องว่างเรืองแสงตอนเลือกการ์ด */
+#player-board.lm-placing .slot:not(:has(.card))::after {
+  content: ""; position: absolute; inset: -2px; border-radius: 12px; pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(243, 201, 105, .85), 0 0 18px rgba(243, 201, 105, .5);
+  animation: um-breathe 1.2s ease-in-out infinite;
+}
+
+/* ป้ายเปลี่ยนเทิร์น */
+#lm-turn-banner {
+  position: fixed; left: 0; right: 0; top: 42%; z-index: 450; pointer-events: none; opacity: 0;
+  display: flex; justify-content: center;
+}
+#lm-turn-banner .um-band {
+  padding: 18px 90px; font: 700 28px/1 var(--font-display); letter-spacing: .04em; color: #fff;
+  background: linear-gradient(90deg, rgba(5, 6, 16, 0), rgba(5, 6, 16, .97) 15%, rgba(5, 6, 16, .97) 85%, rgba(5, 6, 16, 0));
+  border-top: 2px solid rgba(243, 201, 105, .75); border-bottom: 2px solid rgba(243, 201, 105, .75);
+  box-shadow: 0 0 40px rgba(0, 0, 0, .6);
+  text-shadow: 0 0 18px rgba(243, 201, 105, .55);
+}
+#lm-turn-banner.is-ai .um-band { border-color: rgba(248, 113, 113, .75); text-shadow: 0 0 18px rgba(248, 113, 113, .6); }
+
+@media (prefers-reduced-motion: reduce) {
+  .lm-breathe::after, .hp-badge .um-heart, #player-board.lm-placing .slot:not(:has(.card))::after { animation: none; }
+}

@@ -1,0 +1,67 @@
+/* ============================================================================
+   LOBBY MOTION (BOF v0.3) — ใช้คู่กับ lobby-motion.js
+   กฎ: ขยับด้วย transform/opacity เท่านั้น · ไม่มี backdrop-filter / mix-blend-mode
+   ============================================================================ */
+
+/* กันภาพกะพริบก่อนฉากเปิดเริ่ม (สคริปต์ใน <head> ใส่ class นี้ และถอดเองภายใน 1.5 วิ ถ้า JS ล้มเหลว) */
+html.lm-pre #lobby-screen { visibility: hidden; }
+
+/* ชั้นเนื้อหาอยู่เหนือ canvas อนุภาค */
+#lobby-screen > *:not(#lm-particles) { position: relative; z-index: 1; }
+#lm-particles { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+
+/* ให้ GSAP คุม transform เอง ไม่ให้ transition/hover ของ CSS มาแย่ง */
+.btn-lobby-primary, .btn-lobby-secondary, .feature-card { transition: box-shadow .2s, background-color .2s; }
+.btn-lobby-primary:hover, .feature-card:hover { transform: none; }
+.btn-lobby-primary, .btn-lobby-secondary { position: relative; }
+.feature-card { position: relative; }
+
+/* โลโก้ดาบไขว้ */
+.lm-logo { position: relative; display: inline-block; width: 1.5em; height: 1.1em; vertical-align: -0.15em; margin-right: .2em; }
+.lm-sword { position: absolute; left: .2em; top: 0; font-style: normal; display: inline-block; transform-origin: 50% 85%; }
+.lm-spark {
+  position: absolute; left: .55em; top: .05em; width: .45em; height: .45em; border-radius: 50%; opacity: 0;
+  background: radial-gradient(circle, #fff 0 18%, rgba(255, 228, 150, .85) 35%, rgba(255, 200, 90, 0) 70%);
+}
+
+/* ฉากเปิด */
+#lm-intro { position: fixed; inset: 0; z-index: 600; pointer-events: none; display: none; }
+#lm-intro .lm-intro-bg { position: absolute; inset: 0; background: #0b0d1a; }
+#lm-intro .lm-intro-logo { position: absolute; left: 0; top: 0; font-size: 72px; transform-origin: 0 0; }
+#lm-intro .lm-intro-flash {
+  position: absolute; left: 50%; top: 50%; width: 260px; height: 260px; margin: -130px 0 0 -130px; border-radius: 50%; opacity: 0;
+  background: radial-gradient(circle, rgba(255, 240, 200, .9) 0%, rgba(243, 201, 105, .35) 35%, rgba(243, 201, 105, 0) 70%);
+}
+
+/* ตัวอักษรหัวข้อเล็ก */
+.lm-ch { display: inline-block; white-space: pre; }
+
+/* แสงกวาดชื่อเกม (ใช้ <i> เพราะ .hero-title span มีสไตล์อยู่แล้ว) */
+.lm-title-line { position: relative; display: inline-block; font-weight: inherit; }
+.lm-shine {
+  position: absolute; top: 0; left: 0; height: 100%; width: 2.2em; overflow: hidden; pointer-events: none;
+  transform: translateX(-2.2em);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 40%, #000 60%, transparent);
+          mask-image: linear-gradient(90deg, transparent, #000 40%, #000 60%, transparent);
+}
+.lm-shine-text {
+  position: absolute; top: 0; left: 0; white-space: nowrap; font-style: normal;
+  color: #fff6d8; -webkit-text-fill-color: #fff6d8; text-shadow: 0 0 12px rgba(255, 220, 140, .6);
+}
+
+/* ไอคอนที่ขยับแยกได้ */
+.lm-ico { display: inline-block; font-style: normal; }
+
+/* ปุ่ม: แสงหายใจ + วงแสงคลิก */
+.lm-glow { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; box-shadow: 0 0 22px 4px rgba(243, 201, 105, .55); }
+.lm-ripples { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; }
+.lm-ripple { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: rgba(255, 255, 255, .55); pointer-events: none; }
+
+/* ขอบเรืองแสงกล่องเมนู */
+.lm-edge { position: absolute; inset: -1px; border-radius: inherit; pointer-events: none; opacity: 0; }
+.card-purple .lm-edge { box-shadow: 0 0 0 1px rgba(167, 139, 250, .9), 0 0 22px rgba(139, 92, 246, .55); }
+.card-green .lm-edge { box-shadow: 0 0 0 1px rgba(52, 211, 153, .9), 0 0 22px rgba(16, 185, 129, .55); }
+.card-blue .lm-edge { box-shadow: 0 0 0 1px rgba(125, 211, 252, .9), 0 0 22px rgba(56, 189, 248, .55); }
+
+/* เตรียมเลเยอร์เฉพาะชิ้นที่ขยับตลอด */
+.fan-card, .hero-card-fan { will-change: transform; }

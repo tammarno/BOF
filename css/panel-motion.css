@@ -1,0 +1,66 @@
+/* ============================================================================
+   PANEL MOTION (BOF v0.6) — ใช้คู่กับ panel-motion.js
+   สกินปุ่มเก่าให้เข้าธีม + เมนูล็อบบี้ + แสงตอบสนองการ์ดในหน้าจัดเด็ค
+   กฎเดิม: transform/opacity เท่านั้น · ไม่มี backdrop-filter / mix-blend-mode
+   (game.js ใส่สีปุ่มแบบ inline ไว้ จึงต้องใช้ !important ทับ)
+   ============================================================================ */
+
+/* ---------- หน้าต่าง ---------- */
+.pm-panel .modal-box, .pm-panel .dice-box { will-change: transform, opacity; }
+#deck-builder-modal .deck-builder-box {
+  background: linear-gradient(180deg, rgba(30, 35, 72, .97), rgba(20, 24, 50, .96)) !important;
+  border: 1px solid rgba(243, 201, 105, .22) !important; border-radius: 18px !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .06) !important;
+}
+/* ม่านจางเข้า (หน้าต่างที่มีการ์ดเยอะ): สีเดียวกับกล่อง ทับเนื้อหาแล้วค่อยโปร่งออก */
+#deck-builder-modal .deck-builder-box, #zone-viewer-modal .modal-box { position: relative; }
+.pm-curtain {
+  position: absolute; inset: 0; z-index: 20; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(180deg, rgb(30, 35, 72), rgb(20, 24, 50));
+}
+#deck-builder-modal .deck-builder-header h2, #zone-viewer-title { font-family: var(--font-display); }
+#deck-status-text {
+  display: inline-block; padding: 6px 12px; border-radius: 999px;
+  background: rgba(255, 255, 255, .05); border: 1px solid rgba(160, 175, 255, .18);
+}
+
+/* ---------- ปุ่มเก่า → ชุดสีธีม (ชุดเดียวกับหน้าต่างยืนยัน 0.5) ---------- */
+.btn.pm-btn {
+  border-radius: 12px !important; font-family: var(--font-display); border: 0;
+  transition: box-shadow .2s, filter .2s, opacity .2s !important; /* ให้ GSAP คุม transform */
+}
+.btn.pm-btn:not(:disabled):hover { filter: brightness(1.08); }
+.btn.pm-btn-primary:not(:disabled) {
+  background: linear-gradient(135deg, #f7d77f, #e0a83c) !important; color: #1a1405 !important;
+  box-shadow: 0 8px 22px rgba(243, 201, 105, .28), inset 0 1px 0 rgba(255, 255, 255, .5) !important;
+}
+.btn.pm-btn-ice:not(:disabled) { background: rgba(127, 211, 255, .12) !important; color: #dff4ff !important; border: 1px solid rgba(127, 211, 255, .6) !important; }
+.btn.pm-btn-ghost { background: rgba(255, 255, 255, .06) !important; color: #d7dbef !important; border: 1px solid rgba(160, 175, 255, .2) !important; }
+.btn.pm-btn-danger:not(:disabled) {
+  background: linear-gradient(135deg, #b91c1c, #7f1d1d) !important; color: #fff !important;
+  border: 1px solid rgba(248, 113, 113, .8) !important; box-shadow: 0 0 16px rgba(239, 68, 68, .3) !important;
+}
+.btn.pm-btn:disabled {
+  background: rgba(255, 255, 255, .05) !important; color: rgba(215, 219, 239, .45) !important;
+  border: 1px solid rgba(160, 175, 255, .12) !important; box-shadow: none !important; cursor: not-allowed;
+}
+
+/* ---------- เมนูบนล็อบบี้ ---------- */
+.lobby-nav-links a.pm-nav { position: relative; display: inline-block; padding: 4px 2px; transition: color .15s; }
+.lobby-nav-links a.pm-nav::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, #7fd3ff, #f3c969);
+  transform: scaleX(0); transform-origin: 0 50%; transition: transform .22s cubic-bezier(.2, .8, .2, 1);
+}
+.lobby-nav-links a.pm-nav:hover, .lobby-nav-links a.pm-nav:focus-visible { color: #f3f6ff; }
+.lobby-nav-links a.pm-nav:hover::after, .lobby-nav-links a.pm-nav:focus-visible::after { transform: scaleX(1); }
+
+/* ---------- การ์ดในหน้าจัดเด็ค / Mulligan: แสงตอบสนอง ---------- */
+.pm-tile { position: relative; }
+.pm-flash { position: absolute; inset: -3px; border-radius: 12px; pointer-events: none; opacity: 0; z-index: 5; }
+.pm-flash-add { box-shadow: 0 0 0 2px rgba(74, 222, 128, .95), 0 0 24px rgba(74, 222, 128, .6); background: rgba(74, 222, 128, .12); }
+.pm-flash-remove { box-shadow: 0 0 0 2px rgba(203, 213, 225, .8), 0 0 18px rgba(148, 163, 184, .45); background: rgba(15, 17, 30, .35); }
+.pm-flash-deny { box-shadow: 0 0 0 2px rgba(248, 113, 113, .95), 0 0 22px rgba(239, 68, 68, .55); }
+.pm-flash-leader { box-shadow: 0 0 0 2px rgba(243, 201, 105, .95), 0 0 26px rgba(243, 201, 105, .6); background: rgba(243, 201, 105, .1); }
+#deck-builder-modal .pool-item { cursor: pointer; }
+.count-badge { display: inline-block; }

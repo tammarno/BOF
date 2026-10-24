@@ -4,13 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>My Card Game - Visual & Dice Edition</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/holo.css">
+  <link rel="stylesheet" href="css/lobby-motion.css">
+  <link rel="stylesheet" href="css/ui-motion.css">
+  <link rel="stylesheet" href="css/choice-ui.css">
+  <link rel="stylesheet" href="css/panel-motion.css">
+  <script>document.documentElement.classList.add('lm-pre');setTimeout(function(){document.documentElement.classList.remove('lm-pre')},1500);</script>
 </head>
 <body>
   <!-- ==================== หน้าล็อบบี้หลัก (MAIN LOBBY) ==================== -->
   <div id="lobby-screen" class="lobby-wrapper">
     <nav class="lobby-navbar">
-      <div class="lobby-logo">⚔️ MY CARD TCG</div>
+      <div class="lobby-logo"><span class="lm-logo" aria-hidden="true"><i class="lm-sword lm-l">🗡️</i><i class="lm-sword lm-r">🗡️</i><i class="lm-spark"></i></span>MY CARD TCG</div>
       <div class="lobby-nav-links">
         <a href="#" id="nav-play">Play</a>
         <a href="#" id="nav-deck">Deck Builder</a>
@@ -26,8 +35,8 @@
           เกมการ์ดครบทุกเด็ค (เด็คจิต, เด็คเหนือ, เด็ควันสิ้นโลก) จัดเด็คของคุณเอง ดวลกับเพื่อนได้ทันที หรือฝึกฝีมือกับบอท ไม่ต้องติดตั้ง ไม่ต้องสมัครสมาชิก
         </p>
         <div class="hero-buttons">
-          <button class="btn-lobby-primary" id="btn-lobby-pvp">▷ เล่นเลย (ดวลกับเพื่อน)</button>
-          <button class="btn-lobby-secondary" id="btn-lobby-bot">🤖 เล่นกับบอท</button>
+          <button class="btn-lobby-primary" id="btn-lobby-pvp"><span class="lm-ico">▷</span> เล่นเลย (ดวลกับเพื่อน)</button>
+          <button class="btn-lobby-secondary" id="btn-lobby-bot"><span class="lm-ico">🤖</span> เล่นกับบอท</button>
         </div>
       </div>
 
@@ -41,7 +50,7 @@
 
     <section class="lobby-feature-grid">
       <div class="feature-card card-purple" id="card-menu-deckbuilder">
-        <div class="feature-icon">🃏</div>
+        <div class="feature-icon"><span class="lm-ico">🃏</span></div>
         <div>
           <h3>Deck Builder</h3>
           <p>จัดเด็ค 21 ใบ บันทึกในเครื่อง หรือเลือกเด็คมาตรฐาน</p>
@@ -49,7 +58,7 @@
       </div>
 
       <div class="feature-card card-green" id="card-menu-cardlist">
-        <div class="feature-icon">🔍</div>
+        <div class="feature-icon"><span class="lm-ico">🔍</span></div>
         <div>
           <h3>Card List</h3>
           <p>ค้นหาและดูความสามารถของการ์ดทั้งหมดในเกม</p>
@@ -57,7 +66,7 @@
       </div>
 
       <div class="feature-card card-blue" id="card-menu-preset">
-        <div class="feature-icon">🏆</div>
+        <div class="feature-icon"><span class="lm-ico">🏆</span></div>
         <div>
           <h3>Deck List</h3>
           <p>เลือกโหลดเด็คจิต เด็คเหนือ และเด็ควันสิ้นโลกพร้อมเล่น</p>
@@ -267,6 +276,12 @@
   </div>
 
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-  <script src="game.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/holo.js"></script>
+  <script src="vendor/gsap.min.js"></script>
+  <script src="js/lobby-motion.js"></script>
+  <script src="js/ui-motion.js"></script>
+  <script src="js/choice-ui.js"></script>
+  <script src="js/panel-motion.js"></script>
 </body>
 </html>

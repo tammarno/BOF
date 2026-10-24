@@ -1,0 +1,104 @@
+/* ============================================================================
+   CHOICE UI (BOF v0.5) — หน้าต่างเลือกของเกม (#custom-choice-modal)
+   ยืนยัน (ใช้การ์ด / ยอมแพ้ / สกิล) · ชนะ · แพ้   ใช้คู่กับ choice-ui.js
+   ============================================================================ */
+
+/* ---------- โหมดยืนยัน ---------- */
+#custom-choice-modal.um-choice .modal-box { max-width: 560px !important; padding: 26px 26px 22px !important; overflow: visible !important; }
+.um-choice-icon {
+  --ring: 243, 201, 105;
+  width: 84px; height: 84px; margin: -66px auto 10px; border-radius: 50%; position: relative;
+  display: grid; place-items: center; font-size: 42px; line-height: 1;
+  background: radial-gradient(circle at 50% 35%, rgba(var(--ring), .28), rgba(14, 16, 36, .96) 70%);
+  border: 2px solid rgba(var(--ring), .85);
+  box-shadow: 0 0 0 6px rgba(var(--ring), .12), 0 0 34px rgba(var(--ring), .45), 0 10px 24px rgba(0, 0, 0, .5);
+}
+.um-choice-icon .um-ico-glyph { display: inline-block; }
+.um-choice-icon::after { /* วงแสงหายใจ (opacity ล้วน) */
+  content: ""; position: absolute; inset: -10px; border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(var(--ring), .55), 0 0 28px rgba(var(--ring), .5);
+  animation: um-ring 2.4s ease-in-out infinite;
+}
+@keyframes um-ring { 0%, 100% { opacity: .15; } 50% { opacity: .9; } }
+.um-choice.um-tone-danger .um-choice-icon { --ring: 248, 113, 113; }
+.um-choice.um-tone-arcane .um-choice-icon { --ring: 167, 139, 250; }
+
+#custom-choice-modal.um-choice #choice-modal-title {
+  background: linear-gradient(100deg, #fff 20%, #f3c969 60%, #fff 95%);
+  -webkit-background-clip: text; background-clip: text; color: transparent !important; -webkit-text-fill-color: transparent;
+  font-family: var(--font-display); font-size: 24px; line-height: 1.3;
+}
+#custom-choice-modal.um-choice.um-tone-danger #choice-modal-title { background-image: linear-gradient(100deg, #fff 15%, #fca5a5 60%, #fff 95%); }
+#custom-choice-modal.um-choice #choice-modal-desc { color: #c9cde6 !important; font-size: 15px; }
+.um-subtitle { display: block; margin-top: 4px; font: 500 13px var(--font-body); color: #9aa1c6; letter-spacing: .02em; }
+
+/* แถวการ์ด: รูปซ้าย ความสามารถขวา */
+.um-card-row { display: flex; gap: 16px; align-items: stretch; text-align: left; margin: 4px 0 18px; }
+.um-card-row img {
+  width: 116px; aspect-ratio: 750 / 1050; object-fit: cover; border-radius: 10px; flex: none;
+  border: 1px solid rgba(243, 201, 105, .6); box-shadow: 0 10px 24px rgba(0, 0, 0, .55), 0 0 18px rgba(243, 201, 105, .25);
+}
+.um-ability {
+  flex: 1; min-width: 0; padding: 12px 14px; border-radius: 14px; white-space: pre-line; line-height: 1.65; font-size: 14px; color: #e8eaf7;
+  background: rgba(255, 255, 255, .04); border: 1px solid rgba(160, 175, 255, .16);
+}
+.um-ability-label { display: block; margin-bottom: 6px; font: 600 12px var(--font-display); letter-spacing: .08em; color: #f3c969; }
+.um-stat { display: inline-block; margin: 0 0 8px; padding: 3px 10px; border-radius: 999px; font: 600 12px var(--font-display); color: #1a1405; background: linear-gradient(135deg, #f7d77f, #e0a83c); }
+
+/* ปุ่มตามธีม (แปลงจากสีที่ game.js ส่งมา) */
+#choice-modal-buttons .btn { padding: 12px 16px !important; font-size: 15px; letter-spacing: .01em; }
+#choice-modal-buttons .btn.um-btn-primary:not(:disabled) { background: linear-gradient(135deg, #f7d77f, #e0a83c) !important; color: #1a1405 !important; box-shadow: 0 8px 22px rgba(243, 201, 105, .28), inset 0 1px 0 rgba(255, 255, 255, .5) !important; }
+#choice-modal-buttons .btn.um-btn-danger:not(:disabled) { background: linear-gradient(135deg, #b91c1c, #7f1d1d) !important; color: #fff !important; border: 1px solid rgba(248, 113, 113, .8) !important; box-shadow: 0 0 20px rgba(239, 68, 68, .35) !important; }
+#choice-modal-buttons .btn.um-btn-ghost { background: rgba(255, 255, 255, .06) !important; color: #d7dbef !important; border: 1px solid rgba(160, 175, 255, .2) !important; }
+#choice-modal-buttons .btn.um-btn-ice:not(:disabled) { background: rgba(127, 211, 255, .12) !important; color: #dff4ff !important; border: 1px solid rgba(127, 211, 255, .6) !important; }
+#choice-modal-buttons .btn.um-btn-arcane:not(:disabled) { background: linear-gradient(135deg, #7c5cf0, #4c2fb8) !important; color: #fff !important; border: 1px solid rgba(167, 139, 250, .7) !important; }
+#choice-modal-buttons .btn.um-btn-amber:not(:disabled) { background: linear-gradient(135deg, #f59e0b, #b45309) !important; color: #fff !important; }
+
+/* ---------- โหมดชนะ / แพ้ (เต็มจอ) ---------- */
+#custom-choice-modal.um-end { background: radial-gradient(ellipse at 50% 45%, rgba(36, 28, 8, .96), rgba(4, 5, 12, .985) 70%) !important; }
+#custom-choice-modal.um-end.um-defeat { background: radial-gradient(ellipse at 50% 45%, rgba(36, 6, 10, .96), rgba(3, 3, 8, .985) 72%) !important; }
+#custom-choice-modal.um-end .modal-box {
+  background: none !important; border: 0 !important; box-shadow: none !important; max-width: 720px !important; overflow: visible !important; position: relative;
+}
+#custom-choice-modal.um-end .um-choice-icon { width: 110px; height: 110px; margin: 0 auto 6px; font-size: 56px; }
+.um-defeat .um-choice-icon { --ring: 248, 113, 113; }
+.um-end-word { display: block; font: 800 clamp(56px, 10vw, 112px)/1 var(--font-display); letter-spacing: .14em; margin: 4px 0 6px; padding-left: .14em; }
+/* ไล่สีที่ตัวอักษรแต่ละตัว (ถ้าไล่ที่กล่องแม่ Chromium จะไม่วาดตัวลูกที่เป็น inline-block) */
+.um-end-char {
+  background: linear-gradient(180deg, #fff6d8 0%, #f3c969 45%, #b9822d 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+}
+/* เงาเรืองแสงใต้ป้าย: ชั้นแยกที่ไม่ขยับ (ไม่ใช้ filter บนตัวอักษรที่กำลังเคลื่อนไหว) */
+.um-end-glow { position: absolute; left: 50%; width: 70%; height: 90px; margin-left: -35%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(ellipse, rgba(243, 201, 105, .28), rgba(243, 201, 105, 0) 70%); }
+.um-defeat .um-end-glow { background: radial-gradient(ellipse, rgba(239, 68, 68, .26), rgba(239, 68, 68, 0) 70%); }
+.um-defeat .um-end-char { background-image: linear-gradient(180deg, #fecaca 0%, #ef4444 50%, #7f1d1d 100%); }
+.um-end-char { display: inline-block; }
+#custom-choice-modal.um-end #choice-modal-title {
+  color: #fff !important; -webkit-text-fill-color: #fff; background: none; font: 600 22px var(--font-display);
+}
+#custom-choice-modal.um-end #choice-modal-desc { color: #c9cde6 !important; }
+#custom-choice-modal.um-end #choice-modal-buttons { flex-direction: row !important; justify-content: center; gap: 14px !important; margin-top: 8px; }
+#custom-choice-modal.um-end #choice-modal-buttons .btn { min-width: 220px; }
+.um-burst {
+  position: absolute; left: 50%; top: 32%; width: 520px; height: 520px; margin: -260px 0 0 -260px; border-radius: 50%; pointer-events: none; opacity: 0;
+  background: radial-gradient(circle, rgba(255, 240, 200, .75) 0%, rgba(243, 201, 105, .3) 30%, rgba(243, 201, 105, 0) 65%);
+}
+.um-spark {
+  position: absolute; left: 50%; top: 32%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, #fff 0 25%, rgba(255, 214, 120, .9) 45%, rgba(255, 200, 90, 0) 70%);
+}
+.um-vignette {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 45%, rgba(140, 10, 20, .55) 100%);
+}
+
+/* PERF: ประกาย/วงแสงแยกเลเยอร์ ไม่ให้พื้นหลังไล่สีเต็มจอถูกวาดใหม่ทุกเฟรม */
+.um-burst, .um-spark, .um-vignette { will-change: transform, opacity; }
+
+@media (max-width: 640px) {
+  .um-card-row { flex-direction: column; align-items: center; }
+  #custom-choice-modal.um-end #choice-modal-buttons { flex-direction: column !important; }
+  #custom-choice-modal.um-end #choice-modal-buttons .btn { min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .um-choice-icon::after { animation: none; } }
