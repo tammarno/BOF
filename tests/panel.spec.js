@@ -64,9 +64,9 @@ test('B5 idle loops resume after close', async b => {
   const p = await openPage(b, { wait: 2600 });
   await p.click('#btn-lobby-pvp'); await p.waitForTimeout(500);
   await p.click('#btn-close-pvp-modal'); await p.waitForTimeout(500);
-  const r1 = await p.evaluate(() => gsap.getProperty('.fan-1', 'y')); await p.waitForTimeout(600);
-  const r2 = await p.evaluate(() => gsap.getProperty('.fan-1', 'y'));
-  assert(r1 !== r2, 'fan cards stopped breathing after close');
+  const r1 = await p.evaluate(() => LobbyMotion._particlePos().y); await p.waitForTimeout(600);
+  const r2 = await p.evaluate(() => LobbyMotion._particlePos().y);
+  assert(r1 !== r2 && await p.evaluate(() => LobbyMotion._particlesActive()), 'hero stars stopped after close');
 });
 
 // ---------- หน้าต่าง ----------
