@@ -55,118 +55,120 @@
 
   window.LobbyData = { DECKS, rarityCounts, deckInfo, galleryCards, normalizeRoomCode, thumbOf, cardsOfDeck, legendCount };
 
-  /* ---------------- การแสดงผล ---------------- */
-  const DECK_COLOURS = {
-    L01: ['#0f4d3c', '#3ee08f'],
-    L02: ['#6b2430', '#f0a347'],
-    L03: ['#142a52', '#5fd0ff'],
-  };
+  /* ---------------- การแสดงผล (ล็อบบี้เกมหน้าจอเดียว v0.8) ---------------- */
   const $ = s => document.querySelector(s);
-  const deckKeyOfImage = src => (src.includes('เด็คเหนือ') ? 'nuea' : src.includes('วันสิ้นโลก') ? 'doom' : 'jit');
+  const $$ = s => [...document.querySelectorAll(s)];
+  const DECK_COLOURS = { L01: '#3ee08f', L02: '#f0a347', L03: '#5fd0ff' };
+  const STANDARD = ['L01', 'L02', 'L03'];
+  const small = () => matchMedia('(max-width: 767px)').matches;
+  const wallSize = () => (small() ? { cols: 6, rows: 6 } : { cols: 12, rows: 5 });
 
-  function cardFigure(card, { lazy = true } = {}) {
-    const fig = document.createElement('figure');
-    fig.className = 'lb-card';
-    fig.dataset.rarity = card.rarity || 'N';
-    fig.dataset.cardId = card.id;
-    const img = document.createElement('img');
-    img.src = card.image; img.alt = card.name; img.width = 750; img.height = 1050; img.decoding = 'async';
-    if (lazy) img.loading = 'lazy';
-    fig.appendChild(img);
-    return fig;
+  const hasSavedDeck = () => {
+    try {
+      const d = JSON.parse(localStorage.getItem('my_card_game_deck'));
+      return !!(d && d.leaderId && Array.isArray(d.mainDeck) && d.mainDeck.length === 20);
+    } catch (e) { return false; }
+  };
+  const leaderIdOf = key => (key === 'mine' ? loadSavedDeck().leaderId : key);
+  const randomOf = list => list[Math.floor(Math.random() * list.length)];
+
+  // ภาพย่อ: ถ้าโหลดไม่ได้ สลับไปใช้ภาพเต็มครั้งเดียว
+  function setThumb(img, card) {
+    img.onerror = () => { img.onerror = null; img.src = card.image; };
+    img.src = thumbOf(card);
+  }
+  function thumbImg(card, cls) {
+    const img = new Image();
+    img.alt = ''; img.decoding = 'async';
+    if (cls) img.className = cls;
+    setThumb(img, card);
+    return img;
   }
 
-  function renderStats() {
-    const c = rarityCounts();
-    document.querySelectorAll('[data-stat="total"]').forEach(el => { el.textContent = c.total; });
-    document.querySelectorAll('.lb-receipt tbody tr[data-rar]').forEach(tr => { tr.querySelector('td.num').textContent = c[tr.dataset.rar]; });
-    const all = $('#lb-gallery-all'); if (all) all.textContent = `ดูการ์ดทั้งหมด ${c.total} ใบ`;
-  }
-
-  function renderLeaders() {
-    const box = $('.lb-leaders'); if (!box) return;
-    box.replaceChildren(...DECKS.map(d => cardFigure(byId(d.leaderId), { lazy: false })));
-  }
-
-  // เติมเวทีของเด็ค (ใช้ทั้งตอนโหลดและตอนสลับเด็ค)
-  function renderStage(leaderId) {
-    const deck = DECKS.find(d => d.leaderId === leaderId) || DECKS[0];
-    const info = deckInfo(deck.leaderId);
-    const stage = $('.lb-stage'); if (!stage) return;
-    const [bg, hi] = DECK_COLOURS[deck.leaderId];
-    stage.style.setProperty('--stage', bg);
-    stage.style.setProperty('--stage-hi', hi);
-    stage.querySelector('.lb-stage-leader strong').textContent = info.leader.name;
-    stage.querySelector('.lb-stage-facts').textContent = `HP ${info.hp} · ${info.total} ใบ`;
-    stage.querySelector('.lb-stage-style').textContent = deck.style;
-    $('#lb-deck-all').textContent = `ดูทั้ง ${info.cards.length + 1} ใบในเด็ค`;
-    stage.querySelector('.lb-stage-cards').replaceChildren(cardFigure(info.leader), ...info.cards.map(c => cardFigure(c)));
-  }
-
-  function renderGallery() {
-    const grid = $('.lb-grid'); if (!grid) return;
-    const cards = galleryCards();
-    const words = ['LEGEND', 'SR', 'R', 'N'];
-    const rarOf = { LEGEND: 'Legend', SR: 'SR', R: 'R', N: 'N' };
+  function renderWall(key) {
+    const inner = $('#lb-wall .lb-wall-inner'); if (!inner) return;
+    const { cols, rows } = wallSize();
+    const cards = cardsOfDeck(key);
+    inner.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     const tiles = [];
-    cards.forEach((card, i) => {
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const card = randomOf(cards);
+      const tile = document.createElement('div');
+      tile.className = 'lb-tile'; tile.dataset.r = r; tile.dataset.c = c; tile.dataset.cardId = card.id;
+      const flip = document.createElement('div'); flip.className = 'lb-tile-in';
+      flip.append(thumbImg(card, 'front'), thumbImg(card, 'back'));
+      tile.appendChild(flip); tiles.push(tile);
+    }
+    inner.replaceChildren(...tiles);
+  }
+
+  function renderInfo(key) {
+    const leaderId = leaderIdOf(key);
+    const info = deckInfo(leaderId);
+    const deck = DECKS.find(d => d.leaderId === leaderId);
+    $('#lobby-screen').style.setProperty('--deck', DECK_COLOURS[leaderId]);
+    $('.lb-deck-name').textContent = key === 'mine' ? 'เด็คของฉัน' : deck.name;
+    $('.lb-leader-name').textContent = info.leader.name;
+    $('.lb-deck-style').textContent = key === 'mine' ? `จัดเองจาก${deck.name}` : deck.style;
+    $('.lb-chips').replaceChildren(...[`HP ${info.hp}`, `${info.total} ใบ`, `Legend ${legendCount(key)}`].map(t => {
+      const s = document.createElement('span'); s.textContent = t; return s;
+    }));
+  }
+
+  function renderLeader(key) {
+    const box = $('#lb-leader'); if (!box) return;
+    const leader = byId(leaderIdOf(key));
+    const img = new Image(); img.src = leader.image; img.alt = leader.name; img.decoding = 'async';
+    box.replaceChildren(img);
+  }
+
+  // ข้อมูล ลีดเดอร์ และกำแพงของเด็ค แบบทันที (lobby-motion.js ใส่ท่าทางให้เอง)
+  function renderDeck(key) {
+    renderInfo(key);
+    renderLeader(key);
+    renderWall(key);
+  }
+
+  function renderDeckButtons() {
+    const box = $('#lb-decks'); if (!box) return;
+    const keys = [...STANDARD, ...(hasSavedDeck() ? ['mine'] : [])];
+    box.replaceChildren(...keys.map(key => {
       const btn = document.createElement('button');
-      btn.type = 'button'; btn.className = 'lb-tile lb-tile-card';
-      btn.dataset.cardId = card.id; btn.dataset.deck = deckKeyOfImage(card.image);
-      const cap = document.createElement('span'); cap.className = 'lb-tile-cap'; cap.textContent = card.name;
-      btn.append(cardFigure(card), cap);
-      tiles.push(btn);
-      if ((i % 2 === 1 || i === cards.length - 1) && words.length) {
-        const w = words.shift();
-        const tile = document.createElement('div');
-        tile.className = 'lb-tile lb-tile-word'; tile.dataset.rar = rarOf[w];
-        const word = document.createElement('span'); word.textContent = w; tile.appendChild(word);
-        tiles.push(tile);
+      btn.type = 'button'; btn.className = 'lb-deck'; btn.dataset.deck = key;
+      btn.setAttribute('aria-pressed', 'false');
+      btn.setAttribute('aria-label', key === 'mine' ? 'เด็คของฉัน' : DECKS.find(d => d.leaderId === key).name);
+      btn.appendChild(thumbImg(byId(leaderIdOf(key))));
+      if (key === 'mine') {
+        const tag = document.createElement('span'); tag.className = 'lb-deck-mine-tag'; tag.textContent = 'ของฉัน';
+        btn.appendChild(tag);
       }
+      return btn;
+    }));
+  }
+
+  function renderCounts() {
+    const c = rarityCounts();
+    const el = $('[data-counts]');
+    if (el) el.textContent = `การ์ดทั้งหมด ${c.total} ใบ · Legend ${c.Legend} · SR ${c.SR} · R ${c.R} · N ${c.N} · เด็คละ 21 ใบ`;
+  }
+
+  /* ---------------- หน้าต่าง ---------------- */
+  function bindDialogs() {
+    const open = id => () => $(id)?.showModal();
+    $('#lb-play')?.addEventListener('click', open('#lb-mode-dialog'));
+    $('#nav-howto')?.addEventListener('click', open('#lb-howto-dialog'));
+    $('#lb-mode-close')?.addEventListener('click', () => $('#lb-mode-dialog').close());
+    $$('#lobby-screen dialog [data-close]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
+    // มือถือ: ฟอร์มเข้าห้องย้ายเข้า dialog ตอนเปิด แล้วย้ายกลับตอนปิด
+    const joinDialog = $('#lb-join-dialog'); if (!joinDialog) return;
+    $('#nav-join')?.addEventListener('click', () => {
+      joinDialog.querySelector('.lb-join-dialog-slot').appendChild($('#lb-join'));
+      joinDialog.showModal(); $('#lb-join-code').focus();
     });
-    grid.querySelectorAll('.lb-tile-card, .lb-tile-word').forEach(el => el.remove());
-    $('#lb-gallery-all').before(...tiles);
+    joinDialog.addEventListener('close', () => $('.lb-join-slot').appendChild($('#lb-join')));
   }
 
-  /* ---------------- เลือกเด็ค (live thing) ---------------- */
-  let selected = 'L01';
-
-  function selectDeck(leaderId) {
-    if (!DECKS.some(d => d.leaderId === leaderId)) return;
-    selected = leaderId;
-    document.querySelectorAll('.lb-deck-btn').forEach(btn => btn.setAttribute('aria-pressed', String(btn.dataset.leader === leaderId)));
-    renderStage(leaderId);
-    $('#lb-decks')?.dispatchEvent(new CustomEvent('lobby:deck', { detail: { leaderId } }));
-  }
-
-  // เด็คมาตรฐานถูกตั้งตอนเลือกโหมดเท่านั้น (ในหน่วยความจำ ไม่เขียน localStorage)
-  // ถ้ากดยกเลิก/Esc เด็คเดิมของผู้เล่นต้องอยู่ครบ
-  function playSelectedDeck() {
-    $('#lb-mode-dialog')?.showModal();
-  }
-  function useSelectedDeck() {
-    currentDeckConfig = { leaderId: selected, mainDeck: [...getDefaultDeckForLeader(selected)] };
-  }
-
-  function bindDeckPicker() {
-    document.querySelectorAll('.lb-deck-btn').forEach(btn => btn.addEventListener('click', () => selectDeck(btn.dataset.leader)));
-    $('#lb-play-deck')?.addEventListener('click', playSelectedDeck);
-    $('#lb-deck-all')?.addEventListener('click', e => {
-      e.preventDefault();
-      const info = deckInfo(selected);
-      const deck = DECKS.find(d => d.leaderId === selected);
-      openZoneViewerModal(`การ์ดใน${deck.name}`, [info.leader, ...info.cards], null);
-    });
-    const dialog = $('#lb-mode-dialog');
-    if (!dialog) return;
-    const route = id => () => { useSelectedDeck(); dialog.close(); $(id)?.click(); };
-    // (ปุ่มใน dialog เรียกปุ่มเดิมของ Hero เพื่อใช้ flow เดียวกันทุกอย่าง)
-    $('#lb-mode-pvp')?.addEventListener('click', route('#btn-lobby-pvp'));
-    $('#lb-mode-bot')?.addEventListener('click', route('#btn-lobby-bot'));
-    $('#lb-mode-close')?.addEventListener('click', () => dialog.close());
-  }
-
-  /* ---------------- เข้าห้องจาก Hero ---------------- */
+  /* ---------------- เข้าห้องด้วยรหัส ---------------- */
   function bindJoinForm() {
     const form = $('#lb-join'); if (!form) return;
     const input = $('#lb-join-code');
@@ -187,28 +189,17 @@
     input.addEventListener('input', () => { if (error.textContent) { error.textContent = ''; input.removeAttribute('aria-invalid'); } });
   }
 
+  let selected = 'L01';
   function render() {
-    renderStats();
-    renderLeaders();
-    renderStage(selected);
-    renderGallery();
+    renderDeckButtons();
+    renderCounts();
+    renderDeck(selected);
+    $$('.lb-deck').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.deck === selected)));
   }
 
-  window.LobbyView = { render, renderStage, cardFigure, selectDeck, selectedDeck: () => selected };
-  // การ์ดในแกลเลอรีเปิดหน้า Inspect เดิมของ holo.js · การ์ดลีดเดอร์และแกลเลอรีเอียงตามเมาส์
-  function bindCards() {
-    $('.lb-grid')?.addEventListener('click', e => {
-      const tile = e.target.closest('.lb-tile-card'); if (!tile) return;
-      window.openCardDetailModal(byId(tile.dataset.cardId), null, tile.querySelector('.lb-card'));
-    });
-    if (window.HoloTilt) {
-      HoloTilt.bind($('.lb-leaders'), 10, '.lb-card');
-      HoloTilt.bind($('.lb-grid'), 10, '.lb-card');
-    }
-  }
-
+  window.LobbyView = { render, renderDeck, wallSize, selectedDeck: () => selected };
   render();
-  bindDeckPicker();
+  bindDialogs();
   bindJoinForm();
-  bindCards();
 })();
+
