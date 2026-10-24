@@ -34,11 +34,8 @@
 /* ---------- กำแพงการ์ด ---------- */
 #lb-wall { position: absolute; left: 50%; top: 50%; width: 170vw; transform: translate(-50%, -50%) rotate(-12deg); opacity: .34; pointer-events: none; }
 .lb-wall-inner { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1.1vw; }
-.lb-tile { aspect-ratio: 750 / 1050; perspective: 800px; }
-.lb-tile-in { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.3, .7, .2, 1); }
-.lb-tile.flip .lb-tile-in { transform: rotateY(180deg); }
-.lb-tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 6px; backface-visibility: hidden; }
-.lb-tile img.back { transform: rotateY(180deg); }
+.lb-tile { aspect-ratio: 750 / 1050; }
+.lb-tile img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
 .lb-tint { position: absolute; inset: 0; pointer-events: none; background: var(--deck); opacity: .12; transition: background-color .6s; }
 .lb-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(48% 58% at 50% 46%, rgba(11, 13, 26, .35) 0%, rgba(11, 13, 26, .9) 100%); }
 

@@ -95,9 +95,7 @@
       const card = randomOf(cards);
       const tile = document.createElement('div');
       tile.className = 'lb-tile'; tile.dataset.r = r; tile.dataset.c = c; tile.dataset.cardId = card.id;
-      const flip = document.createElement('div'); flip.className = 'lb-tile-in';
-      flip.append(thumbImg(card, 'front'), thumbImg(card, 'back'));
-      tile.appendChild(flip); tiles.push(tile);
+      tile.appendChild(thumbImg(card, 'front')); tiles.push(tile);
     }
     inner.replaceChildren(...tiles);
   }
@@ -115,11 +113,16 @@
     }));
   }
 
-  function renderLeader(key) {
+  // keepOld: เก็บใบเดิมไว้ให้ lobby-motion.js หมุนออก แล้วลบทิ้งหลัง 0.45 วิ (ใบล่าสุดอยู่ท้ายเสมอ)
+  function renderLeader(key, keepOld = false) {
     const box = $('#lb-leader'); if (!box) return;
     const leader = byId(leaderIdOf(key));
     const img = new Image(); img.src = leader.image; img.alt = leader.name; img.decoding = 'async';
-    box.replaceChildren(img);
+    if (!keepOld) { box.replaceChildren(img); return; }
+    const old = [...box.querySelectorAll('img')];
+    old.forEach(o => o.setAttribute('aria-hidden', 'true'));
+    box.appendChild(img);
+    setTimeout(() => old.forEach(o => o.remove()), 450);
   }
 
   // ข้อมูล ลีดเดอร์ และกำแพงของเด็ค แบบทันที (lobby-motion.js ใส่ท่าทางให้เอง)
@@ -211,7 +214,9 @@
     selected = key;
     try { localStorage.setItem(STORE, key); } catch (e) {}
     markPressed();
-    renderDeck(key);
+    // ขณะ motion ทำงาน: lobby-motion.js พลิกกำแพงและหมุนลีดเดอร์เอง (ฟัง lobby:deck)
+    if (window.LobbyMotion && LobbyMotion.isRunning()) { renderInfo(key); renderLeader(key, true); }
+    else renderDeck(key);
     $('#lb-decks')?.dispatchEvent(new CustomEvent('lobby:deck', { detail: { key, prev } }));
   }
 
@@ -254,5 +259,7 @@
   bindDialogs();
   bindJoinForm();
   bindDeckSelection();
+  // ลีดเดอร์เอียงตามเมาส์ (holo.js ใส่ --rx/--ry ให้ #lb-leader · มือถือไม่เอียง)
+  if (window.HoloTilt) HoloTilt.bind($('.lb-leader-wrap'), 8, '.lb-leader');
 })();
 
