@@ -241,6 +241,23 @@ test('F4 particles keep position across modal', async b => {
   assert(Math.abs(a.x - c.x) < 40, `particle jumped ${a.x.toFixed(0)} -> ${c.x.toFixed(0)}`);
 });
 
+// ---------------- Lobby redesign: data ----------------
+test('D1 rarity counts match database', async b => {
+  const p = await openPage(b, { seen: true });
+  const c = await p.evaluate(() => LobbyData.rarityCounts());
+  assert(c.Legend === 5 && c.SR === 12 && c.R === 17 && c.N === 5 && c.total === 39, JSON.stringify(c));
+});
+test('D2 deck info per leader', async b => {
+  const p = await openPage(b, { seen: true });
+  const d = await p.evaluate(() => ['L01', 'L02', 'L03'].map(id => { const i = LobbyData.deckInfo(id); return [i.leader.id, i.cards.length, i.total, i.hp]; }));
+  assert(JSON.stringify(d) === JSON.stringify([['L01', 10, 21, 6], ['L02', 10, 21, 6], ['L03', 16, 21, 6]]), JSON.stringify(d));
+});
+test('D3 room code normalize', async b => {
+  const p = await openPage(b, { seen: true });
+  const r = await p.evaluate(() => [' 4829 ', '๔๘๒๙', '48a9', '', '12345'].map(LobbyData.normalizeRoomCode));
+  assert(JSON.stringify(r) === JSON.stringify(['4829', '4829', null, null, null]), JSON.stringify(r));
+});
+
 (async () => {
   const filter = process.argv[2] || '';
   const browser = await chromium.launch({ args: ['--disable-dev-shm-usage'] });
