@@ -213,6 +213,11 @@ function validateCards(db = CARD_DATABASE, decks = DECK_LISTS) {
       add(null, 'DECK_LISTS', 'DECK_LISTS ต้องเป็นอ็อบเจ็กต์');
       return issues;
     }
+    for (const lid of Object.keys(byId)) {
+      if (byId[lid].type === 'Leader' && !Object.prototype.hasOwnProperty.call(decks, lid)) {
+        add(lid, `DECK_LISTS.${lid}`, `ลีดเดอร์ ${lid} ไม่มีเด็คใน DECK_LISTS (ไฟล์เด็คอาจมีข้อผิดพลาด เช่น ลืมจุลภาค)`);
+      }
+    }
     for (const [key, list] of Object.entries(decks)) {
       const dp = `DECK_LISTS.${key}`;
       const leader = byId[key];
