@@ -235,3 +235,44 @@ function validateCards(db = CARD_DATABASE, decks = DECK_LISTS) {
     return [{ cardId: null, path: 'validateCards', message: 'ตัวตรวจการ์ดทำงานผิดพลาด: ' + (e && e.message ? e.message : String(e)) }];
   }
 }
+
+
+// แถบเตือนบนหน้าจอ: แสดงปัญหาข้อมูลการ์ด (ไม่มีปัญหา = ไม่แสดงอะไร) ใช้ DOM API ล้วน
+function showCardWarnings(issues) {
+  const old = document.getElementById('card-warning');
+  if (old) old.remove();
+  if (!Array.isArray(issues) || issues.length === 0) return;
+
+  const el = (tag, props) => Object.assign(document.createElement(tag), props || {});
+  const bar = el('div', { id: 'card-warning' });
+  bar.setAttribute('role', 'alert');
+  const head = el('div', { className: 'card-warning-head' });
+  head.appendChild(el('strong', { textContent: 'พบปัญหาข้อมูลการ์ด ' + issues.length + ' ข้อ' }));
+  const toggle = el('button', { id: 'card-warning-toggle', type: 'button', textContent: 'ขยาย' });
+  toggle.setAttribute('aria-expanded', 'false');
+  const close = el('button', { id: 'card-warning-close', type: 'button', textContent: 'ปิด' });
+  head.appendChild(toggle); head.appendChild(close);
+
+  const list = el('ul');
+  list.hidden = true;
+  issues.forEach(i => {
+    const text = '[' + (i.cardId === null || i.cardId === undefined ? '-' : i.cardId) + '] ' + i.path + ': ' + i.message;
+    list.appendChild(el('li', { textContent: text }));
+    console.warn(text);
+  });
+
+  toggle.addEventListener('click', () => {
+    list.hidden = !list.hidden;
+    toggle.textContent = list.hidden ? 'ขยาย' : 'พับ';
+    toggle.setAttribute('aria-expanded', String(!list.hidden));
+  });
+  close.addEventListener('click', () => bar.remove());
+  bar.appendChild(head); bar.appendChild(list);
+  document.body.insertBefore(bar, document.body.firstChild);
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', () => {
+    try { showCardWarnings(validateCards()); } catch (e) { console.error('card warning banner failed', e); }
+  });
+}
