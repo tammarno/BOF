@@ -1,0 +1,52 @@
+CARD_DATABASE.push(
+  // ==================== LEADER (ทั้ง 3 เด็ค) ====================
+  {
+    id: 'L01',
+    name: 'มายฮีโร่ เดจิต',
+    type: 'Leader',
+    rarity: 'Legend', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    maxHp: 6,
+    image: 'images/เด็คจิต/1.png',
+    ability: 'LEADER_DEJIT_BUFF',
+    desc: 'สั่งใช้งาน/1 เทิร์น: เลือกยูนิทฝั่งเรา 1 ตัว เพิ่มพลังโจมตี +1 จนจบเทิร์น',
+    effects: [
+      {
+        id: 'leader_l01_buff',
+        trigger: 'ACTIVATE_LEADER',
+        oncePerTurn: true,
+        steps: [
+          { block: 'ADD_POWER', target: 'ALLY', count: 1, amount: 1, duration: 'TURN' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'L02',
+    name: 'ขุนเหนือ',
+    type: 'Leader',
+    rarity: 'Legend', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    maxHp: 6,
+    image: 'images/เด็คเหนือ/1.png',
+    ability: 'LEADER_KHUN_NUEA',
+    desc: 'ออโต้: เมื่อเข้าเทิร์น นำ "ไพร่ชาวนาเหนือ" จากกองหรือนรกไม่เกิน 1 ใบขึ้นมือ\nต่อเนื่อง: ถ้ามี "เหนือ" 3 ใบบนสนาม "เหนือ" ทุกใบบนสนามเราพลังโจมตี +1',
+    effects: [
+      {
+        id: 'leader_l02_aura',
+        trigger: 'CONTINUOUS_BOARD_AURA',
+        condition: { type: 'MIN_TRIBE_COUNT', tribe: 'เหนือ', count: 3 },
+        targetTribe: 'เหนือ',
+        amount: 1
+      }
+    ]
+  },
+  {
+    id: 'L03',
+    name: 'วันสิ้นโลก',
+    type: 'Leader',
+    rarity: 'Legend', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    maxHp: 6,
+    image: 'images/วันสิ้นโลก/1.png',
+    ability: 'LEADER_DOOMSDAY',
+    desc: 'ออโต้: เมื่อเข้าเทิร์น คอลการ์ดยูนิตจากนรก 1 ใบลงสนาม โดยที่พลังโจมตีพื้นฐานต้องไม่เกิน 2'
+  }
+);
