@@ -50,7 +50,7 @@ const CARD_SCHEMA = {
     REDUCE_POWER: {
       required: [], optional: ['target', 'count', 'amount', 'duration'],
       enums: { target: ['OPPONENT', 'ALL_ENEMIES'], duration: ['TURN', 'PERM'] },
-      desc: 'ลดพลังโจมตียูนิตฝ่ายตรงข้าม -amount (เลือก count ใบ หรือทุกใบเมื่อ ALL_ENEMIES)',
+      desc: 'ลดพลังโจมตียูนิตฝ่ายตรงข้าม -amount (เลือก count ใบ หรือทุกใบเมื่อ ALL_ENEMIES) — ไม่ใส่ target หรือใช้ OPPONENT = เลือกศัตรู 1 ใบ; ALL_ENEMIES = ทุกใบ',
     },
     FLEX_POWER: {
       required: [], optional: ['plusAmount', 'minusAmount', 'duration'],
@@ -132,6 +132,7 @@ function validateCards(db = CARD_DATABASE, decks = DECK_LISTS) {
     const issues = [];
     const add = (cardId, path, message) => issues.push({ cardId: cardId === undefined ? null : cardId, path, message });
     const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+    const own = (map, key) => (typeof key === 'string' && Object.prototype.hasOwnProperty.call(map, key)) ? map[key] : undefined;
     const missing = v => v === undefined || v === null || v === '';
     const unknown = (label, value, list) => {
       const s = suggestName(String(value), list);
@@ -176,7 +177,7 @@ function validateCards(db = CARD_DATABASE, decks = DECK_LISTS) {
           const cp = `${ep}.condition`;
           if (!isObj(eff.condition)) add(cid, cp, 'condition ต้องเป็นอ็อบเจ็กต์');
           else {
-            const spec = CARD_SCHEMA.conditions[eff.condition.type];
+            const spec = own(CARD_SCHEMA.conditions, eff.condition.type);
             if (!spec) add(cid, cp, unknown('condition', eff.condition.type, Object.keys(CARD_SCHEMA.conditions)));
             else checkParams(cid, cp, eff.condition, spec);
           }
@@ -187,7 +188,7 @@ function validateCards(db = CARD_DATABASE, decks = DECK_LISTS) {
           else eff.costs.forEach((cost, ki) => {
             const kp = `${ep}.costs[${ki}]`;
             if (!isObj(cost)) { add(cid, kp, 'cost ต้องเป็นอ็อบเจ็กต์'); return; }
-            const spec = CARD_SCHEMA.costs[cost.type];
+            const spec = own(CARD_SCHEMA.costs, cost.type);
             if (!spec) add(cid, kp, unknown('cost', cost.type, Object.keys(CARD_SCHEMA.costs)));
             else checkParams(cid, kp, cost, spec);
           });
@@ -199,7 +200,7 @@ function validateCards(db = CARD_DATABASE, decks = DECK_LISTS) {
             const sp = `${ep}.steps[${si}]`;
             if (!isObj(step)) { add(cid, sp, 'step ต้องเป็นอ็อบเจ็กต์'); return; }
             if (missing(step.block)) { add(cid, sp, 'ขาด block'); return; }
-            const spec = CARD_SCHEMA.blocks[step.block];
+            const spec = own(CARD_SCHEMA.blocks, step.block);
             if (!spec) add(cid, sp, unknown('บล็อก', step.block, Object.keys(CARD_SCHEMA.blocks)));
             else checkParams(cid, sp, step, spec);
           });
