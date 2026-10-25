@@ -507,6 +507,59 @@ test('X9 keyboard focus on an unselected deck is fully visible', async b => {
   assert(v.o > .99 && v.ring === 'solid', JSON.stringify(v));
 });
 
+// ---------------- Mode dialog v0.8.1: การ์ดโหมด ----------------
+const openMode = async p => { await p.click('#lb-play'); await p.waitForTimeout(900); };
+test('N1 mode dialog shows the selected deck', async b => {
+  const p = await openPage(b, { seen: true, savedDeck: { leaderId: 'L02', mainDeck: Array(20).fill('NM01') } }); await p.waitForTimeout(800);
+  const chip = () => p.evaluate(() => { const c = document.querySelector('#lb-mode-dialog .lb-mode-deck'); return { text: c.textContent, img: decodeURI(c.querySelector('img').src) }; });
+  await p.click('.lb-deck[data-deck="L03"]'); await openMode(p); const a = await chip(); await p.click('#lb-mode-close');
+  await p.click('.lb-deck[data-deck="mine"]'); await openMode(p); const c = await chip();
+  assert(/เด็ควันสิ้นโลก/.test(a.text) && /วันสิ้นโลก\/1\.webp$/.test(a.img) && /เด็คของฉัน/.test(c.text) && /เด็คเหนือ\/1\.webp$/.test(c.img), JSON.stringify({ a, c }));
+});
+test('N2 two mode cards with title, description and icon', async b => {
+  const p = await openPage(b, { seen: true }); await openMode(p);
+  const v = await p.evaluate(() => ['#btn-lobby-bot', '#btn-lobby-pvp'].map(id => { const e = document.querySelector(id), r = e.getBoundingClientRect();
+    return { cls: e.classList.contains('lb-mode'), title: e.querySelector('.lb-mode-title')?.textContent, desc: !!e.querySelector('.lb-mode-desc')?.textContent, icon: !!e.querySelector('svg'), w: r.width, h: r.height }; }));
+  assert(v.every(x => x.cls && x.desc && x.icon && x.w >= 120 && x.h >= 88) && v[0].title === 'เล่นกับบอท' && v[1].title === 'ดวลกับเพื่อน', JSON.stringify(v));
+});
+test('N3 mode dialog opens with motion; cards end fully visible', async b => {
+  const p = await openPage(b, { seen: true }); await p.waitForTimeout(900);
+  await p.click('#lb-play'); await p.waitForTimeout(60);
+  const early = await opacityAll(p, '#lb-mode-dialog .lb-mode');
+  await p.waitForTimeout(900); const late = await opacityAll(p, '#lb-mode-dialog .lb-mode');
+  assert(early.some(x => x < .9) && late.every(x => x > .99), JSON.stringify({ early, late }));
+});
+test('N4 reduced motion opens the mode dialog instantly', async b => {
+  const p = await openPage(b, { seen: true, reduced: true });
+  await p.click('#lb-play'); await p.waitForTimeout(30);
+  const o = await opacityAll(p, '#lb-mode-dialog .lb-mode, #lb-mode-dialog .lb-mode-deck');
+  assert(o.every(x => x > .99), JSON.stringify(o));
+});
+test('N5 mode dialog fits a phone with cards stacked', async b => {
+  for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
+    const p = await openPage(b, { seen: true, viewport }); await openMode(p);
+    const v = await p.evaluate(() => { const d = document.getElementById('lb-mode-dialog').getBoundingClientRect();
+      const [a, c] = ['#btn-lobby-bot', '#btn-lobby-pvp'].map(s => document.querySelector(s).getBoundingClientRect());
+      return { inside: d.left >= 0 && d.right <= innerWidth && d.top >= 0 && d.bottom <= innerHeight, stacked: c.top >= a.bottom - 1 }; });
+    assert(v.inside && v.stacked, viewport.width + ' ' + JSON.stringify(v));
+  }
+});
+test('N6 mode card press and burst use transform/opacity only', async b => {
+  const p = await openPage(b, { seen: true }); await openMode(p);
+  const bb = await p.locator('#btn-lobby-pvp').boundingBox();
+  await p.evaluate(() => { document.getElementById('btn-lobby-pvp').addEventListener('click', e => e.stopImmediatePropagation(), true); });
+  await p.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await p.mouse.down(); await p.waitForTimeout(40); await p.mouse.up(); await p.waitForTimeout(60);
+  const keys = await p.evaluate(() => { const s = new Set(); gsap.globalTimeline.getChildren(true, true, false).forEach(t => Object.keys(t.vars).forEach(k => s.add(k))); return [...s]; });
+  const bad = keys.filter(k => /shadow|color|width|height|top|left|background|filter/i.test(k));
+  assert(bad.length === 0, 'non-compositor props: ' + bad);
+});
+test('N7 keyboard focus on a mode card shows a gold ring', async b => {
+  const p = await openPage(b, { seen: true }); await p.waitForTimeout(900);
+  await p.focus('#lb-play'); await p.keyboard.press('Enter'); await p.waitForTimeout(900);
+  const v = await p.evaluate(() => { const s = getComputedStyle(document.activeElement); return { id: document.activeElement.id, style: s.outlineStyle, color: s.outlineColor }; });
+  assert(v.id === 'btn-lobby-bot' && v.style === 'solid' && v.color === 'rgb(243, 201, 105)', JSON.stringify(v));
+});
+
 (async () => {
   const filter = process.argv[2] || '';
   const browser = await chromium.launch({ args: ['--disable-dev-shm-usage'] });

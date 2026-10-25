@@ -76,13 +76,26 @@
     <a class="lb-github" href="https://github.com/tammarno/BOF">GitHub</a>
 
     <!-- หน้าต่าง: เลือกโหมดหลังกดเริ่มดวล -->
-    <dialog id="lb-mode-dialog" class="lb-dialog" aria-labelledby="lb-mode-title">
-      <h2 id="lb-mode-title">เล่นเด็คนี้แบบไหน?</h2>
-      <div class="lb-dialog-actions">
-        <button type="button" class="lb-btn lb-btn-primary" id="btn-lobby-bot">เล่นกับบอท</button>
-        <button type="button" class="lb-btn lb-btn-secondary" id="btn-lobby-pvp">ดวลกับเพื่อน (สร้างห้อง)</button>
+    <dialog id="lb-mode-dialog" class="lb-dialog lb-dialog-dark" aria-labelledby="lb-mode-title">
+      <div class="lb-dialog-panel">
+      <p class="lb-mode-deck"><img src="" alt=""><span>เด็คที่เลือก <b>เด็คจิต</b></span></p>
+      <h2 id="lb-mode-title">เลือกโหมดการเล่น</h2>
+      <div class="lb-modes">
+        <button type="button" class="lb-mode lb-mode-bot" id="btn-lobby-bot">
+          <svg class="lb-mode-icon" viewBox="0 0 48 48" aria-hidden="true"><rect x="10" y="16" width="28" height="22" rx="6"/><circle cx="19" cy="27" r="3"/><circle cx="29" cy="27" r="3"/><path d="M24 16V9M20 9h8M6 25v6M42 25v6M19 34h10"/></svg>
+          <span class="lb-mode-title">เล่นกับบอท</span>
+          <span class="lb-mode-desc">ฝึกฝีมือ · เลือกความยากได้</span>
+          <i class="lb-mode-shine" aria-hidden="true"></i><i class="lb-mode-ring" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="lb-mode lb-mode-pvp" id="btn-lobby-pvp">
+          <svg class="lb-mode-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M8 8l18 18M26 26l-4 4M22 30l-6 6M12 32l4 4M40 8L22 26M22 26l4 4M26 30l6 6M36 32l-4 4M8 8h6v6M40 8h-6v6"/></svg>
+          <span class="lb-mode-title">ดวลกับเพื่อน</span>
+          <span class="lb-mode-desc">สร้างห้อง แล้วส่งรหัสให้เพื่อน</span>
+          <i class="lb-mode-shine" aria-hidden="true"></i><i class="lb-mode-ring" aria-hidden="true"></i>
+        </button>
       </div>
       <button type="button" class="lb-dialog-close" id="lb-mode-close">ยกเลิก</button>
+      </div>
     </dialog>
 
     <!-- หน้าต่าง: วิธีเล่น -->

@@ -104,10 +104,40 @@
 }
 .lb-dialog::backdrop { background: rgba(7, 8, 15, .78); }
 .lb-dialog h2 { font: 700 28px/1.2 var(--font-display); }
-.lb-dialog-actions { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
 .lb-btn { min-height: 56px; padding: 0 20px; border: 0; border-radius: 12px; cursor: pointer; font: 700 18px var(--font-display); }
 .lb-btn-primary { color: #1a1405; background: linear-gradient(135deg, var(--lb-gold-hi), var(--lb-gold-lo)); }
-.lb-btn-secondary { color: var(--lb-ink); background: var(--lb-ink-dark); }
+
+/* ---------- หน้าต่างเลือกโหมด: พื้นเข้ม ขอบทอง การ์ดโหมด 2 ใบ ---------- */
+/* พื้นและขอบอยู่ที่ .lb-dialog-panel ซึ่ง lobby-motion.js ใช้เด้งตอนเปิด
+   (animate ตัว <dialog> เองแล้ว Chrome ทำ focus ของปุ่มในหน้าต่างหลุด) */
+.lb-dialog-dark { width: min(620px, calc(100vw - 32px)); padding: 0; background: transparent; box-shadow: none; overflow: visible; color: var(--lb-ink); }
+.lb-dialog-panel {
+  padding: 26px; border-radius: 20px; background: var(--lb-ink-dark); border: 1px solid rgba(243, 201, 105, .55);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .6), 0 0 40px rgba(243, 201, 105, .18);
+}
+#lobby-screen .lb-dialog-dark :focus-visible { outline-color: var(--lb-gold); }
+.lb-mode-deck { display: inline-flex; align-items: center; gap: 10px; padding: 5px 14px 5px 5px; border-radius: 999px; background: #1d2246; font-size: 14px; }
+.lb-mode-deck img { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; object-position: center 20%; border: 2px solid var(--deck); }
+.lb-mode-deck b { color: var(--deck); font-family: var(--font-display); }
+.lb-dialog-dark h2 { margin-top: 14px !important; font-size: 30px; }
+.lb-modes { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.lb-mode {
+  position: relative; overflow: hidden; min-height: 190px; padding: 22px 18px 20px; border-radius: 16px;
+  border: 1px solid rgba(160, 175, 255, .25); color: var(--lb-ink); font: inherit; text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; transition: border-color .2s;
+}
+.lb-mode:hover { border-color: var(--lb-gold); }
+.lb-mode-bot { background: linear-gradient(160deg, #1f3a6b, #141a3a 70%); }
+.lb-mode-pvp { background: linear-gradient(160deg, #6b4a14, #2a1d0c 70%); }
+.lb-mode-icon { position: absolute; top: 18px; left: 18px; width: 46px; height: 46px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.lb-mode-bot .lb-mode-icon { color: #7fd3ff; }
+.lb-mode-pvp .lb-mode-icon { color: var(--lb-gold); }
+.lb-mode-title { font: 700 22px/1.2 var(--font-display); }
+.lb-mode-desc { font-size: 13px; color: #c9cdea; }
+/* แสงกวาดตอนชี้ และวงแสงตอนกด — ขยับด้วย transform/opacity (lobby-motion.js) */
+.lb-mode-shine { position: absolute; top: 0; bottom: 0; left: 0; width: 40%; pointer-events: none; opacity: 0;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .22), transparent); transform: skewX(-18deg); }
+.lb-mode-ring { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; box-shadow: 0 0 0 3px rgba(243, 201, 105, .8); }
 .lb-dialog-close { margin-top: 14px; min-height: 44px; padding: 0 8px; border: 0; background: none; color: inherit; font: 500 16px var(--font-body); text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
 .lb-steps { margin: 16px 0 0; padding-left: 22px; display: flex; flex-direction: column; gap: 10px; font-size: 16px; line-height: 1.5; }
 .lb-steps b { font-family: var(--font-display); margin-right: 6px; }
@@ -139,6 +169,13 @@
   .lb-play { position: relative; right: auto; bottom: auto; width: 100%; padding: 10px 16px; }
   .lb-play-label { font-size: 22px; }
   .lb-play-glow { inset: 0; }
+  /* หน้าต่างเลือกโหมด: การ์ดเรียงลงเป็นแถว ไอคอนอยู่ซ้าย */
+  .lb-dialog-dark .lb-dialog-panel { padding: 20px; }
+  .lb-dialog-dark h2 { font-size: 24px; }
+  .lb-modes { grid-template-columns: 1fr; gap: 10px; }
+  .lb-mode { min-height: 92px; padding: 16px 16px 16px 76px; justify-content: center; }
+  .lb-mode-icon { top: 50%; left: 16px; width: 42px; height: 42px; margin-top: -21px; }
+  .lb-mode-title { font-size: 20px; }
   .lb-menu { order: 10; position: relative; left: auto; top: auto; transform: none; flex-direction: row; gap: 0; justify-self: stretch; margin: 0 -16px; width: auto; border-top: 1px solid var(--lb-line); background: var(--lb-panel); }
   .lb-menu-item { flex: 1; width: auto; height: 60px; border: 0; border-radius: 0; background: none; font-size: 12px; }
   .lb-mobile-only { display: flex; }

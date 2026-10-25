@@ -16,6 +16,7 @@
   if (typeof gsap === 'undefined' || !lobby) { unhide(); window.LobbyMotion = stub; return; }
 
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const canHover = matchMedia('(hover: hover) and (pointer: fine)').matches;
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
   const seen = () => { try { return sessionStorage.getItem('lm-seen') === '1'; } catch (e) { return false; } };
@@ -118,6 +119,39 @@
     };
     lobby.addEventListener('pointerup', release);
     lobby.addEventListener('pointerout', release);
+  }
+
+  // ---------- หน้าต่างเลือกโหมด: เด้งขึ้น · การ์ดพลิกตั้งขึ้นทีละใบ · ชี้แล้วยก+แสงกวาด · กดแล้วยุบ+วงแสง ----------
+  // ทำงานแยกจากล็อบบี้ (ล็อบบี้หยุดพักอยู่ตอนหน้าต่างเปิด) · clearProps คืน transform/opacity ให้ CSS เมื่อจบ
+  const modeDialog = $('#lb-mode-dialog');
+  if (modeDialog && !reduce) {
+    const modes = [...modeDialog.querySelectorAll('.lb-mode')];
+    let modeIntro = null;
+    new MutationObserver(() => {
+      if (!modeDialog.open) { if (modeIntro) modeIntro.progress(1).kill(); modeIntro = null; return; }
+      modeIntro = gsap.timeline()
+        .fromTo(modeDialog.querySelector('.lb-dialog-panel'), { opacity: 0, scale: .88, y: 30 }, { opacity: 1, scale: 1, y: 0, duration: .45, ease: 'back.out(1.6)', clearProps: 'opacity,transform' })
+        .fromTo(modeDialog.querySelectorAll('.lb-mode-deck, h2'), { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: .3, stagger: .06, clearProps: 'opacity,transform' }, .2)
+        .fromTo(modes, { opacity: 0, y: 40, rotationX: -25, transformPerspective: 600 }, { opacity: 1, y: 0, rotationX: 0, duration: .5, stagger: .1, ease: 'power3.out', clearProps: 'opacity,transform' }, .28)
+        .fromTo(modeDialog.querySelectorAll('.lb-mode-icon'), { scale: 0 }, { scale: 1, duration: .4, stagger: .1, ease: 'back.out(3)', clearProps: 'transform' }, .45);
+    }).observe(modeDialog, { attributes: true, attributeFilter: ['open'] });
+
+    modes.forEach(m => {
+      const shine = m.querySelector('.lb-mode-shine'), ring = m.querySelector('.lb-mode-ring'), icon = m.querySelector('.lb-mode-icon');
+      if (canHover) {
+        m.addEventListener('pointerenter', () => {
+          gsap.to(m, { y: -6, duration: .2, ease: 'power2.out', overwrite: 'auto' });
+          gsap.fromTo(shine, { xPercent: -150, opacity: 1 }, { xPercent: 330, opacity: 1, duration: .6, ease: 'power2.out' });
+          gsap.fromTo(icon, { rotation: 0 }, { rotation: 360, duration: .6, ease: 'power2.out' });
+        });
+        m.addEventListener('pointerleave', () => gsap.to(m, { y: 0, scale: 1, duration: .25, ease: 'power2.out', overwrite: 'auto' }));
+      }
+      m.addEventListener('pointerdown', () => gsap.to(m, { scale: .96, duration: .06, ease: 'power1.out', overwrite: 'auto' }));
+      m.addEventListener('pointerup', () => {
+        gsap.to(m, { scale: 1, duration: .3, ease: 'back.out(3)', overwrite: 'auto' });
+        gsap.fromTo(ring, { opacity: .9, scale: 1 }, { opacity: 0, scale: 1.12, duration: .5, ease: 'power2.out' });
+      });
+    });
   }
 
   // ---------- ประกาย (canvas อยู่เหนือกำแพง ใต้เนื้อหา) ----------

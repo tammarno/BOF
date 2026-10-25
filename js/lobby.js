@@ -151,9 +151,17 @@
   }
 
   /* ---------------- หน้าต่าง ---------------- */
+  // ชิปบอกเด็คที่กำลังจะเล่น (รูปลีดเดอร์ + ชื่อเด็ค) ในหน้าต่างเลือกโหมด
+  function renderModeDeck() {
+    const chip = $('#lb-mode-dialog .lb-mode-deck'); if (!chip) return;
+    const leader = byId(leaderIdOf(selected));
+    setThumb(chip.querySelector('img'), leader);
+    chip.querySelector('b').textContent = selected === 'mine' ? 'เด็คของฉัน' : DECKS.find(d => d.leaderId === selected).name;
+  }
+
   function bindDialogs() {
     const open = id => () => $(id)?.showModal();
-    $('#lb-play')?.addEventListener('click', open('#lb-mode-dialog'));
+    $('#lb-play')?.addEventListener('click', () => { renderModeDeck(); $('#lb-mode-dialog').showModal(); });
     $('#nav-howto')?.addEventListener('click', open('#lb-howto-dialog'));
     $('#lb-mode-close')?.addEventListener('click', () => $('#lb-mode-dialog').close());
     $$('#lobby-screen dialog [data-close]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
