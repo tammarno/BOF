@@ -44,8 +44,7 @@ BOF/
 │  ├─ specs/           สเปกที่ใช้อยู่ (ล็อบบี้ 0.8, หน้าต่าง/กระดาน 0.4)
 │  ├─ plans/           แผนงานที่ใช้อยู่
 │  └─ archive/         สเปก/แผนที่ถูกแทนที่แล้ว (ล็อบบี้ 0.3, 0.7)
-├─ package.json        คำสั่ง npm test / npm run thumbs
-└─ backups/            ไฟล์สำรองเก่า (.bak) — ลบได้เมื่อแน่ใจว่าใช้งานได้
+└─ package.json        คำสั่ง npm test / npm run thumbs
 ```
 
 **ลำดับโหลดใน `index.html` สำคัญ:** ไฟล์หลังห่อ/ต่อยอดไฟล์ก่อนหน้า (CSS: style → holo → lobby-motion → ui-motion → choice-ui → panel-motion → lobby · JS: game → holo → lobby → gsap → lobby-motion → ui-motion → choice-ui → panel-motion)
@@ -61,9 +60,9 @@ BOF/
 | `panel-motion.*` | หน้าต่างจัดเด็ค, คลังการ์ด, Mulligan, Intercept, ลูกเต๋า · สกินปุ่มเก่า · เมนูบน · การ์ดตอบสนองตอนจัดเด็ค (`window.PanelMotion`) | 0.6 |
 | `game.js` (เฉพาะ `js/`) | ตรรกะเกมทั้งหมด — แก้แค่ `setupLobbyEvents()` ใน 0.7 (ปุ่มล็อบบี้) | เดิม |
 
-**ไฟล์สำรอง** อยู่ใน `backups/` (ก่อน 0.1: `holo.css.bak`, `holo.js.bak` · `holo.css.v02.bak` · `index.html.bak` ก่อน 0.3 · `index.html.v03/v04/v05.bak` · `lobby-motion.js.v03/v05.bak`)
+**ไฟล์สำรอง:** ใช้ประวัติ git แทน (`git log -- <ไฟล์>` ดูเวอร์ชันเก่า) · ไฟล์ .bak ก่อนมี git ถูกลบแล้ว (25 ต.ค. 2026)
 
-**เพิ่มไฟล์ใหม่:** CSS ไว้ `css/`, JS ไว้ `js/` แล้วเพิ่มบรรทัดโหลดต่อท้ายใน `index.html` — ก่อนแก้ไฟล์ใหญ่ให้คัดลอกเก็บใน `backups/` เป็น `ชื่อไฟล์.vXX.bak`
+**เพิ่มไฟล์ใหม่:** CSS ไว้ `css/`, JS ไว้ `js/` แล้วเพิ่มบรรทัดโหลดต่อท้ายใน `index.html` แล้ว commit ก่อนแก้ไฟล์ใหญ่ (ย้อนได้ด้วย git)
 
 ---
 
