@@ -7,8 +7,8 @@
    เพิ่มบล็อกใหม่: เพิ่ม case ใน executeSingleStep + generateStepText แล้วเพิ่มรายการที่นี่ */
 const CARD_SCHEMA = {
   triggers: [
-    'ON_SUMMON', 'ON_DESTROY', 'ON_BATTLE_DESTROY', 'ACTIVATE_MAIN', 'ACTIVATE_LEADER',
-    'CAST_SPELL', 'CONTINUOUS_POWER', 'CONTINUOUS_BOARD_AURA',
+    'ON_SUMMON', 'ON_DESTROY', 'ON_BATTLE_DESTROY', 'ON_KILL_UNIT', 'ON_INTERCEPT', 'ON_HIT_LEADER',
+    'ACTIVATE_MAIN', 'ACTIVATE_LEADER', 'CAST_SPELL', 'CONTINUOUS_POWER', 'CONTINUOUS_BOARD_AURA',
   ],
   costs: {
     DISCARD_HAND: { required: [], optional: ['count', 'triggerDiscardSkill'] },
@@ -39,11 +39,11 @@ const CARD_SCHEMA = {
     },
     DESTROY_UNIT: {
       required: ['target'], optional: ['count', 'select'],
-      enums: { target: ['SELF', 'OPPONENT'], select: ['CHOOSE', 'ALL'] },
+      enums: { target: ['SELF', 'OPPONENT', 'BOTH'], select: ['CHOOSE', 'ALL'] },
       desc: 'ทำลายยูนิตบนสนาม (เลือก count ใบ หรือทั้งหมดเมื่อ select เป็น ALL)',
     },
     ADD_POWER: {
-      required: [], optional: ['target', 'count', 'amount', 'duration', 'filterTribe'],
+      required: [], optional: ['target', 'count', 'amount', 'duration', 'filterTribe', 'filterName'],
       enums: { target: ['ALLY', 'SELF_UNIT', 'ALL_ALLIES'], duration: ['TURN', 'PERM'] },
       desc: 'เพิ่มพลังโจมตียูนิตฝั่งเรา +amount (TURN จนจบเทิร์น / PERM ถาวร)',
     },
@@ -67,6 +67,11 @@ const CARD_SCHEMA = {
       enums: { target: ['ALLY', 'ALL_ALLIES'], status: ['INDESTRUCTIBLE', 'BURN_ON_KILL'] },
       desc: 'มอบสถานะพิเศษให้ยูนิตฝั่งเรา (INDESTRUCTIBLE ไม่ถูกทำลาย / BURN_ON_KILL ฆ่าแล้วทำดาเมจลีดเดอร์)',
     },
+    STAND_SELF: {
+      required: [], optional: [],
+      enums: {},
+      desc: 'เปลี่ยนสถานะยูนิตใบนี้เป็น Stand',
+    },
     MARK_END_TURN_DESTROY: {
       required: [], optional: ['target'],
       enums: {},
@@ -78,14 +83,19 @@ const CARD_SCHEMA = {
       desc: 'ยูนิตฝั่งเราที่มี id เป็น allyId ได้พลังถาวร +amount',
     },
     RECOVER_FROM_GRAVE: {
-      required: [], optional: ['cardId', 'count', 'filterTribe', 'filterType', 'autoPickFirst'],
+      required: [], optional: ['cardId', 'count', 'filterTribe', 'filterName', 'filterType', 'autoPickFirst'],
       enums: { filterType: ['SPELL', 'MONSTER'] },
       desc: 'นำการ์ดที่ตรงเงื่อนไข 1 ใบจากกองนรกขึ้นมือ',
     },
     SEARCH_DECK_OR_GRAVE: {
-      required: ['destination'], optional: ['cardId', 'filterTribe', 'filterType', 'grantImmunity'],
+      required: ['destination'], optional: ['cardId', 'filterTribe', 'filterName', 'filterType', 'grantImmunity'],
       enums: { destination: ['HAND', 'BOARD'], filterType: ['SPELL', 'MONSTER'] },
       desc: 'ค้นการ์ดที่ตรงเงื่อนไขจากกองการ์ดหรือกองนรก ไปขึ้นมือ (HAND) หรือลงสนาม (BOARD)',
+    },
+    SEARCH_DECK: {
+      required: [], optional: ['cardId', 'filterTribe', 'filterName', 'filterType', 'count', 'upTo'],
+      enums: { filterType: ['SPELL', 'MONSTER'] },
+      desc: 'ค้นหาการ์ดที่ตรงเงื่อนไขจากกองการ์ดไม่เกิน count ใบ แสดงแล้วนำขึ้นมือ พร้อมสับกอง',
     },
     CARPET_BOMB_COMPOSITE: {
       required: [], optional: [],
@@ -95,11 +105,15 @@ const CARD_SCHEMA = {
   },
   conditions: {
     MIN_TRIBE_COUNT: { required: ['tribe', 'count'], optional: [] },
+    MIN_NAME_COUNT: { required: ['nameKeyword', 'count'], optional: [] },
     ALLY_ON_BOARD: { required: ['cardId'], optional: [] },
     PER_OTHER_ALLY_TRIBE: { required: ['tribe'], optional: [] },
+    PER_OTHER_ALLY_NAME: { required: ['nameKeyword'], optional: [] },
+    PER_GRAVE_COUNT: { required: ['divisor'], optional: [] },
   },
   cardTypes: ['Leader', 'Monster', 'NormalSpell', 'ReactionSpell'],
   rarities: ['N', 'R', 'SR', 'Legend'],
+  tribes: ['ฮีโร่', 'ไทย', 'วันสิ้นโลก', 'ไดโน'],
 };
 
 // ระยะแก้ไข (Levenshtein) ≤ 2 ที่ใกล้ที่สุด ไม่งั้น null
@@ -160,6 +174,13 @@ function validateCards(db = CARD_DATABASE, decks = DECK_LISTS) {
       if (!CARD_SCHEMA.cardTypes.includes(card.type)) add(cid, 'type', unknown('type', card.type, CARD_SCHEMA.cardTypes));
       if (card.rarity !== undefined && !CARD_SCHEMA.rarities.includes(card.rarity)) {
         add(cid, 'rarity', unknown('rarity', card.rarity, CARD_SCHEMA.rarities));
+      }
+      if (card.tribe !== undefined) {
+        if (card.type !== 'Monster') {
+          add(cid, 'tribe', 'tribe ใช้ได้เฉพาะการ์ด Monster เท่านั้น');
+        } else if (!CARD_SCHEMA.tribes.includes(card.tribe)) {
+          add(cid, 'tribe', unknown('tribe', card.tribe, CARD_SCHEMA.tribes));
+        }
       }
       if (missing(card.name)) add(cid, 'name', 'ขาด name');
       if (missing(card.image)) add(cid, 'image', 'ขาด image');
