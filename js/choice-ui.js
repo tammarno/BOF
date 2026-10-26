@@ -19,7 +19,7 @@
     live.forEach(t => t && t.kill && t.kill()); live = [];
     modal.querySelectorAll('.um-x').forEach(n => n.remove());
     document.querySelectorAll('.um-spark').forEach(n => n.remove());
-    modal.classList.remove('um-choice', 'um-end', 'um-victory', 'um-defeat', 'um-tone-danger', 'um-tone-arcane');
+    modal.classList.remove('um-choice', 'um-end', 'um-victory', 'um-defeat', 'um-tone-danger', 'um-tone-arcane', 'um-has-card-grid');
     const box = modal.querySelector('.modal-box');
     if (box && hasGsap) gsap.set([box, ...box.children, ...box.querySelectorAll('#choice-modal-buttons .btn')], { clearProps: 'transform,opacity' });
   }
@@ -48,6 +48,97 @@
     const m = title.match(/การ์ด:\s*(.+?)(?:\s*\(Power:.*\))?\s*$/);
     if (!m || typeof CARD_DATABASE === 'undefined') return null;
     return CARD_DATABASE.find(c => c.name === m[1].trim()) || null;
+  }
+
+  function findCardInButtonLabel(label) {
+    if (typeof CARD_DATABASE === 'undefined' || !Array.isArray(CARD_DATABASE)) return null;
+    const quoted = label.match(/"([^"]+)"/);
+    if (quoted) {
+      const exact = CARD_DATABASE.find(c => c.name === quoted[1].trim() && c.type !== 'Leader');
+      if (exact) return exact;
+    }
+    return null;
+  }
+
+  function stripCardNameFromCaption(label, cardName) {
+    let s = label.replace(`"${cardName}"`, '').replace(cardName, '');
+    s = s.replace(/\(\s*Power\s*\d+\s*\)/gi, '').replace(/\s{2,}/g, ' ').trim();
+    return s || 'เลือกใบนี้';
+  }
+
+  function convertCardButtonsToGrid(modal) {
+    const container = modal.querySelector('#choice-modal-buttons');
+    if (!container) return;
+    const buttons = [...container.querySelectorAll('.btn')];
+    const matched = buttons.map(btn => ({ btn, card: findCardInButtonLabel(btn.textContent || '') }));
+    const cardEntries = matched.filter(x => x.card);
+    if (cardEntries.length === 0) return;
+
+    modal.classList.add('um-has-card-grid');
+    const grid = document.createElement('div');
+    grid.className = 'um-card-pick-grid um-x';
+    container.parentNode.insertBefore(grid, container);
+
+    const owner = (typeof gameState !== 'undefined' && gameState) ? gameState.player : null;
+    cardEntries.forEach(({ btn, card }, idx) => {
+      const rawText = (btn.textContent || '').trim();
+      const zoneMatch = rawText.match(/\[([^\]]+)\]/);
+      const zoneBadgeText = zoneMatch ? zoneMatch[1] : '';
+      const actionCaption = stripCardNameFromCaption(rawText.replace(/\[[^\]]+\]/g, ''), card.name);
+
+      const item = document.createElement('div');
+      item.className = 'um-card-pick-item' + (btn.disabled ? ' is-disabled' : '');
+
+      let cardEl;
+      if (typeof window.createCardElement === 'function') {
+        cardEl = window.createCardElement(card, owner);
+      } else {
+        cardEl = document.createElement('div');
+        cardEl.className = `card ${card.type}`;
+        cardEl.innerHTML = `<div class="card-art"><img src="${card.image}" alt="${card.name}"></div><div class="card-name">${card.name}</div>`;
+      }
+
+      if (zoneBadgeText) {
+        const badge = document.createElement('span');
+        badge.className = 'um-pick-zone-badge';
+        badge.textContent = zoneBadgeText;
+        cardEl.appendChild(badge);
+      }
+
+      const cap = document.createElement('span');
+      cap.className = 'um-pick-caption';
+      cap.textContent = actionCaption;
+
+      item.appendChild(cardEl);
+      item.appendChild(cap);
+
+      if (!btn.disabled) {
+        item.addEventListener('click', (e) => {
+          if (e.target.closest('.holo-info-btn')) return;
+          if (typeof hideCardTooltip === 'function') hideCardTooltip();
+          btn.click();
+        });
+      }
+
+      btn.style.display = 'none';
+      grid.appendChild(item);
+
+      if (!reduce) {
+        live.push(gsap.from(item, {
+          y: 18,
+          scale: 0.92,
+          opacity: 0,
+          duration: 0.32,
+          delay: 0.06 + idx * 0.045,
+          ease: 'back.out(1.6)',
+          clearProps: 'transform,opacity'
+        }));
+      }
+    });
+
+    if (typeof window.HoloTilt !== 'undefined' && window.HoloTilt && typeof window.HoloTilt.bind === 'function') {
+      window.HoloTilt.bind(grid, 10);
+    }
   }
 
   // ---------- ตกแต่ง ----------
@@ -99,8 +190,16 @@
       row.appendChild(img); row.appendChild(ab);
       desc.after(row);
       if (!reduce) live.push(gsap.from(row.children, { x: i => (i ? 18 : -18), opacity: 0, duration: .35, stagger: .06, delay: .08, ease: 'power3.out' }));
-    } else if (glyph) {
-      ring = iconRing(glyph); box.insertBefore(ring, h2);
+    } else {
+      if (glyph) {
+        ring = iconRing(glyph); box.insertBefore(ring, h2);
+      }
+      // หากเป็นหน้าต่างค้นหา/เลือกการ์ดที่มีความสามารถต่อท้าย ให้ซ่อนส่วน "📜 ความสามารถ:" เพื่อให้แสดงผลรูปการ์ดได้เต็มตา
+      if (/\n*📜\s*ความสามารถ:/.test(description)) {
+        const [question] = description.split(/\n*📜\s*ความสามารถ:\s*\n?/);
+        desc.textContent = (question || '').trim();
+      }
+      convertCardButtonsToGrid(modal);
     }
     if (!reduce) animateConfirm(box, ring, glyph);
   }
