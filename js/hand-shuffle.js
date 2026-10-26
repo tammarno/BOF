@@ -9,22 +9,21 @@
   };
 
   // ดัชนี 0 = ซ้ายสุด = หลังสุดของกอง
-  // fromBack: ดึงก้อนหลัง (หัวอาร์เรย์) ไปไว้หน้า (ท้ายอาร์เรย์); ไม่งั้นดึงก้อนหน้าไปไว้หลัง
+  // แต่ละรอบ: ดึงก้อนติดกัน k ใบ (จากหลังสุดด้วยโอกาส 0.75 ไม่งั้นจากจุดสุ่ม) แล้วสอดกลับที่ความลึกสุ่ม `to`
+  // ในกองที่เหลือ โดย `to !== from` เสมอ (ไม่งั้นได้กองเดิม) — จึงไม่ใช่แค่การหมุนกอง
   function planOnce(n, cuts, rng) {
     let cur = Array.from({ length: n }, (_, i) => i);
     const out = [];
     for (let i = 0; i < cuts; i++) {
       const k = Math.min(1 + Math.floor(rng() * 3), n - 1);
-      const fromBack = rng() < 0.75;
-      let packet, after;
-      if (fromBack) {
-        packet = cur.slice(0, k);
-        after = cur.slice(k).concat(packet);
-      } else {
-        packet = cur.slice(n - k);
-        after = packet.concat(cur.slice(0, n - k));
-      }
-      out.push({ packet, fromBack, after: after.slice() });
+      const from = rng() < 0.75 ? 0 : Math.floor(rng() * (n - k + 1));
+      const packet = cur.slice(from, from + k);
+      const rest = cur.slice(0, from).concat(cur.slice(from + k));
+      // เลือก to จาก 0..rest.length ยกเว้น from
+      const r = Math.floor(rng() * rest.length);
+      const to = r >= from ? r + 1 : r;
+      const after = rest.slice(0, to).concat(packet, rest.slice(to));
+      out.push({ packet, from, to, fromBack: from === 0, after: after.slice() });
       cur = after;
     }
     return { cuts: out, perm: cur };
@@ -92,24 +91,8 @@
       done,
       skip() { halt(); anims.forEach(a => { try { a.finish(); } catch (e) { /* ไม่มีผล */ } }); },
     };
-    active = me;
-
-    // มีการวาดมือใหม่จากที่อื่น → ยุติทันที
-    const obs = new MutationObserver(halt);
-    obs.observe(handEl, { childList: true });
-
     const body = document.body;
-    body.classList.add('hs-busy');
-    const skipEl = document.createElement('div');
-    skipEl.id = 'hs-skip';
-    skipEl.title = 'แตะเพื่อข้าม';
-    skipEl.addEventListener('click', e => { e.stopPropagation(); HandShuffle.skip(); });
-    const holder = handEl.parentElement || body;
-    holder.appendChild(skipEl);
-    skipEl.style.left = handEl.offsetLeft + 'px';
-    skipEl.style.top = handEl.offsetTop + 'px';
-    skipEl.style.width = handEl.offsetWidth + 'px';
-    skipEl.style.height = handEl.offsetHeight + 'px';
+    let obs = null, skipEl = null;
 
     const alive = () => !stopped && !(typeof gameState !== 'undefined' && gameState && gameState.gameOver) && els.every(e => e.isConnected);
     const D = ms => (stopped ? 1 : ms / HandShuffle.SPEED);
@@ -126,6 +109,23 @@
     };
 
     try {
+      active = me;
+
+      // มีการวาดมือใหม่จากที่อื่น → ยุติทันที
+      obs = new MutationObserver(halt);
+      obs.observe(handEl, { childList: true });
+
+      body.classList.add('hs-busy');
+      skipEl = document.createElement('div');
+      skipEl.id = 'hs-skip';
+      skipEl.title = 'แตะเพื่อข้าม';
+      skipEl.addEventListener('click', e => { e.stopPropagation(); HandShuffle.skip(); });
+      (handEl.parentElement || body).appendChild(skipEl);
+      skipEl.style.left = handEl.offsetLeft + 'px';
+      skipEl.style.top = handEl.offsetTop + 'px';
+      skipEl.style.width = handEl.offsetWidth + 'px';
+      skipEl.style.height = handEl.offsetHeight + 'px';
+
       if (reducedMotion()) {
         // ไม่เคลื่อนที่: จางลง → แสดงลำดับใหม่ → กลับมาชัด
         const half = T.fade / 2;
@@ -232,11 +232,11 @@
       });
       await wait(spread);
     } finally {
-      obs.disconnect();
+      if (obs) obs.disconnect();
       anims.forEach(a => { try { a.cancel(); } catch (e) { /* ไม่มีผล */ } });
       els.forEach(e => { e.style.zIndex = ''; });
       body.classList.remove('hs-busy');
-      skipEl.remove();
+      if (skipEl) skipEl.remove();
       if (active === me) active = null;
       // วาดใหม่ตามลำดับใหม่ (ถ้ามีคนวาดไปแล้ว การ์ดเดิมจะหลุดจาก DOM)
       try {
