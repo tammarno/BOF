@@ -4667,9 +4667,10 @@ function startPlayerTurn() {
   });
 }
 
-// สับมือได้เฉพาะตอนไม่มีอะไรค้าง (pendingAction บางตัวจำดัชนีการ์ดในมือไว้)
+// สับมือได้เฉพาะตอนไม่มีอะไรค้าง (pendingAction บางตัวจำดัชนีการ์ดในมือไว้ / กำลังลากการ์ดอยู่)
 function canShuffleHandNow() {
-  return !gameState.pendingAction && !gameState.gameOver && gameState.player.hand.length >= 2 && !isChoiceModalOpen();
+  return !gameState.pendingAction && !gameState.gameOver && gameState.player.hand.length >= 2 && !isChoiceModalOpen()
+    && !(window.CardDrag && CardDrag.isBusy());
 }
 
 // ปุ่ม 🔀 สับเล่นๆ: ทำงานแม้ปิดการสับทุกเทิร์นในตั้งค่า, เฉพาะเทิร์นเรา (เทิร์น AI วาดมือใหม่บ่อยจนแอนิเมชันถูกตัด)
