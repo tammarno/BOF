@@ -4618,6 +4618,9 @@ function renderGame() {
   handContainer.innerHTML = '';
   const pendingType = gameState.pendingAction ? gameState.pendingAction.type : null;
 
+  const shuffleBtn = document.getElementById('btn-shuffle-hand');
+  if (shuffleBtn) shuffleBtn.disabled = gameState.activeTurn !== 'player' || !canShuffleHandNow();
+
   player.hand.forEach((card, idx) => {
     const cardEl = createCardElement(card, player);
     if (gameState.selectedHandIndex === idx) {
@@ -4681,9 +4684,21 @@ function startPlayerTurn() {
   executeStartPhase(gameState.player, () => {
     setLog(`🟢 เทิร์นของคุณ (ครั้งที่ ${gameState.player.turnsTaken}): ลงการ์ด/ใช้สกิลใน Main Phase หรือกด "⚔️ เฟสถัดไป (Battle Phase)" เพื่อโจมตี!`);
     renderGame();
-    if (typeof HandShuffle !== 'undefined' && HandShuffle.enabled() && !gameState.pendingAction && !gameState.gameOver && gameState.player.hand.length >= 2 && !isChoiceModalOpen()) HandShuffle.run(gameState.player.hand).catch(e => console.warn('HandShuffle', e));
+    if (typeof HandShuffle !== 'undefined' && HandShuffle.enabled() && canShuffleHandNow()) HandShuffle.run(gameState.player.hand).catch(e => console.warn('HandShuffle', e));
   });
 }
+
+// สับมือได้เฉพาะตอนไม่มีอะไรค้าง (pendingAction บางตัวจำดัชนีการ์ดในมือไว้)
+function canShuffleHandNow() {
+  return !gameState.pendingAction && !gameState.gameOver && gameState.player.hand.length >= 2 && !isChoiceModalOpen();
+}
+
+// ปุ่ม 🔀 สับเล่นๆ: ทำงานแม้ปิดการสับทุกเทิร์นในตั้งค่า, เฉพาะเทิร์นเรา (เทิร์น AI วาดมือใหม่บ่อยจนแอนิเมชันถูกตัด)
+document.getElementById('btn-shuffle-hand')?.addEventListener('click', () => {
+  if (typeof HandShuffle === 'undefined' || HandShuffle.isBusy()) return;
+  if (gameState.activeTurn !== 'player' || !canShuffleHandNow()) return;
+  HandShuffle.run(gameState.player.hand).catch(e => console.warn('HandShuffle', e));
+});
 
 
 /* ============================================================================

@@ -87,6 +87,10 @@
     const orig = hand.slice();
     // ตรรกะเกมได้ลำดับใหม่ทันที ก่อนผู้เล่นกดอะไรได้
     plan.perm.forEach((o, s) => { hand[s] = orig[o]; });
+    // การ์ดที่เลือกค้างไว้ต้องตามไปช่องใหม่ (สับจากปุ่มกดได้ระหว่างเลือกการ์ด)
+    if (typeof gameState !== 'undefined' && gameState && hand === gameState.player.hand && gameState.selectedHandIndex !== null) {
+      gameState.selectedHandIndex = plan.perm.indexOf(gameState.selectedHandIndex);
+    }
     if (els.length !== orig.length) { if (typeof renderGame === 'function') renderGame(); return; }
 
     const n = els.length;
