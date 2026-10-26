@@ -170,7 +170,7 @@
       // 2) ตัด ×3
       for (const cut of plan.cuts) {
         const k = cut.packet.length;
-        const dir = cut.fromBack ? -1 : 1;
+        const dir = cut.fromBack ? 1 : -1;
         const inPacket = new Set(cut.packet);
         const rest = order.filter(i => !inPacket.has(i));
         const pull = cut.packet.map((i, j) => {
