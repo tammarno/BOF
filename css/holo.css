@@ -161,13 +161,6 @@ body:has(.modal-overlay[style*="flex"]) .card .holo-foil > i, body:has(.modal-ov
   60% { opacity: 1; filter: brightness(1.4); }
   to { translate: 0 0; scale: 1; filter: none; }
 }
-/* ลงสนาม: คลื่นแสงสีตามระดับ (เสริม fx-summon-drop เดิม) */
-.card.fx-summon-drop[data-rarity]:not([data-rarity="N"])::after {
-  content: ""; position: absolute; inset: -2px; border-radius: inherit; pointer-events: none; z-index: 6;
-  box-shadow: 0 0 0 2px var(--glow), 0 0 26px 8px var(--glow);
-  animation: holo-burst .8s ease-out .15s both;
-}
-@keyframes holo-burst { from { opacity: 1; scale: .9; } to { opacity: 0; scale: 1.35; } }
 
 /* ============================================================================
    INSPECT การ์ดใบใหญ่
@@ -239,7 +232,7 @@ body.holo-inspecting .card .holo-foil > i, body.holo-inspecting .card .holo-shee
 /* ---------- ลดการเคลื่อนไหว ---------- */
 @media (prefers-reduced-motion: reduce) {
   #player-hand .card, .holo-bigcard { transition: none; transform: none !important; }
-  .holo-foil > i, .holo-sheen::before, .holo-tw, .fx-holo-draw, .card.fx-summon-drop::after { animation: none !important; }
+  .holo-foil > i, .holo-sheen::before, .holo-tw, .fx-holo-draw { animation: none !important; }
   .holo-tw { display: none; }
   .holo-inspect, .holo-info { transition: none; }
 }

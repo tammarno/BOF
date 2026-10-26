@@ -2854,18 +2854,6 @@ function ensureVisualEffectsStyles() {
   const style = document.createElement('style');
   style.id = 'tcg-visual-fx-styles';
   style.textContent = `
-    /* เอฟเฟกต์ตอนการ์ดลงสนามใหม่ */
-    @keyframes summonDropIn {
-      0% { transform: scale(1.45) translateY(-35px); opacity: 0; filter: brightness(2.2); }
-      60% { transform: scale(0.95) translateY(4px); opacity: 1; }
-      100% { transform: scale(1) translateY(0); opacity: 1; filter: brightness(1); }
-    }
-    .fx-summon-drop {
-      animation: summonDropIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
-      box-shadow: 0 0 28px #fbbf24, 0 0 12px #ffffff !important;
-      z-index: 25 !important;
-    }
-
     /* เอฟเฟกต์ตอนใช้สกิลบัฟพลัง */
     @keyframes skillGlowPulse {
       0% { transform: scale(1); box-shadow: 0 0 5px #38bdf8; }
@@ -3353,7 +3341,6 @@ function resolveAllForJitTrigger(attacker, defender, attackerSlot, onCompleteCal
 
   setLog(`💀 [${defender.name}] สั่งใช้งาน "ออลฟอจิต" จากนรก! ทำลายการ์ดบนสนามและอัญเชิญ "ออลฟอจิต" (Power 3) ลงสู่สนามสำเร็จ!`);
   renderGame();
-  if (emptySlot !== -1) playSlotAnimation(defender === gameState.player, emptySlot, 'fx-summon-drop');
   checkGameOver();
   if (onCompleteCallback) onCompleteCallback();
 }
@@ -3823,7 +3810,6 @@ function performSingleAIMainAction() {
           showCardShowcaseBanner(spy, 'AI ใช้สกิลไพร่ชาวนาเหนือ!', '🕵️ ส่ง "สายลับไพร่เหนือ" มายึดช่องสนามของคุณ!', '#7c3aed');
           setLog('🕵️ [AI ไพร่ชาวนาเหนือ] ส่งตัวเองลงนรก และส่ง "สายลับไพร่เหนือ" มายึดช่องสนามของคุณ!');
           renderGame();
-          playSlotAnimation(true, emptyPlayerSlot, 'fx-summon-drop');
           return true;
         }
       } else if (ai.deck.some(c => isSoldierCard(c))) {
@@ -3854,7 +3840,6 @@ function performSingleAIMainAction() {
       showCardShowcaseBanner(spyCard, 'AI ส่งสายลับ!', `🕵️ ยึดช่องที่ ${targetPlayerSlot + 1} บนสนามของคุณ!`, '#7c3aed');
       setLog(`🕵️ AI ส่ง "สายลับไพร่เหนือ" ลงไปยึดช่องที่ ${targetPlayerSlot + 1} บนสนามของคุณ!`);
       renderGame();
-      playSlotAnimation(true, targetPlayerSlot, 'fx-summon-drop');
       return true;
     }
 
@@ -3877,7 +3862,6 @@ function performSingleAIMainAction() {
           setLog(`🔥 [AI อัญเชิญจุติ] ทิ้งไพร่ชาวนาเหนือ อัญเชิญ "${summoned.name}" (พลัง +1)!`);
           if (summoned.id === 'NM02') triggerRoyalGuardJutiBonus(ai);
           renderGame();
-          playSlotAnimation(false, emptyAiSlot, 'fx-summon-drop');
           return true;
         }
       }
@@ -3926,7 +3910,6 @@ function performSingleAIMainAction() {
       }
 
       renderGame();
-      playSlotAnimation(false, emptySlot, 'fx-summon-drop');
       return true;
     }
   }
@@ -4037,7 +4020,6 @@ function performSingleAIMainAction() {
           showCardShowcaseBanner(roselia, 'AI สกิลคู่หูโอนามิ!', '🌊 อัญเชิญ "โรเซเลีย" ลงสนามเข้าสู่สถานะคู่หู!', '#ec4899');
           setLog('🌊 [AI โอนามิ] อัญเชิญ "โรเซเลีย" ลงสนามเข้าสู่สถานะคู่หู!');
           renderGame();
-          playSlotAnimation(false, targetEmpty, 'fx-summon-drop');
           return true;
         }
       }
@@ -4075,7 +4057,6 @@ function performSingleAIMainAction() {
       if (baseSlotIdx !== -1) {
         showCardShowcaseBanner(futureCard, 'AI อัญเชิญการ์ดอนาคต!', `🌌 ส่ง "${futureCard.futureBaseName}" ไปมิติมืด!`, '#6366f1');
         executeFutureSummon(ai, player, futureHandIdx, baseSlotIdx);
-        playSlotAnimation(false, baseSlotIdx, 'fx-summon-drop');
         return true;
       }
     }
@@ -4469,11 +4450,9 @@ function renderBoardSlots(containerId, contestant, isPlayerBoard) {
       if (isPlayerBoard && gameState.selectedAttackerSlot === idx) {
         cardEl.classList.add('selected-attacker');
       }
-      // ✨ ถ้าเป็นการ์ดใบใหม่ที่เพิ่งถูกวางลงในช่องนี้ ให้เล่นเอฟเฟกต์ Summon Drop อัตโนมัติ!
-      if (monster.uid !== prevUid) {
-        cardEl.classList.add('fx-summon-drop');
-      }
       slotEl.appendChild(cardEl);
+      // การ์ดใบใหม่ในช่องนี้ (ลงด้วยวิธีไหนก็ตาม) → เอฟเฟคโฮโลแตกตามระดับ
+      if (monster.uid !== prevUid && window.SummonFx) SummonFx.play(slotEl, cardEl);
       previousBoardUids[sideKey][idx] = monster.uid;
 
       if (isPlayerBoard) {
