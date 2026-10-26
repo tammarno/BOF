@@ -4,6 +4,7 @@ CARD_DATABASE.push(
     id: 'M01',
     name: 'บาคุจิต',
     type: 'Monster',
+    tribe: 'ฮีโร่',
     rarity: 'SR', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
     power: 2,
     image: 'images/เด็คจิต/2.png',
@@ -29,6 +30,7 @@ CARD_DATABASE.push(
     id: 'M02',
     name: 'โทโดโรจิต',
     type: 'Monster',
+    tribe: 'ฮีโร่',
     rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
     power: 1,
     image: 'images/เด็คจิต/3.png',
@@ -56,6 +58,7 @@ CARD_DATABASE.push(
     id: 'M03',
     name: 'ออลจิต',
     type: 'Monster',
+    tribe: 'ฮีโร่',
     rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
     power: 2,
     image: 'images/เด็คจิต/4.png',
@@ -66,6 +69,7 @@ CARD_DATABASE.push(
     id: 'M04',
     name: 'ออลฟอจิต',
     type: 'Monster',
+    tribe: 'ฮีโร่',
     rarity: 'Legend', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
     power: 3,
     image: 'images/เด็คจิต/5.png',
@@ -77,6 +81,7 @@ CARD_DATABASE.push(
     id: 'M05',
     name: 'เอ็นเดจิต',
     type: 'Monster',
+    tribe: 'ฮีโร่',
     rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
     power: 2,
     image: 'images/เด็คจิต/6.png',
@@ -100,6 +105,7 @@ CARD_DATABASE.push(
     id: 'M06',
     name: 'ฮออ์กส์ฟีม',
     type: 'Monster',
+    tribe: 'ฮีโร่',
     rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
     power: 2,
     image: 'images/เด็คจิต/7.png',
