@@ -663,7 +663,7 @@ function ensureZoneUIAndViewers() {
           <h2 id="zone-viewer-title" style="color: #fbbf24; font-size: 16px;">รายการการ์ด</h2>
           <button class="btn" id="btn-close-zone-viewer" style="background: #dc2626; padding: 6px 12px;">✖ ปิด</button>
         </div>
-        <p style="font-size: 12px; color: #38bdf8; margin-bottom: 12px;">💡 แตะที่การ์ดใบใดก็ได้เพื่อเปิดดูรูปใหญ่และรายละเอียดความสามารถ</p>
+        <p style="font-size: 12px; color: #38bdf8; margin-bottom: 12px;">💡 คลิกขวาที่การ์ดใบใดก็ได้เพื่อเปิดดูรูปใหญ่และรายละเอียดความสามารถ</p>
         <p id="zone-viewer-empty" style="color: #94a3b8; margin: 20px 0; display: none;">ไม่มีการ์ดในโซนนี้</p>
         <div id="zone-viewer-list" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 10px;"></div>
       </div>
@@ -751,11 +751,7 @@ function openZoneViewerModal(titleText, cardArray, ownerContestant) {
     emptyEl.style.display = 'none';
     cardArray.forEach(card => {
       const cardEl = createCardElement(card, ownerContestant);
-      cardEl.style.cursor = 'pointer';
-      cardEl.title = 'คลิกเพื่อดูรายละเอียดของการ์ดใบนี้';
-      cardEl.addEventListener('click', () => {
-        openCardDetailModal(card, ownerContestant);
-      });
+      cardEl.title = 'คลิกขวาเพื่อดูรายละเอียดของการ์ดใบนี้';
       listEl.appendChild(cardEl);
     });
   }
@@ -1736,7 +1732,7 @@ function activateLeaderSkillPlayer() {
 
   const leaderEffects = (player.leader.effects || []).filter(e => e.trigger === 'ACTIVATE_LEADER');
   if (leaderEffects.length === 0) {
-    openCardDetailModal(player.leader, player);
+    setLog(`ℹ️ ลีดเดอร์ "${player.leader.name}" เป็นความสามารถต่อเนื่อง/ออโต้ (คลิกขวาเพื่อดูรายละเอียดการ์ด)`);
     return;
   }
 
@@ -1768,8 +1764,7 @@ function activateMonsterOnBoardPlayer(slotIndex) {
 
   const mainEffects = (monster.effects || []).filter(e => e.trigger === 'ACTIVATE_MAIN');
   if (mainEffects.length === 0) {
-    openCardDetailModal(monster, player);
-    setLog(`ℹ️ "${monster.name}" ไม่มีสกิลกดใช้บนสนาม (หากต้องการสั่งโจมตี ให้กดปุ่ม "⚔️ เฟสถัดไป (Battle Phase)" ด้านขวา)`);
+    setLog(`ℹ️ "${monster.name}" ไม่มีสกิลกดใช้บนสนาม (คลิกขวาเพื่อดูรายละเอียด หรือเข้าสู่ Battle Phase เพื่อสั่งโจมตี)`);
     return;
   }
 
@@ -3182,7 +3177,6 @@ function handleAISlotClick(aiSlotIndex) {
 
   // โจมตีใส่ Monster ของฝ่ายตรงข้าม (ใน Battle Phase)
   if (gameState.phase !== 'Battle Phase' || gameState.selectedAttackerSlot === null) {
-    if (targetMonster) openCardDetailModal(targetMonster, ai);
     return;
   }
   if (!targetMonster) {
@@ -5194,11 +5188,11 @@ function renderGame() {
   } else {
     aiLeaderBox.classList.remove('attack-target');
   }
-  aiLeaderBox.onclick = () => {
-    if (gameState.activeTurn === 'player' && gameState.phase === 'Battle Phase' && gameState.selectedAttackerSlot !== null && !gameState.pendingAction) {
-      return; // ปล่อยให้ event โจมตีทำงานตามปกติ
-    }
-    openCardDetailModal(ai.leader, ai);
+  aiLeaderBox.onclick = null;
+  aiLeaderBox.oncontextmenu = (e) => {
+    e.preventDefault();
+    hideCardTooltip();
+    openCardDetailModal(ai.leader, ai, aiLeaderBox);
   };
   aiLeaderBox.onmouseenter = (e) => showCardTooltip(e, ai.leader, ai);
   aiLeaderBox.onmousemove = (e) => moveCardTooltip(e);
@@ -5207,7 +5201,7 @@ function renderGame() {
   const hasActiveLeaderSkill = Array.isArray(player.leader.effects) && player.leader.effects.some(e => e.trigger === 'ACTIVATE_LEADER');
   const leaderSuffix = isMobileView
     ? (hasActiveLeaderSkill ? (player.leader.abilityUsedThisTurn ? '✓' : '⚡') : '')
-    : (hasActiveLeaderSkill ? (player.leader.abilityUsedThisTurn ? '(ใช้สกิลแล้ว)' : '(คลิกใช้สกิล)') : '(คลิกดูรายละเอียด)');
+    : (hasActiveLeaderSkill ? (player.leader.abilityUsedThisTurn ? '(ใช้สกิลแล้ว)' : '(คลิกใช้สกิล)') : '');
 
   document.getElementById('player-leader-name').textContent = `${player.leader.name} ${leaderSuffix}`.trim();
   document.getElementById('player-leader-hp').textContent = player.leader.hp;
@@ -5222,6 +5216,11 @@ function renderGame() {
   playerLeaderBox.onclick = () => {
     hideCardTooltip();
     handlePlayerSlotClick('leader');
+  };
+  playerLeaderBox.oncontextmenu = (e) => {
+    e.preventDefault();
+    hideCardTooltip();
+    openCardDetailModal(player.leader, player, playerLeaderBox);
   };
   playerLeaderBox.onmouseenter = (e) => showCardTooltip(e, player.leader, player);
   playerLeaderBox.onmousemove = (e) => moveCardTooltip(e);
@@ -5827,7 +5826,7 @@ function setupLobbyEvents() {
   });
 
   const openDeckFn = (e) => { if (e) e.preventDefault(); openDeckBuilder(); };
-  const openCardsFn = (e) => { if (e) e.preventDefault(); openZoneViewerModal('🔍 คลังการ์ดทั้งหมด (คลิกที่การ์ดเพื่อดูรายละเอียด)', CARD_DATABASE, null); };
+  const openCardsFn = (e) => { if (e) e.preventDefault(); openZoneViewerModal('🔍 คลังการ์ดทั้งหมด (คลิกขวาที่การ์ดเพื่อดูรายละเอียด)', CARD_DATABASE, null); };
 
   document.getElementById('nav-deck')?.addEventListener('click', openDeckFn);
   document.getElementById('nav-cards')?.addEventListener('click', openCardsFn);
