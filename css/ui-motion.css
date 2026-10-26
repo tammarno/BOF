@@ -141,3 +141,48 @@ body.hs-busy .hand-dock { position: relative; }
 @media (prefers-reduced-motion: reduce) {
   .lm-breathe::after, .hp-badge .um-heart, #player-board.lm-placing .slot:not(:has(.card))::after { animation: none; }
 }
+
+/* ---------- เอฟเฟคการ์ดลงสนาม (summon-fx.js) ---------- */
+/* ต่ำกว่า .modal-overlay (100) และ Inspect (400) */
+#summon-fx-layer { position: fixed; inset: 0; z-index: 90; pointer-events: none; overflow: hidden; }
+#summon-fx-layer > i { position: absolute; display: block; pointer-events: none; will-change: transform, opacity; }
+.sfx-shell { border-radius: 9px; background: #fff; box-shadow: 0 0 30px var(--c), 0 0 60px var(--c); }
+.sfx-shard { background-repeat: no-repeat; box-shadow: 0 0 10px var(--c); }
+.sfx-spark { border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c), 0 0 2px #fff; }
+.sfx-prism {
+  border-radius: 50%;
+  background: conic-gradient(red, orange, yellow, lime, cyan, blue, magenta, red);
+  -webkit-mask: radial-gradient(circle, transparent 55%, #000 58%, #000 68%, transparent 71%);
+  mask: radial-gradient(circle, transparent 55%, #000 58%, #000 68%, transparent 71%);
+}
+.sfx-ray { border-radius: 3px; background: linear-gradient(transparent, #fff, var(--c), transparent); mix-blend-mode: screen; }
+.sfx-flash { border-radius: 50%; background: radial-gradient(circle, #fff 0%, var(--c) 25%, transparent 70%); mix-blend-mode: screen; }
+.sfx-stamp {
+  display: grid !important; place-items: center; white-space: nowrap;
+  font: 900 30px/1 var(--font-display, sans-serif); letter-spacing: 6px; color: #fff;
+  text-shadow: 0 0 10px var(--c), 0 0 26px var(--c), 0 2px 0 #7a5a10;
+}
+.card > .sfx-sweep {
+  position: absolute; inset: 0; z-index: 7; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, .85) 50%, transparent 65%);
+  mix-blend-mode: screen;
+}
+
+/* ---------- ลากการ์ดลงสนาม (card-drag.js) ---------- */
+/* นิ้วปัดซ้าย-ขวา = เลื่อนแถวมือ; ลากขึ้น = เล็ง (หน้าไม่เลื่อนตาม) */
+#player-hand > .card { touch-action: pan-x; }
+#player-hand > .card.cd-aiming { --lift: -16px; scale: 1.06; box-shadow: 0 0 0 2px #f59e0b, 0 0 24px rgba(245, 158, 11, .7); }
+#player-hand > .card.cd-away { opacity: .18; filter: grayscale(1); }
+body.cd-dragging, body.cd-dragging * { cursor: grabbing !important; user-select: none; }
+.slot.cd-droppable { box-shadow: inset 0 0 0 2px rgba(56, 189, 248, .35), 0 0 14px rgba(56, 189, 248, .25); }
+.slot.cd-hot { box-shadow: inset 0 0 0 2px #f59e0b, 0 0 0 3px rgba(245, 158, 11, .2), 0 0 24px rgba(245, 158, 11, .5); background-color: rgba(245, 158, 11, .08); }
+/* ต่ำกว่า .modal-overlay (100) */
+svg.cd-aim { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 95; pointer-events: none; overflow: visible; }
+.cd-path { fill: none; stroke: currentColor; stroke-width: 5; stroke-linecap: round; stroke-dasharray: 2 12; animation: cd-dash .5s linear infinite; filter: drop-shadow(0 0 6px currentColor); }
+.cd-reticle { fill: none; stroke: #f59e0b; stroke-width: 2; stroke-dasharray: 8 6; opacity: .9; transform-box: fill-box; transform-origin: center; animation: cd-spin 2.4s linear infinite; }
+@keyframes cd-dash { to { stroke-dashoffset: -14; } }
+@keyframes cd-spin { to { transform: rotate(360deg); } }
+.cd-fly { position: fixed !important; left: 0; top: 0; margin: 0 !important; z-index: 95; pointer-events: none; will-change: transform; box-shadow: 0 26px 40px rgba(0, 0, 0, .65); }
+@media (prefers-reduced-motion: reduce) {
+  .cd-path, .cd-reticle { animation: none; }
+}
