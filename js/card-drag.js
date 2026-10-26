@@ -7,13 +7,15 @@
   const MENU_IDS = ['DM07', 'NM01', 'NM02', 'NM03'];
   const C = {
     threshold: 8, hitPad: 10, lerpHot: 0.35, lerpFree: 0.6, arc: 70,
-    flyFrames: 14, flyMs: 360, flyScale: 0.28, flyArc: 90, swallowMs: 400,
+    flyFrames: 14, flyMs: 360, flyScale: 0.28, flyArc: 90, flyFailsafe: 300, swallowMs: 400,
     color: '#38bdf8', colorHot: '#f59e0b',
   };
   const NS = 'http://www.w3.org/2000/svg';
 
   let busy = false;
   CardDrag.isBusy = function () { return busy; };
+
+  const inspecting = () => document.body.classList.contains('holo-inspecting');
 
   // 'board' = ลงช่องฝั่งเรา, 'spy' = ลงช่องว่างฝั่งศัตรู, null = ลากไม่ได้ (ใช้คลิก)
   CardDrag.canDrag = function (card, gs) {
@@ -22,6 +24,8 @@
     if (gs.activeTurn !== 'player' || gs.phase !== 'Main Phase' || gs.pendingAction || gs.gameOver || gs.isRollingDice) return null;
     if (window.HandShuffle && HandShuffle.isBusy()) return null;
     if (typeof isChoiceModalOpen === 'function' && isChoiceModalOpen()) return null;
+    // กดค้างจนเปิด Inspect แล้วลากต่อ = ไม่ใช่การลาก (ไม่งั้นการ์ดลงสนามอยู่หลังหน้า Inspect)
+    if (inspecting()) return null;
     if (card.type !== 'Monster' || card.id === 'M04' || card.cannotNormalSummon || card.futureBaseId || MENU_IDS.includes(card.id)) return null;
     if (card.id === 'NM05' || card.isSpy) return 'spy';
     return 'board';
@@ -30,6 +34,7 @@
   const reducedMotion = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const lerp = (a, b, t) => a + (b - a) * t;
   const handEls = () => Array.from(document.querySelectorAll('#player-hand > .card'));
+  const handElOf = card => { const i = gameState.player.hand.indexOf(card); return i < 0 ? null : handEls()[i] || null; };
   const slotsOf = kind => Array.from(document.querySelectorAll(kind === 'spy' ? '#ai-board .slot' : '#player-board .slot'));
   const center = el => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, top: r.top }; };
 
@@ -40,7 +45,7 @@
   }, true);
 
   let press = null; // { card, x, y, id } ก่อนเกินเกณฑ์
-  let aim = null;   // สถานะตั้งแต่เริ่มเล็งจนวางเสร็จ; phase: 'aim' → 'confirm' (ถามวางทับ) → 'fly'
+  let aim = null;   // ระหว่างเล็งเท่านั้น; หน้ายืนยันวางทับไม่ค้าง busy (หน้าต่างอื่นมาแทนได้โดยไม่ล็อกเกม)
 
   function onDown(e) {
     if (busy || press || (e.pointerType === 'mouse' && e.button !== 0)) return;
@@ -52,7 +57,13 @@
   }
 
   function onMove(e) {
-    if (aim) { if (e.pointerId === aim.id) { aim.px = e.clientX; aim.py = e.clientY; } return; }
+    if (aim) {
+      if (e.pointerId !== aim.id) return;
+      // ปล่อยเมาส์นอกหน้าต่าง: pointerup ไม่มา แต่ move ถัดไปไม่มีปุ่มกดค้าง
+      if (e.pointerType === 'mouse' && e.buttons === 0) { cancel(); return; }
+      aim.px = e.clientX; aim.py = e.clientY;
+      return;
+    }
     if (!press || e.pointerId !== press.id) return;
     const dx = e.clientX - press.x, dy = e.clientY - press.y;
     if (Math.hypot(dx, dy) <= C.threshold) return;
@@ -66,13 +77,8 @@
 
   function onUp(e) {
     if (press && e.pointerId === press.id) press = null;
-    if (!aim || aim.phase !== 'aim' || e.pointerId !== aim.id) return;
+    if (!aim || e.pointerId !== aim.id) return;
     release(e.type === 'pointercancel' ? null : aim.hot);
-  }
-
-  function sourceEl() {
-    const i = gameState.player.hand.indexOf(aim.card);
-    return i < 0 ? null : handEls()[i] || null;
   }
 
   function startAim(p, kind, x, y) {
@@ -87,13 +93,13 @@
       + '<circle class="cd-reticle" r="0"/><path class="cd-path" marker-end="url(#cd-head)"/>';
     document.body.appendChild(svg);
     document.body.classList.add('cd-dragging');
-    aim = { phase: 'aim', card: p.card, kind, id: p.id, px: x, py: y, ex: x, ey: y, slots, targets, hot: null, svg, el: null, raf: 0 };
+    aim = { card: p.card, kind, id: p.id, px: x, py: y, ex: x, ey: y, slots, targets, hot: null, svg, el: null, raf: 0 };
     tick();
   }
 
   function tick() {
-    const el = sourceEl();
-    if (!el) { cancel(); return; }
+    const el = handElOf(aim.card);
+    if (!el || inspecting()) { cancel(); return; }
     if (el !== aim.el) { if (aim.el) aim.el.classList.remove('cd-aiming'); el.classList.add('cd-aiming'); aim.el = el; }
     // ปลายลูกศรอยู่ในช่องไหน (ขยายขอบรับ)
     let hot = null;
@@ -117,56 +123,47 @@
     aim.raf = requestAnimationFrame(tick);
   }
 
-  // ลบลูกศรและไฮไลต์ (ยังไม่ปลด busy)
-  function clearAim() {
+  // จบการเล็ง: ลบลูกศร/ไฮไลต์ ปลด busy
+  function endAim() {
     if (!aim) return;
     cancelAnimationFrame(aim.raf);
     aim.svg.remove();
     aim.slots.forEach(s => s.classList.remove('cd-droppable', 'cd-hot'));
     document.body.classList.remove('cd-dragging');
-  }
-
-  function finish() {
-    clearAim();
-    handEls().forEach(e => e.classList.remove('cd-aiming', 'cd-away'));
+    handEls().forEach(e => e.classList.remove('cd-aiming'));
     aim = null; busy = false;
     swallowUntil = performance.now() + C.swallowMs;
   }
 
-  function cancel() { if (aim) finish(); }
+  function cancel() { endAim(); }
   CardDrag.cancel = cancel;
 
   function release(hotSlot) {
-    cancelAnimationFrame(aim.raf);
-    if (!hotSlot) { cancel(); return; }
-    const kind = CardDrag.canDrag(aim.card);
-    if (kind !== aim.kind) { cancel(); return; }
-    const slotIndex = aim.slots.indexOf(hotSlot);
-    clearAim();
+    const { card, kind, slots } = aim;
+    endAim();
+    if (!hotSlot || CardDrag.canDrag(card) !== kind) return;
+    const slotIndex = slots.indexOf(hotSlot);
     const occupant = kind === 'board' ? gameState.player.board[slotIndex] : null;
-    if (occupant) {
-      aim.phase = 'confirm';
-      showChoiceModal(`วางทับ "${occupant.name}"?`, 'ตัวเดิมจะถูกส่งลงนรก (ไม่ถือว่าถูกทำลาย)', [
-        { label: '✅ วางทับ', color: '#16a34a', onSelect: () => fly(hotSlot, slotIndex) },
-        { label: '❌ ยกเลิก', color: '#475569', onSelect: () => { finish(); renderGame(); } },
-      ]);
-      return;
-    }
-    fly(hotSlot, slotIndex);
+    if (!occupant) { fly(card, kind, hotSlot, slotIndex); return; }
+    showChoiceModal(`วางทับ "${occupant.name}"?`, 'ตัวเดิมจะถูกส่งลงนรก (ไม่ถือว่าถูกทำลาย)', [
+      // หน้าต่างปิดก่อน onSelect จึงตรวจ canDrag ซ้ำได้ (สถานะอาจเปลี่ยนระหว่างถาม)
+      { label: '✅ วางทับ', color: '#16a34a', onSelect: () => { if (CardDrag.canDrag(card) === kind) fly(card, kind, hotSlot, slotIndex); else renderGame(); } },
+      { label: '❌ ยกเลิก', color: '#475569', onSelect: () => renderGame() },
+    ]);
   }
 
-  function fly(slotEl, slotIndex) {
-    if (!aim) return;
-    aim.phase = 'fly';
-    const el = sourceEl();
-    if (!el || reducedMotion()) { place(slotIndex); return; }
+  function fly(card, kind, slotEl, slotIndex) {
+    const el = handElOf(card);
+    if (!el || reducedMotion()) { place(card, kind, slotIndex); return; }
+    busy = true;
+    swallowUntil = performance.now() + C.flyMs + C.swallowMs;
     const a = center(el), b = center(slotEl);
     const clone = el.cloneNode(true);
     clone.classList.remove('cd-aiming');
     clone.classList.add('cd-fly');
     clone.style.width = a.w + 'px'; clone.style.height = a.h + 'px';
     document.body.appendChild(clone);
-    el.classList.remove('cd-aiming'); el.classList.add('cd-away');
+    el.classList.add('cd-away');
     const x0 = a.x, y0 = a.y - 16, cx = (x0 + b.x) / 2, cy = Math.min(y0, b.y) - C.flyArc;
     const frames = [];
     for (let i = 0; i <= C.flyFrames; i++) {
@@ -174,15 +171,21 @@
       const x = u * u * x0 + 2 * u * t * cx + t * t * b.x, y = u * u * y0 + 2 * u * t * cy + t * t * b.y;
       frames.push({ transform: `translate(${x - a.w / 2}px, ${y - a.h / 2}px) rotate(${arc * -10}deg) scale(${1 + arc * C.flyScale})` });
     }
-    const an = clone.animate(frames, { duration: C.flyMs, easing: 'cubic-bezier(.4,0,.8,.6)', fill: 'forwards' });
-    an.onfinish = () => { clone.remove(); place(slotIndex); };
+    let landed = false;
+    const land = () => {
+      if (landed) return;
+      landed = true;
+      clone.remove(); busy = false;
+      place(card, kind, slotIndex);
+    };
+    clone.animate(frames, { duration: C.flyMs, easing: 'cubic-bezier(.4,0,.8,.6)', fill: 'forwards' }).onfinish = land;
+    // แอนิเมชันถูกยกเลิก onfinish จะไม่มา → อย่าให้ค้าง busy
+    setTimeout(land, C.flyMs + C.flyFailsafe);
   }
 
   // ส่งต่อให้ตัวจัดการคลิกช่องเดิม (กฎ วางทับ ON_SUMMON ทั้งหมดอยู่ที่นั่น)
-  function place(slotIndex) {
-    if (!aim) return;
-    const card = aim.card, kind = aim.kind;
-    finish();
+  function place(card, kind, slotIndex) {
+    handEls().forEach(e => e.classList.remove('cd-away'));
     const idx = gameState.player.hand.indexOf(card);
     if (idx < 0) { renderGame(); return; }
     gameState.selectedAttackerSlot = null;
@@ -202,7 +205,8 @@
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
   window.addEventListener('pointercancel', onUp);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && aim && aim.phase === 'aim') cancel(); });
+  window.addEventListener('blur', cancel); // สลับหน้าต่างกลางการลาก
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') cancel(); });
 
   window.CardDrag = CardDrag;
 })();
