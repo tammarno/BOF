@@ -163,6 +163,12 @@
     const open = id => () => $(id)?.showModal();
     $('#lb-play')?.addEventListener('click', () => { renderModeDeck(); $('#lb-mode-dialog').showModal(); });
     $('#nav-howto')?.addEventListener('click', open('#lb-howto-dialog'));
+    const shuffleSwitch = $('#lb-setting-shuffle');
+    $('#nav-settings')?.addEventListener('click', () => {
+      if (shuffleSwitch && window.HandShuffle) shuffleSwitch.checked = HandShuffle.enabled();
+      $('#lb-settings-dialog')?.showModal();
+    });
+    shuffleSwitch?.addEventListener('change', () => { if (window.HandShuffle) HandShuffle.setEnabled(shuffleSwitch.checked); });
     $('#lb-mode-close')?.addEventListener('click', () => $('#lb-mode-dialog').close());
     $$('#lobby-screen dialog [data-close]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
     // มือถือ: ฟอร์มเข้าห้องย้ายเข้า dialog ตอนเปิด แล้วย้ายกลับตอนปิด

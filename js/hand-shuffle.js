@@ -59,8 +59,12 @@
 
   let active = null; // { skip(), done: Promise }
 
-  // Task 3 แทนที่ด้วยค่าจาก localStorage
-  HandShuffle.enabled = function () { return true; };
+  HandShuffle.enabled = function () {
+    try { return localStorage.getItem(HandShuffle.STORE_KEY) !== 'off'; } catch (e) { return true; }
+  };
+  HandShuffle.setEnabled = function (on) {
+    try { localStorage.setItem(HandShuffle.STORE_KEY, on ? 'on' : 'off'); } catch (e) { /* storage ถูกบล็อก: เงียบ */ }
+  };
   HandShuffle.isBusy = function () { return !!active; };
   HandShuffle.skip = function () { if (active) active.skip(); };
 
