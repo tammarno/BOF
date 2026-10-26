@@ -4667,6 +4667,12 @@ document.getElementById('btn-confirm-mulligan').addEventListener('click', () => 
   startPlayerTurn();
 });
 
+// หน้าต่างเลือก (เช่น ขุนเหนือ) เปิดค้างโดยไม่ตั้ง pendingAction → ห้ามสับไพ่ใต้หน้าต่างนั้น
+function isChoiceModalOpen() {
+  const m = document.getElementById('custom-choice-modal');
+  return !!m && m.style.display !== 'none';
+}
+
 function startPlayerTurn() {
   if (gameState.gameOver) return;
   gameState.phase = 'Main Phase';
@@ -4675,7 +4681,7 @@ function startPlayerTurn() {
   executeStartPhase(gameState.player, () => {
     setLog(`🟢 เทิร์นของคุณ (ครั้งที่ ${gameState.player.turnsTaken}): ลงการ์ด/ใช้สกิลใน Main Phase หรือกด "⚔️ เฟสถัดไป (Battle Phase)" เพื่อโจมตี!`);
     renderGame();
-    if (typeof HandShuffle !== 'undefined' && HandShuffle.enabled() && !gameState.pendingAction && !gameState.gameOver && gameState.player.hand.length >= 2) HandShuffle.run(gameState.player.hand).catch(e => console.warn('HandShuffle', e));
+    if (typeof HandShuffle !== 'undefined' && HandShuffle.enabled() && !gameState.pendingAction && !gameState.gameOver && gameState.player.hand.length >= 2 && !isChoiceModalOpen()) HandShuffle.run(gameState.player.hand).catch(e => console.warn('HandShuffle', e));
   });
 }
 

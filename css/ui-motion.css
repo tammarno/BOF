@@ -124,9 +124,10 @@
 #lm-turn-banner.is-ai .um-band { border-color: rgba(248, 113, 113, .75); text-shadow: 0 0 18px rgba(248, 113, 113, .6); }
 
 /* ---------- สับการ์ดบนมือ (hand-shuffle.js) ---------- */
-/* ระหว่างสับ: ปิดการกดมือ/สนาม/ปุ่มเฟส; การ์ดอยู่ท่าเป็นกลาง (ไม่ยก/เอียง/ไม่มี transition จาก holo.css) */
+/* ระหว่างสับ: ปิดการกดมือ/สนาม/ผู้นำ/ปุ่มเฟส (#btn-surrender-match เว้นไว้โดยตั้งใจ: ยอมแพ้ต้องกดได้เสมอ); การ์ดอยู่ท่าเป็นกลาง (ไม่ยก/เอียง/ไม่มี transition จาก holo.css) */
 body.hs-busy #player-hand, body.hs-busy #player-hand *,
 body.hs-busy #player-board, body.hs-busy #ai-board,
+body.hs-busy #player-leader-box, body.hs-busy #ai-leader-box,
 body.hs-busy #btn-next-phase, body.hs-busy #btn-end-turn, body.hs-busy #btn-pass-turn-inline { pointer-events: none !important; }
 body.hs-busy #player-hand { perspective: 900px; }
 body.hs-busy #player-hand .card {

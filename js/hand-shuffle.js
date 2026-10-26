@@ -75,7 +75,11 @@
   const tf = p => `translate(${p.x.toFixed(2)}px, ${p.y.toFixed(2)}px) rotate(${p.r.toFixed(2)}deg) rotateY(${p.ry.toFixed(2)}deg) scale(${p.sx}, ${p.sy})`;
 
   HandShuffle.run = async function (hand) {
-    if (active) { active.skip(); await active.done; }
+    if (active) {
+      active.skip(); await active.done;
+      // ระหว่างรอ สถานะเกมอาจเปลี่ยน (จบเกม/มือถูกแทนที่/มี pendingAction) → ไม่สับต่อ
+      if (typeof gameState !== 'undefined' && gameState && (hand !== gameState.player.hand || gameState.pendingAction || gameState.gameOver)) return;
+    }
     const plan = HandShuffle.plan(hand.length);
     if (!plan) return;
     const handEl = document.getElementById('player-hand');
@@ -97,6 +101,8 @@
     };
     const body = document.body;
     let obs = null, skipEl = null;
+    // ปุ่มเฟส/จบเทิร์น: pointer-events ไม่กันคีย์บอร์ด จึงใส่ inert ชั่วคราว (จำเฉพาะตัวที่เราเป็นคนใส่ เพื่อคืนสภาพเดิมเป๊ะ)
+    const inerted = [];
 
     const alive = () => !stopped && !(typeof gameState !== 'undefined' && gameState && gameState.gameOver) && els.every(e => e.isConnected);
     const D = ms => (stopped ? 1 : ms / HandShuffle.SPEED);
@@ -120,6 +126,10 @@
       obs.observe(handEl, { childList: true });
 
       body.classList.add('hs-busy');
+      ['btn-next-phase', 'btn-end-turn', 'btn-pass-turn-inline'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && !el.inert) { el.inert = true; inerted.push(el); }
+      });
       skipEl = document.createElement('div');
       skipEl.id = 'hs-skip';
       skipEl.title = 'แตะเพื่อข้าม';
@@ -240,6 +250,7 @@
       anims.forEach(a => { try { a.cancel(); } catch (e) { /* ไม่มีผล */ } });
       els.forEach(e => { e.style.zIndex = ''; });
       body.classList.remove('hs-busy');
+      inerted.forEach(el => { el.inert = false; });
       if (skipEl) skipEl.remove();
       if (active === me) active = null;
       // วาดใหม่ตามลำดับใหม่ (ถ้ามีคนวาดไปแล้ว การ์ดเดิมจะหลุดจาก DOM)
