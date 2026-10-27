@@ -3125,7 +3125,10 @@ function handlePlayerSlotClick(slotIndex) {
 }
 
 function handleAISlotClick(aiSlotIndex) {
-  if (gameState.gameOver || gameState.activeTurn !== 'player') return;
+  if (gameState.gameOver) return;
+  // สกิลของเราที่ทำงานในเทิร์นอีกฝ่าย (เช่น ทีเร็กซ์ชนะตอนป้องกัน) ยังรอให้เลือกเป้าหมาย → ต้องคลิกได้ ไม่งั้นเทิร์นอีกฝ่ายค้าง
+  const awaitingOurTarget = gameState.pendingAction && gameState.pendingAction.type === 'MODULAR_SELECT_TARGET';
+  if (gameState.activeTurn !== 'player' && !awaitingOurTarget) return;
   const player = gameState.player;
   const ai = gameState.ai;
   const targetMonster = ai.board[aiSlotIndex];

@@ -45,7 +45,8 @@
   }
 
   function findCard(title) {
-    const m = title.match(/การ์ด:\s*(.+?)(?:\s*\(Power:.*\))?\s*$/);
+    // "การ์ด: ชื่อ (Power: n) [เผ่า: x]" — ส่วน Power และเผ่าเป็นทางเลือก
+    const m = title.match(/การ์ด:\s*(.+?)(?:\s*\(Power:[^)]*\))?(?:\s*\[เผ่า:[^\]]*\])?\s*$/);
     if (!m || typeof CARD_DATABASE === 'undefined') return null;
     return CARD_DATABASE.find(c => c.name === m[1].trim()) || null;
   }
