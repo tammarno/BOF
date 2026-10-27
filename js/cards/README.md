@@ -163,6 +163,9 @@
 | ON_SUMMON |
 | ON_DESTROY |
 | ON_BATTLE_DESTROY |
+| ON_KILL_UNIT |
+| ON_INTERCEPT |
+| ON_HIT_LEADER |
 | ACTIVATE_MAIN |
 | ACTIVATE_LEADER |
 | CAST_SPELL |
@@ -186,16 +189,18 @@
 | HEAL_LEADER | - | `side`, `amount` | side: SELF / OPPONENT | ฟื้นฟู HP ลีดเดอร์ amount หน่วย (ไม่เกิน maxHp) |
 | DAMAGE_LEADER | - | `side`, `amount` | side: SELF / OPPONENT | ทำดาเมจใส่ลีดเดอร์ amount หน่วย |
 | MILL_DECK | - | `side`, `count` | side: SELF / OPPONENT | ส่งการ์ดใบบนสุดของกอง count ใบลงนรก |
-| DESTROY_UNIT | `target` | `count`, `select` | target: SELF / OPPONENT; select: CHOOSE / ALL | ทำลายยูนิตบนสนาม (เลือก count ใบ หรือทั้งหมดเมื่อ select เป็น ALL) |
-| ADD_POWER | - | `target`, `count`, `amount`, `duration`, `filterTribe` | target: ALLY / SELF_UNIT / ALL_ALLIES; duration: TURN / PERM | เพิ่มพลังโจมตียูนิตฝั่งเรา +amount (TURN จนจบเทิร์น / PERM ถาวร) |
+| DESTROY_UNIT | `target` | `count`, `select` | target: SELF / OPPONENT / BOTH; select: CHOOSE / ALL | ทำลายยูนิตบนสนาม (เลือก count ใบ หรือทั้งหมดเมื่อ select เป็น ALL) |
+| ADD_POWER | - | `target`, `count`, `amount`, `duration`, `filterTribe`, `filterName` | target: ALLY / SELF_UNIT / ALL_ALLIES; duration: TURN / PERM | เพิ่มพลังโจมตียูนิตฝั่งเรา +amount (TURN จนจบเทิร์น / PERM ถาวร) |
 | REDUCE_POWER | - | `target`, `count`, `amount`, `duration` | target: OPPONENT / ALL_ENEMIES; duration: TURN / PERM | ลดพลังโจมตียูนิตฝ่ายตรงข้าม -amount (เลือก count ใบ หรือทุกใบเมื่อ ALL_ENEMIES) — ไม่ใส่ target หรือใช้ OPPONENT = เลือกศัตรู 1 ใบ; ALL_ENEMIES = ทุกใบ |
 | FLEX_POWER | - | `plusAmount`, `minusAmount`, `duration` | duration: TURN / PERM | เลือกยูนิต 1 ใบ: ฝั่งเราพลัง +plusAmount หรือฝั่งตรงข้ามพลัง -minusAmount |
 | BOUNCE_UNIT | `target` | `count` | target: SELF / OPPONENT | ส่งยูนิตบนสนาม count ใบกลับขึ้นมือเจ้าของ |
 | GRANT_STATUS | `status` | `target`, `count` | target: ALLY / ALL_ALLIES; status: INDESTRUCTIBLE / BURN_ON_KILL | มอบสถานะพิเศษให้ยูนิตฝั่งเรา (INDESTRUCTIBLE ไม่ถูกทำลาย / BURN_ON_KILL ฆ่าแล้วทำดาเมจลีดเดอร์) |
+| STAND_SELF | - | - | - | เปลี่ยนสถานะยูนิตใบนี้เป็น Stand |
 | MARK_END_TURN_DESTROY | - | `target` | - | ทำลายยูนิตนี้เองเมื่อจบเทิร์น |
 | TRIGGER_ALLY_PASSIVE | `allyId` | `amount` | - | ยูนิตฝั่งเราที่มี id เป็น allyId ได้พลังถาวร +amount |
-| RECOVER_FROM_GRAVE | - | `cardId`, `count`, `filterTribe`, `filterType`, `autoPickFirst` | filterType: SPELL / MONSTER | นำการ์ดที่ตรงเงื่อนไข 1 ใบจากกองนรกขึ้นมือ |
-| SEARCH_DECK_OR_GRAVE | `destination` | `cardId`, `filterTribe`, `filterType`, `grantImmunity` | destination: HAND / BOARD; filterType: SPELL / MONSTER | ค้นการ์ดที่ตรงเงื่อนไขจากกองการ์ดหรือกองนรก ไปขึ้นมือ (HAND) หรือลงสนาม (BOARD) |
+| RECOVER_FROM_GRAVE | - | `cardId`, `count`, `filterTribe`, `filterName`, `filterType`, `autoPickFirst` | filterType: SPELL / MONSTER | นำการ์ดที่ตรงเงื่อนไข 1 ใบจากกองนรกขึ้นมือ |
+| SEARCH_DECK_OR_GRAVE | `destination` | `cardId`, `filterTribe`, `filterName`, `filterType`, `grantImmunity` | destination: HAND / BOARD; filterType: SPELL / MONSTER | ค้นการ์ดที่ตรงเงื่อนไขจากกองการ์ดหรือกองนรก ไปขึ้นมือ (HAND) หรือลงสนาม (BOARD) |
+| SEARCH_DECK | - | `cardId`, `filterTribe`, `filterName`, `filterType`, `count`, `upTo` | filterType: SPELL / MONSTER | ค้นหาการ์ดที่ตรงเงื่อนไขจากกองการ์ดไม่เกิน count ใบ แสดงแล้วนำขึ้นมือ พร้อมสับกอง |
 | CARPET_BOMB_COMPOSITE | - | - | - | ระเบิดปูพรม: ผลตามจำนวนทหารเหนือ (NM02/NM03/NM04) บนสนามฝั่งเรา |
 
 ### conditions
@@ -203,8 +208,11 @@
 | condition | required | optional |
 | --- | --- | --- |
 | MIN_TRIBE_COUNT | `tribe`, `count` | - |
+| MIN_NAME_COUNT | `nameKeyword`, `count` | - |
 | ALLY_ON_BOARD | `cardId` | - |
 | PER_OTHER_ALLY_TRIBE | `tribe` | - |
+| PER_OTHER_ALLY_NAME | `nameKeyword` | - |
+| PER_GRAVE_COUNT | `divisor` | - |
 
 <!-- จบส่วนที่สร้างอัตโนมัติ -->
 
