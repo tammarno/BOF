@@ -54,6 +54,88 @@
 #choice-modal-buttons .btn.um-btn-arcane:not(:disabled) { background: linear-gradient(135deg, #7c5cf0, #4c2fb8) !important; color: #fff !important; border: 1px solid rgba(167, 139, 250, .7) !important; }
 #choice-modal-buttons .btn.um-btn-amber:not(:disabled) { background: linear-gradient(135deg, #f59e0b, #b45309) !important; color: #fff !important; }
 
+/* ---------- ตารางเลือกการ์ดด้วยรูปภาพ (ตอนค้นหา / เก็บจากนรก / ชุบ / ไฮบริด) ---------- */
+#custom-choice-modal.um-choice.um-has-card-grid .modal-box {
+  max-width: 780px !important;
+  max-height: 90vh !important;
+}
+.um-card-pick-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+  margin: 6px 0 16px;
+  padding: 12px 10px;
+  max-height: 56vh;
+  overflow-y: auto;
+  border-radius: 14px;
+  background: rgba(10, 12, 24, .55);
+  border: 1px solid rgba(160, 175, 255, .15);
+}
+.um-card-pick-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  width: 132px;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .03);
+  border: 1px solid rgba(243, 201, 105, .28);
+  cursor: pointer;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.um-card-pick-item:hover:not(.is-disabled) {
+  transform: translateY(-6px) scale(1.03);
+  border-color: rgba(243, 201, 105, .95);
+  background: rgba(243, 201, 105, .1);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, .6), 0 0 20px rgba(243, 201, 105, .38);
+}
+.um-card-pick-item:active:not(.is-disabled) {
+  transform: translateY(-2px) scale(.98);
+}
+.um-card-pick-item.is-disabled {
+  opacity: .42;
+  filter: grayscale(.7);
+  cursor: not-allowed;
+}
+.um-card-pick-item .card {
+  width: 118px;
+  height: 162px;
+  margin: 0;
+  pointer-events: auto;
+}
+.um-pick-zone-badge {
+  position: absolute;
+  top: 24px;
+  left: 4px;
+  right: 4px;
+  z-index: 4;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font: 700 10px var(--font-display, sans-serif);
+  color: #fff;
+  background: linear-gradient(135deg, rgba(124, 58, 237, .92), rgba(37, 99, 235, .92));
+  border: 1px solid rgba(255, 255, 255, .35);
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .6);
+}
+.um-pick-caption {
+  display: block;
+  width: 100%;
+  padding: 4px 6px;
+  border-radius: 8px;
+  font: 600 11.5px/1.3 var(--font-body, sans-serif);
+  color: #1a1405;
+  background: linear-gradient(135deg, #f7d77f, #e0a83c);
+  text-align: center;
+  box-shadow: 0 3px 10px rgba(243, 201, 105, .25);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* ---------- โหมดชนะ / แพ้ (เต็มจอ) ---------- */
 #custom-choice-modal.um-end { background: radial-gradient(ellipse at 50% 45%, rgba(36, 28, 8, .96), rgba(4, 5, 12, .985) 70%) !important; }
 #custom-choice-modal.um-end.um-defeat { background: radial-gradient(ellipse at 50% 45%, rgba(36, 6, 10, .96), rgba(3, 3, 8, .985) 72%) !important; }

@@ -8,9 +8,10 @@
   const THAI_DIGITS = '๐๑๒๓๔๕๖๗๘๙';
 
   const DECKS = [
-    { key: 'jit', leaderId: 'L01', name: 'เด็คจิต', style: 'เสริมพลังยูนิทแล้วบุกให้แรงที่สุดในเทิร์นเดียว' },
+    { key: 'jit', leaderId: 'L01', name: 'เด็คจิต', style: 'เสริมพลังยูนิทเผ่าฮีโร่แล้วบุกให้แรงที่สุดในเทิร์นเดียว' },
     { key: 'nuea', leaderId: 'L02', name: 'เด็คเหนือ', style: 'ส่งไพร่และทหารลงสนามให้ครบทัพ แล้วชุบกลับจากนรกไม่รู้จบ' },
     { key: 'doom', leaderId: 'L03', name: 'เด็ควันสิ้นโลก', style: 'ปลุกยูนิทจากนรก แล้ววิวัฒน์สู่ร่างแห่งอนาคต' },
+    { key: 'dino', leaderId: 'L04', name: 'เด็คไดโน', style: 'สะสมเผ่าไดโนและผสานร่างไฮบริดสุดแกร่งจากมิติมืด' },
   ];
 
   const byId = id => CARD_DATABASE.find(c => c.id === id);
@@ -40,7 +41,7 @@
   // ภาพย่อ WebP (สร้างด้วย tools/make-thumbs.js): images/เด็คจิต/3.png → images/thumbs/เด็คจิต/3.webp
   const thumbOf = card => card.image.replace(/^images\//, 'images/thumbs/').replace(/\.png$/, '.webp');
 
-  // เด็คมาตรฐาน (L01–L03) หรือเด็คที่ผู้เล่นบันทึกไว้ ('mine') → ลีดเดอร์ + การ์ดไม่ซ้ำ
+  // เด็คมาตรฐาน (L01–L04) หรือเด็คที่ผู้เล่นบันทึกไว้ ('mine') → ลีดเดอร์ + การ์ดไม่ซ้ำ
   function cardsOfDeck(key) {
     const cfg = key === 'mine' ? loadSavedDeck() : { leaderId: key, mainDeck: getDefaultDeckForLeader(key) };
     return [byId(cfg.leaderId), ...[...new Set(cfg.mainDeck)].map(byId)].filter(Boolean);
@@ -52,8 +53,8 @@
   /* ---------------- การแสดงผล (ล็อบบี้เกมหน้าจอเดียว v0.8) ---------------- */
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
-  const DECK_COLOURS = { L01: '#3ee08f', L02: '#f0a347', L03: '#5fd0ff' };
-  const STANDARD = ['L01', 'L02', 'L03'];
+  const DECK_COLOURS = { L01: '#3ee08f', L02: '#f0a347', L03: '#5fd0ff', L04: '#a3e635' };
+  const STANDARD = ['L01', 'L02', 'L03', 'L04'];
   const small = () => matchMedia('(max-width: 767px)').matches;
   const wallSize = () => (small() ? { cols: 6, rows: 6 } : { cols: 12, rows: 5 });
 
@@ -284,4 +285,3 @@
   // ลีดเดอร์เอียงตามเมาส์ (holo.js ใส่ --rx/--ry ให้ #lb-leader · มือถือไม่เอียง)
   if (window.HoloTilt) HoloTilt.bind($('.lb-leader-wrap'), 8, '.lb-leader');
 })();
-

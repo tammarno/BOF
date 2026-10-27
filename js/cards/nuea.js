@@ -4,26 +4,29 @@ CARD_DATABASE.push(
     id: 'NM01',
     name: 'ไพร่ชาวนาเหนือ',
     type: 'Monster',
+    tribe: 'ไทย',
     rarity: 'N', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
     power: 1,
     image: 'images/เด็คเหนือ/2.png',
     ability: 'PEASANT_HAND_SKILL',
-    desc: 'สั่งใช้จากบนมือ: ส่งใบนี้ลงนรกและเลือก 1 อย่าง:\n1) อัญเชิญ "สายลับไพร่เหนือ" จากกองหรือนรกลงสนามอีกฝ่าย\n2) นำการ์ด "ทหาร" 1 ใบจากกองขึ้นมือ'
+    desc: 'สั่งใช้จากบนมือ: ส่งใบนี้ลงนรกและเลือก 1 อย่าง:\n1) อัญเชิญ "สายลับไพร่เหนือ" จากกองหรือนรกลงสนามอีกฝ่าย\n2) นำการ์ดที่มีคำว่า "ทหาร" 1 ใบจากกองขึ้นมือ'
   },
   {
     id: 'NM02',
     name: 'ทหารหลวงเหนือ',
     type: 'Monster',
+    tribe: 'ไทย',
     rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
     power: 2,
     image: 'images/เด็คเหนือ/3.png',
     ability: 'ROYAL_GUARD_SKILL',
-    desc: 'สั่งใช้จากบนมือ: ส่ง "ไพร่ชาวนาเหนือ" 1 ใบบนมือลงนรกเพื่ออัญเชิญจุติใบนี้ (พลัง +1)\nจุติ: หากมี "ทหารเกณฑ์เหนือ" บนสนามเรา อัญเชิญ "ทหาร" 1 ใบจากกอง/นรกลงสนามทันที'
+    desc: 'สั่งใช้จากบนมือ: ส่ง "ไพร่ชาวนาเหนือ" 1 ใบบนมือลงนรกเพื่ออัญเชิญจุติใบนี้ (พลัง +1)\nจุติ: หากมี "ทหารเกณฑ์เหนือ" บนสนามเรา อัญเชิญการ์ดที่มีคำว่า "ทหาร" 1 ใบจากกอง/นรกลงสนามทันที'
   },
   {
     id: 'NM03',
     name: 'ทหารพรานเหนือ',
     type: 'Monster',
+    tribe: 'ไทย',
     rarity: 'N', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
     power: 1,
     image: 'images/เด็คเหนือ/4.png',
@@ -45,11 +48,12 @@ CARD_DATABASE.push(
     id: 'NM04',
     name: 'ทหารเกณฑ์เหนือ',
     type: 'Monster',
+    tribe: 'ไทย',
     rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
     power: 1,
     image: 'images/เด็คเหนือ/5.png',
     ability: 'CONSCRIPT_SKILL',
-    desc: 'ออโต้: เมื่อลงสนาม พลัง +1\nต่อเนื่อง: พลังโจมตี +1 ตามจำนวน "ทหาร" ใบอื่นบนสนามเรา\nคำสั่งเสีย: เมื่อถูกทำลาย นำการ์ดที่มีคำว่า "ไพร่" 1 ใบจากนรกขึ้นมือ',
+    desc: 'ออโต้: เมื่อลงสนาม พลัง +1\nต่อเนื่อง: พลังโจมตี +1 ตามจำนวนการ์ดที่มีคำว่า "ทหาร" ใบอื่นบนสนามเรา\nคำสั่งเสีย: เมื่อถูกทำลาย นำการ์ดที่มีคำว่า "ไพร่" 1 ใบจากนรกขึ้นมือ',
     effects: [
       {
         id: 'conscript_summon',
@@ -61,14 +65,14 @@ CARD_DATABASE.push(
       {
         id: 'conscript_continuous',
         trigger: 'CONTINUOUS_POWER',
-        condition: { type: 'PER_OTHER_ALLY_TRIBE', tribe: 'ทหาร' },
+        condition: { type: 'PER_OTHER_ALLY_NAME', nameKeyword: 'ทหาร' },
         amountPerUnit: 1
       },
       {
         id: 'conscript_death',
         trigger: 'ON_DESTROY',
         steps: [
-          { block: 'RECOVER_FROM_GRAVE', filterTribe: 'ไพร่', count: 1, autoPickFirst: true }
+          { block: 'RECOVER_FROM_GRAVE', filterName: 'ไพร่', count: 1, autoPickFirst: true }
         ]
       }
     ]
@@ -77,6 +81,7 @@ CARD_DATABASE.push(
     id: 'NM05',
     name: 'สายลับไพร่เหนือ',
     type: 'Monster',
+    tribe: 'ไทย',
     rarity: 'N', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
     power: 0,
     image: 'images/เด็คเหนือ/6.png',
@@ -106,7 +111,7 @@ CARD_DATABASE.push(
         id: 'spell_ns01',
         trigger: 'CAST_SPELL',
         steps: [
-          { block: 'RECOVER_FROM_GRAVE', filterTribe: 'ไพร่', count: 1 }
+          { block: 'RECOVER_FROM_GRAVE', filterName: 'ไพร่', count: 1 }
         ]
       }
     ]
@@ -124,7 +129,7 @@ CARD_DATABASE.push(
         id: 'spell_ns02',
         trigger: 'CAST_SPELL',
         steps: [
-          { block: 'RECOVER_FROM_GRAVE', filterTribe: 'ทหาร', count: 1 }
+          { block: 'RECOVER_FROM_GRAVE', filterName: 'ทหาร', count: 1 }
         ]
       }
     ]
@@ -136,7 +141,7 @@ CARD_DATABASE.push(
     rarity: 'SR', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
     effect: 'SPELL_CARPET_BOMB',
     image: 'images/เด็คเหนือ/9.png',
-    desc: 'แสดงผลตามยูนิท "ทหาร" บนสนามเรา:\n- ทหารเกณฑ์เหนือ: ยูนิท "เหนือ" ทุกใบพลัง +1 จนจบเทิร์น\n- ทหารพรานเหนือ: ทำลายยูนิทอีกฝ่าย 1 ใบ\n- ทหารหลวงเหนือ: ยูนิทเราทุกใบไม่ถูกทำลายจนเริ่มเทิร์นถัดไป',
+    desc: 'แสดงผลตามยูนิทที่มีคำว่า "ทหาร" บนสนามเรา:\n- ทหารเกณฑ์เหนือ: ยูนิทที่มีคำว่า "เหนือ" ทุกใบพลัง +1 จนจบเทิร์น\n- ทหารพรานเหนือ: ทำลายยูนิทอีกฝ่าย 1 ใบ\n- ทหารหลวงเหนือ: ยูนิทเราทุกใบไม่ถูกทำลายจนเริ่มเทิร์นถัดไป',
     effects: [
       {
         id: 'spell_ns03',

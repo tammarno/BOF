@@ -63,11 +63,6 @@
     cardOf.set(el, { card, owner });
     const art = el.querySelector('.card-art');
     if (art) { art.insertAdjacentHTML('beforeend', holoLayersHTML()); addStars(art, rarity); }
-    const info = document.createElement('button');
-    info.type = 'button'; info.className = 'holo-info-btn'; info.textContent = 'i';
-    info.setAttribute('aria-label', `ดูรายละเอียด ${card.name}`);
-    info.addEventListener('click', e => { e.stopPropagation(); hideTooltip(); window.openCardDetailModal(card, owner, el); });
-    el.appendChild(info);
     return el;
   }
 
@@ -111,26 +106,9 @@
     hand.addEventListener('pointerleave', () => { pending = null; if (lastEl) resetTilt(lastEl); lastEl = null; });
   }
 
-  // ---------- คลิกค้าง (เมาส์/นิ้ว) หรือคลิกขวา เพื่อเปิด Inspect ----------
+  // ---------- คลิกขวา เพื่อเปิด Inspect ----------
   let suppressClickUntil = 0;
   function bindLongPress() {
-    let timer = null, startX = 0, startY = 0;
-    document.addEventListener('pointerdown', e => {
-      const el = e.target.closest('.card');
-      if (!el || !cardOf.has(el) || e.target.closest('.holo-info-btn')) return;
-      if (e.pointerType === 'touch') return; // มือถือใช้การแตะค้างเดิมของ game.js (450ms)
-      startX = e.clientX; startY = e.clientY;
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        const { card, owner } = cardOf.get(el);
-        suppressClickUntil = performance.now() + 700;
-        hideTooltip(); window.openCardDetailModal(card, owner, el);
-      }, 480);
-    });
-    const cancel = () => clearTimeout(timer);
-    document.addEventListener('pointerup', cancel);
-    document.addEventListener('pointercancel', cancel);
-    document.addEventListener('pointermove', e => { if (Math.hypot(e.clientX - startX, e.clientY - startY) > 8) cancel(); });
     document.addEventListener('contextmenu', e => {
       const el = e.target.closest('.card');
       if (!el || !cardOf.has(el)) return;
@@ -138,7 +116,7 @@
       const { card, owner } = cardOf.get(el);
       hideTooltip(); window.openCardDetailModal(card, owner, el);
     });
-    // กลืนคลิกที่ตามมาหลังคลิกค้าง ไม่ให้ไปเลือกการ์ด/ลงสนามโดยไม่ตั้งใจ
+    // กลืนคลิกที่ตามมาหลังการเปิดหน้าต่างรายละเอียด ไม่ให้ไปเลือกการ์ด/ลงสนามโดยไม่ตั้งใจ
     document.addEventListener('click', e => {
       if (performance.now() < suppressClickUntil) { e.stopPropagation(); e.preventDefault(); }
     }, true);
