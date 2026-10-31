@@ -74,39 +74,47 @@ CardDatabase.IMAGE_ASSETS = {
 }
 
 CardDatabase.DECK_METADATA = {
-	{
+	L01 = {
 		key = "jit",
 		leaderId = "L01",
+		title = "🔥 เด็คจิต",
 		name = "เด็คจิต",
 		leaderName = "มายฮีโร่ เดจิต",
 		style = "เสริมพลังยูนิทเผ่าฮีโร่แล้วบุกให้แรงที่สุดในเทิร์นเดียว",
-		color = Color3.fromRGB(62, 224, 143),
+		color = "#3ee08f",
 	},
-	{
+	L02 = {
 		key = "nuea",
 		leaderId = "L02",
+		title = "⚔️ เด็คขุนเหนือ",
 		name = "เด็คเหนือ",
 		leaderName = "ขุนเหนือ",
 		style = "ส่งไพร่และทหารลงสนามให้ครบทัพ แล้วชุบกลับจากนรกไม่รู้จบ",
-		color = Color3.fromRGB(240, 163, 71),
+		color = "#f0a347",
 	},
-	{
+	L03 = {
 		key = "doom",
 		leaderId = "L03",
+		title = "🌌 เด็ควันสิ้นโลก",
 		name = "เด็ควันสิ้นโลก",
 		leaderName = "วันสิ้นโลก",
 		style = "ปลุกยูนิทจากนรก แล้ววิวัฒน์สู่ร่างแห่งอนาคต",
-		color = Color3.fromRGB(95, 208, 255),
+		color = "#5fd0ff",
 	},
-	{
+	L04 = {
 		key = "dino",
 		leaderId = "L04",
+		title = "🦖 เด็คไดโน",
 		name = "เด็คไดโน",
 		leaderName = "ศูนย์วิจัยไดโน",
 		style = "สะสมเผ่าไดโนและผสานร่างไฮบริดสุดแกร่งจากมิติมืด",
-		color = Color3.fromRGB(163, 230, 53),
+		color = "#a3e635",
 	},
 }
+CardDatabase.DECK_METADATA[1] = CardDatabase.DECK_METADATA.L01
+CardDatabase.DECK_METADATA[2] = CardDatabase.DECK_METADATA.L02
+CardDatabase.DECK_METADATA[3] = CardDatabase.DECK_METADATA.L03
+CardDatabase.DECK_METADATA[4] = CardDatabase.DECK_METADATA.L04
 
 CardDatabase.CARDS = {
 	-- ==================== LEADER (ทั้ง 4 เด็ค) ====================
@@ -1064,6 +1072,7 @@ CardDatabase.DECK_LISTS = {
 }
 
 -- ดัชนีค้นหาการ์ดตาม ID
+CardDatabase.CARD_POOL = CardDatabase.CARDS
 CardDatabase.BY_ID = {}
 for _, card in ipairs(CardDatabase.CARDS) do
 	CardDatabase.BY_ID[card.id] = card

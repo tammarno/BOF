@@ -495,7 +495,7 @@ local function createCardWidget(cardData, options)
 		skillBtn.TextSize = 11
 		skillBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 		skillBtn.Text = "⚡ ใช้สกิล"
-		skillBtn.ZIndex = btn.ZIndex + 3
+		skillBtn.ZIndex = (btn.ZIndex or 1) + 3
 		skillBtn.Parent = btn
 		addCorner(skillBtn, 6)
 		skillBtn.MouseButton1Click:Connect(function()
