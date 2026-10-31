@@ -1,0 +1,27 @@
+{
+  "name": "BattleOfFriends",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "BOF_Shared": {
+        "$path": "src/ReplicatedStorage/BOF_Shared"
+      }
+    },
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "BOF_Server": {
+        "$path": "src/ServerScriptService/BOF_Server"
+      }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "BOF_Client": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/BOF_Client"
+        }
+      }
+    }
+  }
+}
