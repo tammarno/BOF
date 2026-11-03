@@ -475,11 +475,24 @@ const gameState = {
   selectedAttackerSlot: null,
   pendingAttack: null,
   pendingAction: null,
+  isWaitingForChoice: false,
   isRollingDice: false,
   gameOver: false,
   player: null,
   ai: null
 };
+
+// ตรวจสอบว่ากำลังมีหน้าต่างตัวเลือก, รอเลือกเป้าหมาย หรือรอการตัดสินใจของสกิลอยู่หรือไม่
+function isInteractionBlocked() {
+  if (gameState.gameOver) return false;
+  if (gameState.pendingAction) return true;
+  if (gameState.isWaitingForChoice) return true;
+  const choiceModal = document.getElementById('custom-choice-modal');
+  if (choiceModal && choiceModal.style.display !== 'none' && choiceModal.style.display !== '') return true;
+  const interceptModal = document.getElementById('intercept-modal');
+  if (interceptModal && interceptModal.style.display !== 'none' && interceptModal.style.display !== '') return true;
+  return false;
+}
 
 function createContestant(name, isFirstPlayer, prefix, leaderId = 'L01', deckList = DEFAULT_DECK_LIST) {
   const setup = createValidDeck(leaderId, deckList, prefix);
@@ -1023,7 +1036,10 @@ const EffectEngine = {
       const { caster, sourceCard, spellHandIndex } = context;
       if (effectDef.oncePerTurn && sourceCard) {
         if (sourceCard.type === 'Leader') sourceCard.abilityUsedThisTurn = true;
-        else if (sourceCard.usedSkills) sourceCard.usedSkills[effectDef.id] = true;
+        else {
+          if (!sourceCard.usedSkills) sourceCard.usedSkills = {};
+          sourceCard.usedSkills[effectDef.id] = true;
+        }
       }
 
       // หากเป็นการร่ายการ์ดเวทมนตร์จากมือ ให้นำการ์ดเวทออกจากมือลงนรกเมื่อจ่าย Cost เสร็จ
@@ -1809,7 +1825,11 @@ const EffectEngine = {
       // --- บล็อกที่ 13: แมมมอน บาปความโลภ (MAMMON_SUMMON_CHOICE) ---
       case 'MAMMON_SUMMON_CHOICE': {
         const doOption1 = () => {
-          if (opponent.hand.length === 0) return;
+          if (opponent.hand.length === 0) {
+            gameState.isWaitingForChoice = false;
+            next();
+            return;
+          }
           const discarded = opponent.hand.pop();
           resetCardStateForZoneChange(discarded);
           opponent.graveyard.push(discarded);
@@ -1820,6 +1840,7 @@ const EffectEngine = {
           } else {
             setLog(`💰 ${cardTitle} อีกฝั่งเลือกทิ้ง "${discarded.name}" จากมือลงนรก!`);
           }
+          gameState.isWaitingForChoice = false;
           next();
         };
 
@@ -1831,28 +1852,44 @@ const EffectEngine = {
             setLog(`💰 ${cardTitle} อีกฝั่งเลือกนำ "${milled.name}" ใบบนสุดของกองลงนรก!`);
           }
           if (caster.graveyard.length > 0) {
-            this.executeSingleStep({ block: 'RECOVER_FROM_GRAVE', count: 1 }, context, next);
+            this.executeSingleStep({ block: 'RECOVER_FROM_GRAVE', count: 1 }, context, () => {
+              gameState.isWaitingForChoice = false;
+              next();
+            });
           } else {
+            gameState.isWaitingForChoice = false;
             next();
           }
         };
 
-        // ถ้าอีกฝั่งเป็น AI: เลือกอัตโนมัติ (ถ้ามีมือน้อยหรือมีแต่เวทจะเลือกโม่กอง)
+        gameState.isWaitingForChoice = true;
+
+        // ถ้าอีกฝั่งเป็น AI (ผู้เล่นลงแมมมอน): AI จะคิดและตัดสินใจ พร้อมแจ้งเตือนให้ผู้เล่นเห็นชัดเจน (ผู้เล่นต้องรอ AI เลือกเสร็จก่อน)
         if (!isAI) {
-          if (opponent.hand.length > 0 && opponent.hand.some(c => !isSpellCard(c))) {
-            const nonSpellIdx = opponent.hand.findIndex(c => !isSpellCard(c));
-            const discarded = opponent.hand.splice(nonSpellIdx, 1)[0];
-            resetCardStateForZoneChange(discarded);
-            opponent.graveyard.push(discarded);
-            setLog(`💰 ${cardTitle} ฝ่ายตรงข้ามเลือกข้อ 1: ทิ้ง "${discarded.name}" ลงนรก!`);
-            next();
-          } else {
-            doOption2();
+          setLog(`💰 [แมมมอน บาปความโลภ] กำลังรออีกฝ่าย (AI) เลือก 1 จาก 2 ทางเลือก...`);
+          if (sourceCard) {
+            showCardShowcaseBanner(sourceCard, 'แมมมอน บาปความโลภ', '🤖 ฝ่ายตรงข้ามกำลังตัดสินใจเลือก...', '#eab308', 900);
           }
+          setTimeout(() => {
+            if (opponent.hand.length > 0 && opponent.hand.some(c => !isSpellCard(c))) {
+              const nonSpellIdx = opponent.hand.findIndex(c => !isSpellCard(c));
+              const discarded = opponent.hand.splice(nonSpellIdx, 1)[0];
+              resetCardStateForZoneChange(discarded);
+              opponent.graveyard.push(discarded);
+              showCardShowcaseBanner(discarded, 'AI เลือกข้อ 1 (ทิ้งการ์ด)', `💰 AI ทิ้ง "${discarded.name}" ลงนรก!`, '#d97706', 1000);
+              setLog(`💰 ${cardTitle} ฝ่ายตรงข้าม (AI) เลือกข้อ 1: ทิ้ง "${discarded.name}" ลงนรก!`);
+              renderGame();
+              gameState.isWaitingForChoice = false;
+              next();
+            } else {
+              showCardShowcaseBanner(sourceCard, 'AI เลือกข้อ 2 (โม่กอง)', '💰 AI นำใบบนสุดของกองลงนรก -> คุณได้เก็บการ์ดจากนรก 1 ใบ!', '#7c3aed', 1000);
+              doOption2();
+            }
+          }, 850);
           return;
         }
 
-        // ถ้า AI ลงแมมมอนใส่ผู้เล่น: ให้ผู้เล่นเป็นคนเลือกทำ 1 อย่าง!
+        // ถ้า AI ลงแมมมอนใส่ผู้เล่น: ให้ผู้เล่นเป็นคนเลือกทำ 1 อย่าง (AI จะหยุดรอจนกว่าผู้เล่นจะเลือกเสร็จสิ้น)
         const opts = [];
         if (opponent.hand.length > 0) {
           opts.push({
@@ -1875,7 +1912,10 @@ const EffectEngine = {
                     setLog(`💰 [แมมมอน] คุณทิ้ง "${d.name}" ลงนรก!`);
                   }
                 },
-                onAllSelected: () => next()
+                onAllSelected: () => {
+                  gameState.isWaitingForChoice = false;
+                  next();
+                }
               };
               setLog(gameState.pendingAction.promptText);
               renderGame();
@@ -1887,7 +1927,7 @@ const EffectEngine = {
           color: '#7c3aed',
           onSelect: () => doOption2()
         });
-        showChoiceModal(`💰 ${cardTitle} ลงสนาม!`, 'กรุณาเลือกทำ 1 อย่างจาก 2 อย่างด้านล่าง:', opts);
+        showChoiceModal(`💰 ${cardTitle} ลงสนาม!`, 'กรุณาเลือกทำ 1 อย่างจาก 2 อย่างด้านล่าง (เกมจะรอให้เลือกเสร็จก่อนดำเนินต่อ):', opts);
         return;
       }
 
@@ -2072,6 +2112,10 @@ const EffectEngine = {
 
       // --- บล็อกที่ 17: เบลเซบับ บาปตะกละ (BEELZEBUB_GLUTTONY_SKILL) ---
       case 'BEELZEBUB_GLUTTONY_SKILL': {
+        if (sourceCard) {
+          sourceCard.usedSkills = sourceCard.usedSkills || {};
+          sourceCard.usedSkills['beelzebub_gluttony'] = true;
+        }
         if (caster.graveyard.length < 2 || !sourceCard) {
           next();
           return;
@@ -3767,10 +3811,17 @@ function handleHandCardClick(handIndex) {
   if (!clickedCard) return;
 
   const isAshilaReadyInBattle = (clickedCard.id === 'DM07' && player.unitsDestroyedThisTurn >= 2 && gameState.phase === 'Battle Phase');
+  const awaitingHandTarget = gameState.pendingAction && gameState.pendingAction.type === 'MODULAR_SELECT_TARGET' && gameState.pendingAction.targetZone === 'PLAYER_HAND';
 
-  if (gameState.gameOver || gameState.isRollingDice || gameState.activeTurn !== 'player' || (gameState.phase !== 'Main Phase' && !isAshilaReadyInBattle)) {
-    setLog('⚠️ ลงการ์ดหรือใช้เวทมนตร์จากมือได้เฉพาะใน Main Phase ของคุณเท่านั้น!');
-    return;
+  if (!awaitingHandTarget) {
+    if (gameState.gameOver || gameState.isRollingDice || gameState.activeTurn !== 'player' || (gameState.phase !== 'Main Phase' && !isAshilaReadyInBattle)) {
+      setLog('⚠️ ลงการ์ดหรือใช้เวทมนตร์จากมือได้เฉพาะใน Main Phase ของคุณเท่านั้น!');
+      return;
+    }
+    if (isInteractionBlocked()) {
+      setLog('⏳ กรุณารอและดำเนินการเลือกของความสามารถให้เสร็จสิ้นก่อน!');
+      return;
+    }
   }
 
   // กรณีที่ 1: อยู่ระหว่างรอคลิกเลือกการ์ดบนมือจาก Modular EffectEngine
@@ -3857,11 +3908,23 @@ function handleHandCardClick(handIndex) {
 
 // เมื่อผู้เล่นคลิกที่ช่องบนสนามฝั่งตัวเอง
 function handlePlayerSlotClick(slotIndex) {
-  if (gameState.gameOver || gameState.isRollingDice || gameState.activeTurn !== 'player') return;
+  if (gameState.gameOver || gameState.isRollingDice) return;
+  const awaitingBoardTarget = gameState.pendingAction && gameState.pendingAction.type === 'MODULAR_SELECT_TARGET' && ['PLAYER_BOARD', 'ANY_BOARD'].includes(gameState.pendingAction.targetZone);
+  if (gameState.activeTurn !== 'player' && !awaitingBoardTarget) return;
+
   const player = gameState.player;
 
   if (slotIndex === 'leader') {
+    if (isInteractionBlocked()) {
+      setLog('⏳ กรุณารอและดำเนินการเลือกของความสามารถให้เสร็จสิ้นก่อน!');
+      return;
+    }
     activateLeaderSkillPlayer();
+    return;
+  }
+
+  if (isInteractionBlocked() && !awaitingBoardTarget) {
+    setLog('⏳ กรุณารอและดำเนินการเลือกของความสามารถให้เสร็จสิ้นก่อน!');
     return;
   }
 
@@ -4045,8 +4108,13 @@ function handlePlayerSlotClick(slotIndex) {
 function handleAISlotClick(aiSlotIndex) {
   if (gameState.gameOver) return;
   // สกิลของเราที่ทำงานในเทิร์นอีกฝ่าย (เช่น ทีเร็กซ์ชนะตอนป้องกัน) ยังรอให้เลือกเป้าหมาย → ต้องคลิกได้ ไม่งั้นเทิร์นอีกฝ่ายค้าง
-  const awaitingOurTarget = gameState.pendingAction && gameState.pendingAction.type === 'MODULAR_SELECT_TARGET';
+  const awaitingOurTarget = gameState.pendingAction && gameState.pendingAction.type === 'MODULAR_SELECT_TARGET' && ['OPPONENT_BOARD', 'ANY_BOARD'].includes(gameState.pendingAction.targetZone);
   if (gameState.activeTurn !== 'player' && !awaitingOurTarget) return;
+
+  if (isInteractionBlocked() && !awaitingOurTarget) {
+    setLog('⏳ กรุณารอและดำเนินการเลือกของความสามารถให้เสร็จสิ้นก่อน!');
+    return;
+  }
   const player = gameState.player;
   const ai = gameState.ai;
   const targetMonster = ai.board[aiSlotIndex];
@@ -5356,8 +5424,8 @@ function handleNextPhaseButtonClick() {
     setLog('⏳ กรุณารอฝ่ายตรงข้ามเลือกการป้องกันให้เสร็จก่อน!');
     return;
   }
-  if (gameState.pendingAction) {
-    setLog('⚠️ กรุณาเลือกเป้าหมายของความสามารถที่ค้างอยู่ให้เสร็จก่อนเปลี่ยนเฟส!');
+  if (isInteractionBlocked()) {
+    setLog('⚠️ กรุณารอและดำเนินการเลือกของความสามารถที่ค้างอยู่ให้เสร็จก่อนเปลี่ยนเฟส!');
     return;
   }
 
@@ -5481,6 +5549,13 @@ function onAIMainPhaseDone() {
 // ⏳ สมองกล AI ช่วง Main Phase แบบทีละสเต็ป (ทำ 1 อย่าง -> แสดงเอฟเฟกต์ -> รอ 1.2 วินาที -> ทำอย่างถัดไป)
 function aiPlayMainPhase(onMainComplete) {
   if (gameState.gameOver) return;
+  // ถ้ามีหน้าต่างคำถาม หรือกำลังรอผู้เล่นเลือกผลของสกิล (เช่น แมมมอน บาปความโลภ) ให้ AI หยุดรอจนกว่าจะเลือกเสร็จสิ้น
+  if (isInteractionBlocked()) {
+    setTimeout(() => {
+      aiPlayMainPhase(onMainComplete);
+    }, 400);
+    return;
+  }
   const didAction = performSingleAIMainAction();
   if (didAction) {
     setTimeout(() => {
@@ -5820,9 +5895,11 @@ function performSingleAIMainAction() {
 
     // 3.8 สกิล ACTIVATE_MAIN ของเด็คปีศาจ / เด็คโอ็ต (DMM06, OM02, OM04, OM07)
     if (['DMM06', 'OM02', 'OM04', 'OM07'].includes(m.id) && Array.isArray(m.effects)) {
-      if (m.id === 'OM02' && (m.usedSkills.aiBankUsedThisTurn || ai.hand.length < 2)) continue;
-      const eff = m.effects.find(e => e.trigger === 'ACTIVATE_MAIN' && EffectEngine.canActivateEffect(e, { caster: ai, opponent: player, sourceCard: m, sourceSlot: slotIdx, isAI: true }));
+      if (m.id === 'OM02' && (m.usedSkills && m.usedSkills.aiBankUsedThisTurn || ai.hand.length < 2)) continue;
+      const eff = m.effects.find(e => e.trigger === 'ACTIVATE_MAIN' && EffectEngine.canActivateEffect(e, { caster: ai, opponent: player, sourceCard: m, sourceSlot: slotIdx, isAI: true }).ok);
       if (eff) {
+        m.usedSkills = m.usedSkills || {};
+        m.usedSkills[eff.id] = true;
         if (m.id === 'OM02') m.usedSkills.aiBankUsedThisTurn = true;
         showCardShowcaseBanner(m, 'AI ใช้สกิลยูนิต!', `⚡ ${eff.label || m.name}`, '#a855f7');
         EffectEngine.activateSpecificEffect(eff, { caster: ai, opponent: player, sourceCard: m, sourceSlot: slotIdx, isAI: true });
@@ -6045,7 +6122,7 @@ function aiCastBestNormalSpell(ai, player, diff) {
   if (osIdx !== -1) {
     const spell = ai.hand[osIdx];
     const eff = (spell.effects || []).find(e => e.trigger === 'ON_CAST');
-    if (eff && EffectEngine.canActivateEffect(eff, { caster: ai, opponent: player, sourceCard: spell, isAI: true })) {
+    if (eff && EffectEngine.canActivateEffect(eff, { caster: ai, opponent: player, sourceCard: spell, isAI: true }).ok) {
       ai.hand.splice(osIdx, 1);
       ai.spellQuota.normalUsed += 1;
       ai.graveyard.push(spell);
@@ -6061,6 +6138,13 @@ function aiCastBestNormalSpell(ai, player, diff) {
 // 🧠 สมองกล AI ช่วง Battle Phase (เว้นจังหวะการตีแต่ละตัวให้ผู้เล่นมองเห็นชัดเจน)
 function aiPlayBattlePhase(slotIndex) {
   if (gameState.gameOver) return;
+  // ถ้ามีหน้าต่างคำถาม หรือกำลังรอผลของสกิล ให้ AI หยุดรอก่อนโจมตี
+  if (isInteractionBlocked()) {
+    setTimeout(() => {
+      aiPlayBattlePhase(slotIndex);
+    }, 400);
+    return;
+  }
   const ai = gameState.ai;
   const player = gameState.player;
   const diff = aiConfig.difficulty;
@@ -6761,6 +6845,7 @@ function initGame() {
   gameState.pendingAttack = null;
   gameState.pendingAction = null;
   gameState.isRollingDice = false;
+  gameState.isWaitingForChoice = false;
   gameState.gameOver = false;
 
   previousBoardUids = {
