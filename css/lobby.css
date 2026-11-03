@@ -65,7 +65,7 @@
 
 /* ---------- ลีดเดอร์ + ข้อมูลเด็ค ---------- */
 .lb-leader-wrap { position: absolute; left: 50%; top: 45%; height: var(--leader-h); aspect-ratio: 750 / 1050; transform: translate(-50%, -50%); perspective: 1200px; }
-.lb-leader { position: relative; width: 100%; height: 100%; }
+.lb-leader { position: relative; width: 100%; height: 100%; cursor: pointer; }
 .lb-leader img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 12px; box-shadow: 0 24px 60px rgba(0, 0, 0, .7), 0 0 0 3px rgba(243, 201, 105, .85); }
 .lb-info { position: absolute; left: calc(50% + var(--leader-h) * .357 + 32px); top: 28%; width: min(380px, calc(50vw - var(--leader-h) * .357 - 56px)); }
 .lb-deck-name { font: 700 clamp(30px, 3.4vw, 48px)/1.05 var(--font-display); color: var(--deck); text-shadow: 0 0 24px rgba(0, 0, 0, .6); transition: color .6s; }

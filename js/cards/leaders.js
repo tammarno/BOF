@@ -4,7 +4,7 @@ CARD_DATABASE.push(
     id: 'L01',
     name: 'มายฮีโร่ เดจิต',
     type: 'Leader',
-    rarity: 'Legend', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'SSR', // ระดับความหายาก: N / R / SR / SSR
     maxHp: 6,
     image: 'images/เด็คจิต/1.png',
     ability: 'LEADER_DEJIT_BUFF',
@@ -24,7 +24,7 @@ CARD_DATABASE.push(
     id: 'L02',
     name: 'ขุนเหนือ',
     type: 'Leader',
-    rarity: 'Legend', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'SSR', // ระดับความหายาก: N / R / SR / SSR
     maxHp: 6,
     image: 'images/เด็คเหนือ/1.png',
     ability: 'LEADER_KHUN_NUEA',
@@ -43,7 +43,7 @@ CARD_DATABASE.push(
     id: 'L03',
     name: 'วันสิ้นโลก',
     type: 'Leader',
-    rarity: 'Legend', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'SSR', // ระดับความหายาก: N / R / SR / SSR
     maxHp: 6,
     image: 'images/วันสิ้นโลก/1.png',
     ability: 'LEADER_DOOMSDAY',
@@ -53,7 +53,7 @@ CARD_DATABASE.push(
     id: 'L04',
     name: 'ศูนย์วิจัยไดโน',
     type: 'Leader',
-    rarity: 'Legend', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'SSR', // ระดับความหายาก: N / R / SR / SSR
     maxHp: 6,
     image: 'images/ไดโน/1.png',
     ability: 'LEADER_DINO_LAB',
@@ -68,5 +68,25 @@ CARD_DATABASE.push(
         ]
       }
     ]
+  },
+  {
+    id: 'L05',
+    name: 'ปีศาจ',
+    type: 'Leader',
+    rarity: 'SSR',
+    maxHp: 6,
+    image: 'images/เด็คปีศาจ/1.png',
+    ability: 'LEADER_DEMON',
+    desc: 'ออโต้: เมื่อเริ่มเกม นำการ์ด "ดินแดนปีศาจ" 1 ใบในกองไปที่มิติมืด จากนั้นจั่วการ์ด 2 ใบ และสับกอง'
+  },
+  {
+    id: 'L06',
+    name: 'ไอโอ๊ตบ้าทุกสิ่ง',
+    type: 'Leader',
+    rarity: 'SSR',
+    maxHp: 6,
+    image: 'images/เด็คโอ๊ต/1.png',
+    ability: 'LEADER_OAT',
+    desc: 'ออโต้: เมื่อเข้าเทิร์น เปิดการ์ด 2 ใบบนสุดของกอง เลือกการ์ดเวทมนตร์ไม่เกิน 1 ใบจากในนั้นนำขึ้นมือ แล้วนำการ์ดที่เหลือเรียงไว้บนหรือล่างกองการ์ด'
   }
 );

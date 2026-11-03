@@ -252,11 +252,45 @@
   }
 
   // ---------- ห่อฟังก์ชันของเกม ----------
-  window.showChoiceModal = function (title, description, options) {
+  // extra.previewCards: รายการการ์ดที่ต้องการแสดงเป็นรูป (ดูอย่างเดียว ไม่ต้องคลิก) ใต้คำถาม
+  window.showChoiceModal = function (title, description, options, extra) {
     const r = orig.apply(this, arguments);
     try { decorate(String(title || ''), String(description || '')); } catch (e) { console.warn('[choice-ui]', e); }
+    try { renderPreviewCards(extra && extra.previewCards); } catch (e) { console.warn('[choice-ui preview]', e); }
     return r;
   };
+
+  function renderPreviewCards(cards) {
+    if (!Array.isArray(cards) || cards.length === 0) return;
+    const modal = document.getElementById('custom-choice-modal'); if (!modal) return;
+    const buttons = modal.querySelector('#choice-modal-buttons'); if (!buttons) return;
+    modal.classList.add('um-choice', 'um-has-card-grid');
+    // แสดงรูปการ์ดแทนวงแหวนไอคอน
+    modal.querySelectorAll('.um-choice-icon').forEach(n => n.remove());
+    const grid = document.createElement('div');
+    grid.className = 'um-card-pick-grid um-card-preview-grid um-x';
+    const owner = (typeof gameState !== 'undefined' && gameState) ? gameState.player : null;
+    cards.forEach((card, idx) => {
+      const item = document.createElement('div');
+      item.className = 'um-card-pick-item is-preview';
+      let cardEl;
+      if (typeof window.createCardElement === 'function') {
+        cardEl = window.createCardElement(card, owner);
+      } else {
+        cardEl = document.createElement('div');
+        cardEl.className = `card ${card.type}`;
+        cardEl.innerHTML = `<div class="card-art"><img src="${card.image}" alt="${card.name}"></div><div class="card-name">${card.name}</div>`;
+      }
+      item.appendChild(cardEl);
+      grid.appendChild(item);
+      if (!reduce) {
+        live.push(gsap.from(item, { y: 18, scale: 0.92, opacity: 0, duration: 0.32, delay: 0.06 + idx * 0.06, ease: 'back.out(1.6)', clearProps: 'transform,opacity' }));
+      }
+    });
+    const pickGrid = modal.querySelector('.um-card-pick-grid:not(.um-card-preview-grid)');
+    buttons.parentNode.insertBefore(grid, pickGrid || buttons);
+    if (window.HoloTilt && typeof window.HoloTilt.bind === 'function') window.HoloTilt.bind(grid, 10);
+  }
 
   // หยุดลูปเมื่อหน้าต่างถูกปิด (game.js ซ่อนด้วย style.display = 'none')
   const watch = () => {

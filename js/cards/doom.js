@@ -5,7 +5,7 @@ CARD_DATABASE.push(
     name: 'โอนามิ ผู้ทำลายโลก',
     type: 'Monster',
     tribe: 'วันสิ้นโลก',
-    rarity: 'Legend', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'SR', // ระดับความหายาก: N / R / SR / SSR
     power: 2,
     maxCopies: 2,
     image: 'images/วันสิ้นโลก/2.png',
@@ -66,7 +66,7 @@ CARD_DATABASE.push(
     name: 'มายอา',
     type: 'Monster',
     tribe: 'วันสิ้นโลก',
-    rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 2,
     maxCopies: 1,
     image: 'images/วันสิ้นโลก/4.png',
@@ -78,7 +78,7 @@ CARD_DATABASE.push(
     name: 'เดบิรุน',
     type: 'Monster',
     tribe: 'วันสิ้นโลก',
-    rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 2,
     maxCopies: 1,
     image: 'images/วันสิ้นโลก/5.png',
@@ -90,7 +90,7 @@ CARD_DATABASE.push(
     name: 'ซึรุรุ',
     type: 'Monster',
     tribe: 'วันสิ้นโลก',
-    rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 1,
     maxCopies: 1,
     image: 'images/วันสิ้นโลก/6.png',
@@ -102,7 +102,7 @@ CARD_DATABASE.push(
     name: 'โซเนบุ',
     type: 'Monster',
     tribe: 'วันสิ้นโลก',
-    rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 3,
     maxCopies: 1,
     image: 'images/วันสิ้นโลก/7.png',
@@ -114,7 +114,7 @@ CARD_DATABASE.push(
     name: 'แอชชี่ล่า',
     type: 'Monster',
     tribe: 'วันสิ้นโลก',
-    rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 2,
     maxCopies: 1,
     image: 'images/วันสิ้นโลก/8.png',
@@ -126,7 +126,7 @@ CARD_DATABASE.push(
     name: 'เอมิ',
     type: 'Monster',
     tribe: 'วันสิ้นโลก',
-    rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 1,
     maxCopies: 1,
     image: 'images/วันสิ้นโลก/9.png',
@@ -148,7 +148,7 @@ CARD_DATABASE.push(
     name: 'ผู้รักษาความฝัน มายอา',
     type: 'Monster',
     tribe: 'วันสิ้นโลก',
-    rarity: 'SR', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 2,
     maxCopies: 1,
     cannotNormalSummon: true,
@@ -163,7 +163,7 @@ CARD_DATABASE.push(
     name: 'เดบิรุน เดอะ ฟิวเจอร์',
     type: 'Monster',
     tribe: 'วันสิ้นโลก',
-    rarity: 'SR', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 2,
     maxCopies: 1,
     cannotNormalSummon: true,
@@ -178,7 +178,7 @@ CARD_DATABASE.push(
     name: 'เด็กสาวขนมหวาน ซึรุรุ',
     type: 'Monster',
     tribe: 'วันสิ้นโลก',
-    rarity: 'SR', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 2,
     maxCopies: 1,
     cannotNormalSummon: true,
@@ -193,7 +193,7 @@ CARD_DATABASE.push(
     name: 'นักล่าปีศาจ โซเนบุ',
     type: 'Monster',
     tribe: 'วันสิ้นโลก',
-    rarity: 'SR', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 2,
     maxCopies: 1,
     cannotNormalSummon: true,
@@ -208,7 +208,7 @@ CARD_DATABASE.push(
     name: 'ยอดนักดาบ แอชชี่ล่า',
     type: 'Monster',
     tribe: 'วันสิ้นโลก',
-    rarity: 'SR', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 3,
     maxCopies: 1,
     cannotNormalSummon: true,
@@ -232,7 +232,7 @@ CARD_DATABASE.push(
     name: 'สุดยอดเอไอ เอมิ',
     type: 'Monster',
     tribe: 'วันสิ้นโลก',
-    rarity: 'SR', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 1,
     maxCopies: 1,
     cannotNormalSummon: true,

@@ -7,6 +7,12 @@ const DEFAULT_DECK_LIST = DECK_LISTS.L01;
 const DEFAULT_NUEA_DECK_LIST = DECK_LISTS.L02;
 const DEFAULT_DOOMSDAY_DECK_LIST = DECK_LISTS.L03;
 const DEFAULT_DINO_DECK_LIST = DECK_LISTS.L04;
+const DEFAULT_DEMON_DECK_LIST = DECK_LISTS.L05;
+const DEFAULT_OAT_DECK_LIST = DECK_LISTS.L06;
+
+function isSpellCard(card) {
+  return !!(card && (card.type === 'NormalSpell' || card.type === 'ReactionSpell' || card.type === 'LandSpell'));
+}
 
 
 /* ============================================================================
@@ -131,10 +137,15 @@ function createCardInstance(template, uid) {
     basePower: template.power !== undefined ? template.power : 0,
     permPowerMod: 0,
     tempPowerMod: 0,
+    untilEnemyEndPowerMod: 0,
     destroyAtEndOfTurn: false,
     burnLeaderOnKill: false,
     indestructibleUntilNextTurn: false,
     immuneToEnemyEffectsUntilEndOfTurn: false,
+    oatShieldAvailable: false,
+    oatShieldUsedThisTurn: false,
+    beelzebubBuffThisTurn: false,
+    tauntedByLeviathanUid: null,
     returnFromDarkDimensionId: null,
     usedSkills: {}
   };
@@ -145,10 +156,15 @@ function resetCardStateForZoneChange(card) {
   card.state = 'Stand';
   card.permPowerMod = 0;
   card.tempPowerMod = 0;
+  card.untilEnemyEndPowerMod = 0;
   card.destroyAtEndOfTurn = false;
   card.burnLeaderOnKill = false;
   card.indestructibleUntilNextTurn = false;
   card.immuneToEnemyEffectsUntilEndOfTurn = false;
+  card.oatShieldAvailable = false;
+  card.oatShieldUsedThisTurn = false;
+  card.beelzebubBuffThisTurn = false;
+  card.tauntedByLeviathanUid = null;
   card.returnFromDarkDimensionId = null;
   card.usedSkills = {};
   return card;
@@ -167,9 +183,17 @@ function getEffectivePower(card, ownerContestant) {
 
   let total = (card.basePower !== undefined ? card.basePower : card.power)
     + (card.permPowerMod || 0)
-    + (card.tempPowerMod || 0);
+    + (card.tempPowerMod || 0)
+    + (card.untilEnemyEndPowerMod || 0);
 
   if (ownerContestant && Array.isArray(ownerContestant.board)) {
+    // 0. แลนด์สเปล "สัญญาปีศาจ" (DMS01) ในมิติมืด: ยูนิทเผ่า "ปีศาจ" ทุกใบบนสนามพลังโจมตี +1 ทั้งเกม
+    if (hasCardTribe(card, 'ปีศาจ') && Array.isArray(ownerContestant.darkDimension)) {
+      if (ownerContestant.darkDimension.some(d => d && d.id === 'DMS01')) {
+        total += 1;
+      }
+    }
+
     // 1. บล็อก CONTINUOUS_POWER ของตัวการ์ดเอง
     if (Array.isArray(card.effects)) {
       card.effects.filter(e => e.trigger === 'CONTINUOUS_POWER').forEach(eff => {
@@ -300,6 +324,11 @@ function performMulligan(contestant, indicesToMulligan) {
 function sendOverwrittenMonsterToGrave(contestant, slotIndex) {
   const oldMonster = contestant.board[slotIndex];
   if (!oldMonster) return null;
+  if (oldMonster.oatShieldAvailable && !oldMonster.oatShieldUsedThisTurn) {
+    oldMonster.oatShieldUsedThisTurn = true;
+    setLog(`🛡️ [ออโต้/1 เทิร์น - ${oldMonster.name}] ป้องกันการถูกทำลายหรือนำลงนรกสำเร็จ!`);
+    return oldMonster;
+  }
   contestant.board[slotIndex] = null;
   resetCardStateForZoneChange(oldMonster);
   contestant.graveyard.push(oldMonster);
@@ -319,6 +348,17 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
   if (monster.indestructibleUntilNextTurn) {
     setLog(`🛡️ "${monster.name}" ไม่สามารถถูกทำลายได้จนเริ่มเทิร์นถัดไป!`);
     return { destroyed: false, reason: 'indestructible', monster };
+  }
+
+  if (monster.beelzebubBuffThisTurn && gameState.activeTurn === (boardOwner === gameState.player ? 'player' : 'ai')) {
+    setLog(`🍔 [เบลเซบับ บาปตะกละ] ไม่ออกจากสนามจนจบเทิร์นฝ่ายเรา!`);
+    return { destroyed: false, reason: 'beelzebub_buff', monster };
+  }
+
+  if (monster.oatShieldAvailable && !monster.oatShieldUsedThisTurn) {
+    monster.oatShieldUsedThisTurn = true;
+    setLog(`🛡️ [ออโต้/1 เทิร์น - ${monster.name}] การ์ดใบนี้ไม่ถูกทำลายหรือนำลงนรก!`);
+    return { destroyed: false, reason: 'oat_shield', monster };
   }
 
   boardOwner.board[slotIndex] = null;
@@ -452,6 +492,8 @@ function createContestant(name, isFirstPlayer, prefix, leaderId = 'L01', deckLis
     futureUsedThisTurn: false,
     allForJitUsed: false,
     mayaOncePerGameUsed: false,
+    satanOncePerGameUsed: false,
+    jitCrazyUpgraded: false,
     leader: setup.leader,
     deck: setup.deck,
     hand: [],
@@ -480,6 +522,35 @@ function setLog(message) {
 }
 
 function checkGameOver() {
+  if (!gameState.player || !gameState.ai) return false;
+  if (gameState.gameOver) return true;
+
+  // เงื่อนไขชนะพิเศษของแลนด์สเปล "ดินแดนปีศาจ" (DMS03):
+  // เมื่อมีการ์ดในมิติมืดทั้งฝั่งเราและฝั่งตรงข้ามรวมกัน 15 ใบขึ้นไป ฝั่งที่มี "ดินแดนปีศาจ" ในมิติมืดชนะทันที!
+  const totalDarkCards = (gameState.player.darkDimension ? gameState.player.darkDimension.length : 0)
+    + (gameState.ai.darkDimension ? gameState.ai.darkDimension.length : 0);
+
+  if (totalDarkCards >= 15) {
+    const playerHasDemonRealm = gameState.player.darkDimension.some(c => c && c.id === 'DMS03');
+    const aiHasDemonRealm = gameState.ai.darkDimension.some(c => c && c.id === 'DMS03');
+    if (playerHasDemonRealm) {
+      gameState.gameOver = true;
+      gameState.pendingAction = null;
+      setLog(`🏰 [ดินแดนปีศาจ] การ์ดในมิติมืดทั้ง 2 ฝั่งรวมกันครบ ${totalDarkCards} ใบ (≥ 15 ใบ) — คุณชนะเกมทันทีด้วยพลังของ "ดินแดนปีศาจ"!`);
+      disableControls();
+      setTimeout(() => showEndMatchModal('🏆 ชัยชนะแห่งดินแดนปีศาจ!', `การ์ดในมิติมืดทั้งสองฝ่ายรวมกันครบ ${totalDarkCards}/15 ใบ! คุณชนะเกมทันที!`), 500);
+      return true;
+    }
+    if (aiHasDemonRealm) {
+      gameState.gameOver = true;
+      gameState.pendingAction = null;
+      setLog(`💀 [ดินแดนปีศาจ] การ์ดในมิติมืดทั้ง 2 ฝั่งรวมกันครบ ${totalDarkCards} ใบ (≥ 15 ใบ) — ฝ่ายตรงข้ามชนะเกมทันทีด้วย "ดินแดนปีศาจ"!`);
+      disableControls();
+      setTimeout(() => showEndMatchModal('💀 คุณพ่ายแพ้!', `ฝ่ายตรงข้ามสะสมการ์ดในมิติมืดรวมกันครบ ${totalDarkCards}/15 ใบ ชนะด้วย "ดินแดนปีศาจ"!`), 500);
+      return true;
+    }
+  }
+
   if (gameState.player.leader.hp <= 0) {
     gameState.gameOver = true;
     gameState.pendingAction = null;
@@ -872,6 +943,29 @@ const EffectEngine = {
           const hasSoldier = caster.board.some(m => m !== null && (m.id === 'NM02' || m.id === 'NM03' || m.id === 'NM04'));
           if (!hasSoldier) return { ok: false, reason: 'ไม่มี ทหารเกณฑ์เหนือ, ทหารพรานเหนือ หรือ ทหารหลวงเหนือ บนสนามของคุณเลย!' };
         }
+        if (step.block === 'LEVIATHAN_MARK_TARGET') {
+          const hasPwr2Enemy = opponent.board.some(m => m !== null && getEffectivePower(m, opponent) === 2);
+          if (!hasPwr2Enemy) return { ok: false, reason: 'ฝ่ายตรงข้ามไม่มียูนิทที่มีพลังโจมตี 2 หน่วยบนสนาม!' };
+        }
+        if (step.block === 'SATAN_WRATH_EFFECT') {
+          if (caster.satanOncePerGameUsed) return { ok: false, reason: 'ความสามารถของ "ซาตาน บาปโทสะ" สั่งใช้ได้เพียง 1 ครั้งต่อเกมเท่านั้น!' };
+          if (caster.leader.hp !== 1) return { ok: false, reason: `ต้องมีเลือดลีดเดอร์เหลือ 1 หน่วยเท่านั้น! (ปัจจุบัน: ${caster.leader.hp} หน่วย)` };
+          if (caster.hand.length < 5) return { ok: false, reason: `ต้องมีการ์ดบนมืออย่างน้อย 5 ใบเพื่อใช้ทิ้ง! (ปัจจุบันมี ${caster.hand.length} ใบ)` };
+        }
+        if (step.block === 'BEELZEBUB_GLUTTONY_SKILL') {
+          if (caster.graveyard.length < 2) return { ok: false, reason: `ต้องมีการ์ดในดรอป (นรก) อย่างน้อย 2 ใบ! (ปัจจุบันมี ${caster.graveyard.length} ใบ)` };
+        }
+        if (step.block === 'NUEA_CLIP_FREE_CAST') {
+          const castableInHand = caster.hand.some(c => c && c.type === 'NormalSpell');
+          if (!castableInHand) return { ok: false, reason: 'ไม่มีการ์ดเวทมนตร์ปกติ (NormalSpell) บนมือให้สั่งใช้งาน!' };
+        }
+        if (step.block === 'DEAN_DRAW2_DISCARD1') {
+          if (caster.deck.length === 0) return { ok: false, reason: 'กองการ์ดของคุณหมดแล้ว!' };
+        }
+        if (step.block === 'CRAZY_WAR_SEARCH_PAIR') {
+          const hasOatOrBank = [...caster.deck, ...caster.graveyard].some(c => c && (c.id === 'OM01' || c.id === 'OM02'));
+          if (!hasOatOrBank) return { ok: false, reason: 'ไม่มี "ไอโอ๊ตบ้าการ์ตูน" หรือ "ไอแบงค์บ้าเกม" อยู่ในกองหรือนรกเลย!' };
+        }
       }
     }
 
@@ -885,7 +979,7 @@ const EffectEngine = {
       if (filterSpec.cardId && c.id !== filterSpec.cardId) return false;
       if (filterSpec.filterTribe && !hasCardTribe(c, filterSpec.filterTribe)) return false;
       if (filterSpec.filterName && !hasCardName(c, filterSpec.filterName)) return false;
-      if (filterSpec.filterType === 'SPELL' && c.type !== 'NormalSpell' && c.type !== 'ReactionSpell') return false;
+      if (filterSpec.filterType === 'SPELL' && !isSpellCard(c)) return false;
       if (filterSpec.filterType === 'MONSTER' && c.type !== 'Monster') return false;
       return true;
     });
@@ -1712,6 +1806,684 @@ const EffectEngine = {
         return;
       }
 
+      // --- บล็อกที่ 13: แมมมอน บาปความโลภ (MAMMON_SUMMON_CHOICE) ---
+      case 'MAMMON_SUMMON_CHOICE': {
+        const doOption1 = () => {
+          if (opponent.hand.length === 0) return;
+          const discarded = opponent.hand.pop();
+          resetCardStateForZoneChange(discarded);
+          opponent.graveyard.push(discarded);
+          const wasSpell = isSpellCard(discarded);
+          if (wasSpell) {
+            drawCards(caster, 1);
+            setLog(`💰 ${cardTitle} อีกฝั่งเลือกทิ้ง "${discarded.name}" (เป็นเวทมนตร์) -> ${caster.name} จั่วการ์ด 1 ใบ!`);
+          } else {
+            setLog(`💰 ${cardTitle} อีกฝั่งเลือกทิ้ง "${discarded.name}" จากมือลงนรก!`);
+          }
+          next();
+        };
+
+        const doOption2 = () => {
+          if (opponent.deck.length > 0) {
+            const milled = opponent.deck.pop();
+            resetCardStateForZoneChange(milled);
+            opponent.graveyard.push(milled);
+            setLog(`💰 ${cardTitle} อีกฝั่งเลือกนำ "${milled.name}" ใบบนสุดของกองลงนรก!`);
+          }
+          if (caster.graveyard.length > 0) {
+            this.executeSingleStep({ block: 'RECOVER_FROM_GRAVE', count: 1 }, context, next);
+          } else {
+            next();
+          }
+        };
+
+        // ถ้าอีกฝั่งเป็น AI: เลือกอัตโนมัติ (ถ้ามีมือน้อยหรือมีแต่เวทจะเลือกโม่กอง)
+        if (!isAI) {
+          if (opponent.hand.length > 0 && opponent.hand.some(c => !isSpellCard(c))) {
+            const nonSpellIdx = opponent.hand.findIndex(c => !isSpellCard(c));
+            const discarded = opponent.hand.splice(nonSpellIdx, 1)[0];
+            resetCardStateForZoneChange(discarded);
+            opponent.graveyard.push(discarded);
+            setLog(`💰 ${cardTitle} ฝ่ายตรงข้ามเลือกข้อ 1: ทิ้ง "${discarded.name}" ลงนรก!`);
+            next();
+          } else {
+            doOption2();
+          }
+          return;
+        }
+
+        // ถ้า AI ลงแมมมอนใส่ผู้เล่น: ให้ผู้เล่นเป็นคนเลือกทำ 1 อย่าง!
+        const opts = [];
+        if (opponent.hand.length > 0) {
+          opts.push({
+            label: '1) ทิ้งการ์ดบนมือเรา 1 ใบ (ถ้าทิ้งเวทมนตร์ อีกฝ่ายได้จั่ว 1 ใบ)',
+            color: '#d97706',
+            onSelect: () => {
+              gameState.pendingAction = {
+                type: 'MODULAR_SELECT_TARGET',
+                targetZone: 'PLAYER_HAND',
+                remainingCount: 1,
+                promptText: '💰 [แมมมอน] คลิกเลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก:',
+                onSelectHand: (hIdx) => {
+                  const d = opponent.hand.splice(hIdx, 1)[0];
+                  resetCardStateForZoneChange(d);
+                  opponent.graveyard.push(d);
+                  if (isSpellCard(d)) {
+                    drawCards(caster, 1);
+                    setLog(`💰 [แมมมอน] คุณทิ้งเวทมนตร์ "${d.name}" -> AI จั่วการ์ด 1 ใบ!`);
+                  } else {
+                    setLog(`💰 [แมมมอน] คุณทิ้ง "${d.name}" ลงนรก!`);
+                  }
+                },
+                onAllSelected: () => next()
+              };
+              setLog(gameState.pendingAction.promptText);
+              renderGame();
+            }
+          });
+        }
+        opts.push({
+          label: '2) นำการ์ดใบบนสุดของกองเราลงนรก (อีกฝ่ายนำการ์ดจากดรอป 1 ใบขึ้นมือ)',
+          color: '#7c3aed',
+          onSelect: () => doOption2()
+        });
+        showChoiceModal(`💰 ${cardTitle} ลงสนาม!`, 'กรุณาเลือกทำ 1 อย่างจาก 2 อย่างด้านล่าง:', opts);
+        return;
+      }
+
+      // --- บล็อกที่ 14: ลิเวียธาน บาปความริษยา (LEVIATHAN_MARK_TARGET) ---
+      case 'LEVIATHAN_MARK_TARGET': {
+        const validSlots = opponent.board
+          .map((m, idx) => (m !== null && getEffectivePower(m, opponent) === 2 ? idx : null))
+          .filter(idx => idx !== null);
+
+        if (validSlots.length === 0 || !sourceCard) {
+          next();
+          return;
+        }
+
+        if (isAI) {
+          const targetEnemy = opponent.board[validSlots[0]];
+          if (targetEnemy) {
+            targetEnemy.tauntedByLeviathanUid = sourceCard.uid;
+            setLog(`🐍 ${cardTitle} เลือก "${targetEnemy.name}" (Power 2) — ถ้าโจมตีต้องเปลี่ยนมาโจมตีลิเวียธานแทน!`);
+          }
+          next();
+          return;
+        }
+
+        gameState.pendingAction = {
+          type: 'MODULAR_SELECT_TARGET',
+          targetZone: 'OPPONENT_BOARD',
+          remainingCount: 1,
+          promptText: `🐍 ${cardTitle} คลิกเลือกยูนิทฝ่ายตรงข้ามที่มีพลังโจมตี 2 หน่วย 1 ใบ (บังคับเปลี่ยนเป้าโจมตีมาที่ใบนี้)!`,
+          onSelectSlot: (slotIdx) => {
+            const enemy = opponent.board[slotIdx];
+            if (!enemy || getEffectivePower(enemy, opponent) !== 2) {
+              setLog('⚠️ กรุณาเลือกยูนิทฝ่ายตรงข้ามที่มีพลังโจมตีเท่ากับ 2 หน่วยเท่านั้น!');
+              return false;
+            }
+            enemy.tauntedByLeviathanUid = sourceCard.uid;
+            setLog(`🐍 ${cardTitle} ล็อกเป้า "${enemy.name}" สำเร็จ! หากใบนั้นโจมตีจะถูกเปลี่ยนเป้ามาที่ลิเวียธานทันที!`);
+            return true;
+          },
+          onAllSelected: () => next()
+        };
+        setLog(gameState.pendingAction.promptText);
+        renderGame();
+        return;
+      }
+
+      // --- บล็อกที่ 15: ซาตาน บาปโทสะ (SATAN_WRATH_EFFECT) ---
+      case 'SATAN_WRATH_EFFECT': {
+        if (caster.satanOncePerGameUsed || caster.leader.hp !== 1 || caster.hand.length < 5) {
+          next();
+          return;
+        }
+        caster.satanOncePerGameUsed = true;
+
+        const executeSatanDestruction = () => {
+          // ทำลายการ์ดใบอื่นบนสนามทุกใบ (ทั้งฝั่งเราและฝั่งตรงข้าม ยกเว้นตัวซาตานเอง)
+          for (let i = 0; i < 3; i++) {
+            if (caster.board[i] && (!sourceCard || caster.board[i].uid !== sourceCard.uid)) {
+              destroyBoardMonster(caster, i, false, false);
+            }
+            if (opponent.board[i]) {
+              destroyBoardMonster(opponent, i, false, true);
+            }
+          }
+          // ฝั่งตรงข้ามทิ้งการ์ดบนมือ 3 ใบ
+          let oppDiscardedCount = 0;
+          for (let k = 0; k < 3 && opponent.hand.length > 0; k++) {
+            const d = opponent.hand.pop();
+            resetCardStateForZoneChange(d);
+            opponent.graveyard.push(d);
+            oppDiscardedCount++;
+          }
+          setLog(`🔥 ${cardTitle} [1 เกม] ทิ้งมือ 5 ใบ -> ทำลายการ์ดใบอื่นบนสนามทั้งหมด และฝ่ายตรงข้ามทิ้งมือ ${oppDiscardedCount} ใบ!`);
+          next();
+        };
+
+        if (isAI || caster.hand.length === 5) {
+          for (let i = 0; i < 5 && caster.hand.length > 0; i++) {
+            const d = caster.hand.pop();
+            resetCardStateForZoneChange(d);
+            caster.graveyard.push(d);
+          }
+          executeSatanDestruction();
+          return;
+        }
+
+        gameState.pendingAction = {
+          type: 'MODULAR_SELECT_TARGET',
+          targetZone: 'PLAYER_HAND',
+          remainingCount: 5,
+          promptText: `🔥 ${cardTitle} คลิกเลือกการ์ดบนมือของคุณ 5 ใบเพื่อทิ้งลงนรก:`,
+          onSelectHand: (hIdx) => {
+            const d = caster.hand.splice(hIdx, 1)[0];
+            resetCardStateForZoneChange(d);
+            caster.graveyard.push(d);
+          },
+          onAllSelected: () => executeSatanDestruction()
+        };
+        setLog(gameState.pendingAction.promptText);
+        renderGame();
+        return;
+      }
+
+      // --- บล็อกที่ 16: แอสโมดิวส์ บาปราคะ (ASMODEUS_TOP3_SPELL) ---
+      case 'ASMODEUS_TOP3_SPELL': {
+        if (caster.deck.length === 0) {
+          next();
+          return;
+        }
+        const lookCount = Math.min(3, caster.deck.length);
+        const topCards = [];
+        for (let i = 0; i < lookCount; i++) {
+          topCards.push(caster.deck.pop());
+        }
+
+        const finishAsmodeus = (pickedUid) => {
+          let pickedCard = null;
+          const remaining = [];
+          topCards.forEach(c => {
+            if (pickedUid && c.uid === pickedUid && !pickedCard) {
+              pickedCard = c;
+            } else {
+              remaining.push(c);
+            }
+          });
+
+          if (pickedCard) {
+            resetCardStateForZoneChange(pickedCard);
+            if (pickedCard.id === 'DMS01') {
+              caster.darkDimension.push(pickedCard);
+              setLog(`💋 ${cardTitle} พบ "สัญญาปีศาจ" — นำเข้าสู่ "มิติมืด" ทันที! (ยูนิทเผ่าปีศาจพลัง +1 ทั้งเกม)`);
+            } else {
+              caster.hand.push(pickedCard);
+              setLog(`💋 ${cardTitle} หยิบเวทมนตร์ "${pickedCard.name}" ขึ้นมือ และนำใบที่เหลือไว้ใต้กอง!`);
+            }
+          } else {
+            setLog(`💋 ${cardTitle} ดูการ์ด ${lookCount} ใบบนสุดแล้วนำไว้ใต้กอง`);
+          }
+
+          // นำการ์ดที่เหลือไปไว้ใต้กอง (ต้นอาร์เรย์ deck คือใต้กอง เพราะ pop() คือใบบนสุด)
+          remaining.forEach(r => {
+            resetCardStateForZoneChange(r);
+            caster.deck.unshift(r);
+          });
+          checkGameOver();
+          next();
+        };
+
+        const spellCandidates = topCards.filter(c => isSpellCard(c));
+        if (spellCandidates.length === 0) {
+          finishAsmodeus(null);
+          return;
+        }
+
+        if (isAI) {
+          const contract = spellCandidates.find(c => c.id === 'DMS01') || spellCandidates[0];
+          finishAsmodeus(contract.uid);
+          return;
+        }
+
+        const topNames = topCards.map(c => `${c.name} [${c.type}]`).join(' / ');
+        const options = spellCandidates.map(sp => ({
+          label: sp.id === 'DMS01'
+            ? `🌌 เลือก "${sp.name}" -> นำเข้ามิติมืดทันที!`
+            : `✨ หยิบเวทมนตร์ "${sp.name}" ขึ้นมือ`,
+          color: sp.id === 'DMS01' ? '#7c3aed' : '#16a34a',
+          onSelect: () => finishAsmodeus(sp.uid)
+        }));
+        options.push({
+          label: 'ไม่หยิบ (นำทั้ง 3 ใบไปไว้ใต้กอง)',
+          color: '#475569',
+          onSelect: () => finishAsmodeus(null)
+        });
+
+        showChoiceModal(
+          `💋 ${cardTitle} เปิดดู 3 ใบบนสุดของกอง`,
+          `การ์ด 3 ใบบนสุดที่พบ: ${topNames}\nเลือกเวทมนตร์ไม่เกิน 1 ใบ (หากเป็น "สัญญาปีศาจ" จะนำเข้ามิติมืดทันที):`,
+          options
+        );
+        return;
+      }
+
+      // --- บล็อกที่ 17: เบลเซบับ บาปตะกละ (BEELZEBUB_GLUTTONY_SKILL) ---
+      case 'BEELZEBUB_GLUTTONY_SKILL': {
+        if (caster.graveyard.length < 2 || !sourceCard) {
+          next();
+          return;
+        }
+
+        const applyBeelzebubBuff = (returnedCount) => {
+          caster.deck = shuffleDeck(caster.deck);
+          sourceCard.beelzebubBuffThisTurn = true;
+          setLog(`🍔 ${cardTitle} นำการ์ดจากดรอป ${returnedCount} ใบกลับเข้ากอง -> เทิร์นนี้ถ้าต่อสู้กับยูนิตที่พลังโจมตีเท่ากันจะชนะทันที และไม่ออกจากสนามจนจบเทิร์นเรา!`);
+          next();
+        };
+
+        if (isAI || caster.graveyard.length === 2) {
+          let cnt = 0;
+          while (cnt < 2 && caster.graveyard.length > 0) {
+            const c = caster.graveyard.pop();
+            resetCardStateForZoneChange(c);
+            caster.deck.push(c);
+            cnt++;
+          }
+          applyBeelzebubBuff(cnt);
+          return;
+        }
+
+        let returned = 0;
+        const promptReturnNext = () => {
+          if (caster.graveyard.length === 0) {
+            applyBeelzebubBuff(returned);
+            return;
+          }
+          const uniqueMap = new Map();
+          caster.graveyard.forEach(c => { if (!uniqueMap.has(c.id)) uniqueMap.set(c.id, c); });
+          const opts = Array.from(uniqueMap.values()).map(cardItem => ({
+            label: `นำ "${cardItem.name}" กลับเข้ากอง (${returned + 1})`,
+            color: '#0284c7',
+            onSelect: () => {
+              const gIdx = caster.graveyard.findIndex(g => g.id === cardItem.id);
+              if (gIdx !== -1) {
+                const c = caster.graveyard.splice(gIdx, 1)[0];
+                resetCardStateForZoneChange(c);
+                caster.deck.push(c);
+                returned++;
+              }
+              promptReturnNext();
+            }
+          }));
+          if (returned >= 2) {
+            opts.push({
+              label: `✅ พอแค่นี้ (นำกลับเข้ากองแล้ว ${returned} ใบ -> รับบัฟเบลเซบับ!)`,
+              color: '#16a34a',
+              onSelect: () => applyBeelzebubBuff(returned)
+            });
+          }
+          showChoiceModal(
+            `🍔 ${cardTitle} (เลือกแล้ว ${returned} ใบ — ต้องเลือกอย่างน้อย 2 ใบ)`,
+            'เลือกการ์ดจากดรอป (นรก) เพื่อนำกลับเข้ากอง:',
+            opts
+          );
+        };
+        promptReturnNext();
+        return;
+      }
+
+      // --- บล็อกที่ 18: ไอแบงค์บ้าเกม (BANK_SUMMON_TOP2) ---
+      case 'BANK_SUMMON_TOP2': {
+        if (caster.deck.length === 0) {
+          next();
+          return;
+        }
+        const lookCount = Math.min(2, caster.deck.length);
+        const top2 = [];
+        for (let i = 0; i < lookCount; i++) {
+          top2.push(caster.deck.pop());
+        }
+
+        const resolveBankChoice = (chosenCard, unchosenCards) => {
+          // นำการ์ดที่ไม่ได้เลือกกลับไปไว้บนกอง
+          unchosenCards.forEach(u => {
+            resetCardStateForZoneChange(u);
+            caster.deck.push(u);
+          });
+
+          if (!chosenCard) {
+            next();
+            return;
+          }
+
+          resetCardStateForZoneChange(chosenCard);
+          // หากใบที่เลือกเป็นเวทมนตร์ (วางบนช่องสนามมอนสเตอร์ไม่ได้) ให้นำขึ้นมือแทนเพื่อไม่ให้การ์ดสูญหาย
+          if (chosenCard.type !== 'Monster') {
+            caster.hand.push(chosenCard);
+            setLog(`🎮 ${cardTitle} เปิด 2 ใบบนสุด เลือก "${chosenCard.name}" (เวทมนตร์ -> นำขึ้นมือ) และวางใบที่เหลือไว้บนกอง!`);
+            next();
+            return;
+          }
+
+          chosenCard.state = 'Stand';
+
+          // ตรวจสอบเอฟเฟกต์พิเศษเมื่อลงสนามด้วยความสามารถของ "ไอแบงค์บ้าเกม":
+          // 1) "ไอโอ๊ตบ้าการ์ตูน" (OM01): พลังโจมตี +2 และได้รับออโต้/1 เทิร์น ไม่ถูกทำลายหรือนำลงนรก
+          if (chosenCard.id === 'OM01') {
+            chosenCard.permPowerMod += 2;
+            chosenCard.oatShieldAvailable = true;
+            chosenCard.oatShieldUsedThisTurn = false;
+          }
+
+          const triggerAfterBankPlace = (placedSlot) => {
+            if (chosenCard.id === 'OM01') {
+              setLog(`🗡️ [ไอโอ๊ตบ้าการ์ตูน] ลงสนามด้วยสกิลของ "ไอแบงค์บ้าเกม" -> พลังโจมตี +2 (เป็น ${getEffectivePower(chosenCard, caster)}) และได้รับเกราะป้องกันการถูกทำลาย/ลงนรก เทิร์นละ 1 ครั้ง!`);
+            }
+            // 2) "ไอดีนบ้าHee" (OM07): เมื่อลงสนามด้วยสกิลของ "ไอแบงค์บ้าเกม" นำการ์ดจากนรก 3 ใบกลับเข้ากองแล้วสับกอง
+            if (chosenCard.id === 'OM07' && caster.graveyard.length > 0) {
+              let retCnt = 0;
+              while (retCnt < 3 && caster.graveyard.length > 0) {
+                const gCard = caster.graveyard.pop();
+                resetCardStateForZoneChange(gCard);
+                caster.deck.push(gCard);
+                retCnt++;
+              }
+              caster.deck = shuffleDeck(caster.deck);
+              setLog(`🤪 [ไอดีนบ้าHee] ลงสนามด้วยสกิลของ "ไอแบงค์บ้าเกม" -> นำการ์ดจากนรก ${retCnt} ใบกลับเข้ากองและสับกอง!`);
+            }
+
+            EffectEngine.triggerCardEffects(chosenCard, 'ON_SUMMON', {
+              caster, opponent, sourceCard: chosenCard, sourceSlot: placedSlot, isAI
+            }, next);
+          };
+
+          const emptySlot = caster.board.findIndex(m => m === null);
+          if (emptySlot !== -1) {
+            caster.board[emptySlot] = chosenCard;
+            setLog(`🎮 ${cardTitle} เปิด 2 ใบบนสุด อัญเชิญ "${chosenCard.name}" ลงช่องที่ ${emptySlot + 1}!`);
+            triggerAfterBankPlace(emptySlot);
+          } else if (isAI) {
+            next();
+          } else {
+            gameState.pendingAction = {
+              type: 'CALL_FROM_EFFECT_SELECT_SLOT',
+              cardToPlace: chosenCard,
+              onAfterPlace: () => triggerAfterBankPlace(0)
+            };
+            setLog(`🎮 ${cardTitle} สนามเต็ม 3 ช่อง — คลิกเลือกช่องบนสนามเพื่อวาง "${chosenCard.name}" ทับ!`);
+            renderGame();
+          }
+        };
+
+        if (isAI) {
+          const preferUnit = top2.find(c => c.type === 'Monster' && (c.id === 'OM01' || c.id === 'OM07'))
+            || top2.find(c => c.type === 'Monster')
+            || top2[0];
+          const others = top2.filter(c => c.uid !== preferUnit.uid);
+          resolveBankChoice(preferUnit, others);
+          return;
+        }
+
+        const options = top2.map(cardOpt => ({
+          label: cardOpt.type === 'Monster'
+            ? `⚔️ เลือกอัญเชิญ "${cardOpt.name}" (Power ${cardOpt.power}) ลงสนาม`
+            : `✨ เลือก "${cardOpt.name}" (เวทมนตร์ -> นำขึ้นมือ)`,
+          color: (cardOpt.id === 'OM01' || cardOpt.id === 'OM07') ? '#16a34a' : '#0284c7',
+          onSelect: () => {
+            const others = top2.filter(c => c.uid !== cardOpt.uid);
+            resolveBankChoice(cardOpt, others);
+          }
+        }));
+
+        showChoiceModal(
+          `🎮 ${cardTitle} เปิดการ์ด ${lookCount} ใบบนสุดของกอง`,
+          'เลือกการ์ด 1 ใบลงสนาม (และนำใบที่ไม่ได้เลือกกลับไปไว้บนกอง):',
+          options
+        );
+        return;
+      }
+
+      // --- บล็อกที่ 19: ไอจิตบ้ากาม (JIT_CRAZY_DEBUFF) ---
+      case 'JIT_CRAZY_DEBUFF': {
+        if (caster.jitCrazyUpgraded) {
+          this.executeSingleStep({ block: 'REDUCE_POWER', target: 'ALL_ENEMIES', amount: 1, duration: 'TURN' }, context, next);
+        } else {
+          this.executeSingleStep({ block: 'REDUCE_POWER', target: 'OPPONENT', count: 1, amount: 1, duration: 'TURN' }, context, next);
+        }
+        return;
+      }
+
+      // --- บล็อกที่ 20: ไออาร์มบ้าการ์ดเกม (ARM_TRIPLE_CHECK) ---
+      case 'ARM_TRIPLE_CHECK': {
+        const hasOat = caster.board.some(m => m !== null && m.id === 'OM01');
+        const hasBank = caster.board.some(m => m !== null && m.id === 'OM02');
+        const hasJitCrazy = caster.board.some(m => m !== null && m.id === 'OM03');
+
+        const step3Check = () => {
+          if (hasJitCrazy) {
+            caster.jitCrazyUpgraded = true;
+            opponent.board.forEach(m => {
+              if (m && !m.immuneToEnemyEffectsUntilEndOfTurn) {
+                m.tempPowerMod = (m.tempPowerMod || 0) - 1;
+              }
+            });
+            setLog(`🃏 ${cardTitle} [เงื่อนไข 3: มีไอจิตบ้ากามบนสนาม] อัปเกรดสกิลไอจิตบ้ากามเป็นลดพลังทุกใบ และลดพลังยูนิทอีกฝ่ายทุกใบ -1 จนจบเทิร์น!`);
+          }
+          next();
+        };
+
+        const step2Check = () => {
+          if (hasBank && sourceCard) {
+            sourceCard.untilEnemyEndPowerMod = (sourceCard.untilEnemyEndPowerMod || 0) + 2;
+            setLog(`🃏 ${cardTitle} [เงื่อนไข 2: มีไอแบงค์บ้าเกมบนสนาม] พลังโจมตีของ "${sourceCard.name}" +2 จนจบเทิร์นอีกฝั่ง!`);
+          }
+          step3Check();
+        };
+
+        if (hasOat && caster.graveyard.length > 0) {
+          setLog(`🃏 ${cardTitle} [เงื่อนไข 1: มีไอโอ๊ตบ้าการ์ตูนบนสนาม] เลือกการ์ดจากนรกขึ้นมือไม่เกิน 1 ใบ!`);
+          this.executeSingleStep({ block: 'RECOVER_FROM_GRAVE', count: 1 }, context, step2Check);
+        } else {
+          step2Check();
+        }
+        return;
+      }
+
+      // --- บล็อกที่ 21: ไอเหนือผู้มีคลิปแปลก (NUEA_CLIP_TOP3_SPELL & NUEA_CLIP_FREE_CAST) ---
+      case 'NUEA_CLIP_TOP3_SPELL': {
+        if (caster.deck.length === 0) {
+          next();
+          return;
+        }
+        const lookCount = Math.min(3, caster.deck.length);
+        const top3 = [];
+        for (let i = 0; i < lookCount; i++) {
+          top3.push(caster.deck.pop());
+        }
+
+        const finishClipTop3 = (pickedUid) => {
+          let picked = null;
+          const rest = [];
+          top3.forEach(c => {
+            if (pickedUid && c.uid === pickedUid && !picked) picked = c;
+            else rest.push(c);
+          });
+          if (picked) {
+            resetCardStateForZoneChange(picked);
+            caster.hand.push(picked);
+            setLog(`📹 ${cardTitle} หยิบการ์ดเวทมนตร์ "${picked.name}" ขึ้นมือ และนำใบที่เหลือไว้ใต้กอง!`);
+          } else {
+            setLog(`📹 ${cardTitle} ดูการ์ด ${lookCount} ใบบนสุดแล้วนำไปไว้ใต้กอง`);
+          }
+          rest.forEach(r => {
+            resetCardStateForZoneChange(r);
+            caster.deck.unshift(r);
+          });
+          next();
+        };
+
+        const spells = top3.filter(c => isSpellCard(c));
+        if (spells.length === 0) {
+          finishClipTop3(null);
+          return;
+        }
+
+        if (isAI) {
+          finishClipTop3(spells[0].uid);
+          return;
+        }
+
+        const topNames = top3.map(c => `${c.name} [${c.type}]`).join(' / ');
+        const opts = spells.map(sp => ({
+          label: `✨ หยิบเวทมนตร์ "${sp.name}" ขึ้นมือ`,
+          color: '#16a34a',
+          onSelect: () => finishClipTop3(sp.uid)
+        }));
+        opts.push({
+          label: 'ไม่หยิบ (นำทั้งหมดไว้ใต้กอง)',
+          color: '#475569',
+          onSelect: () => finishClipTop3(null)
+        });
+        showChoiceModal(`📹 ${cardTitle} ดูการ์ด 3 ใบบนสุดของกอง`, `พบ: ${topNames}\nเลือกหยิบเวทมนตร์ไม่เกิน 1 ใบขึ้นมือ:`, opts);
+        return;
+      }
+
+      case 'NUEA_CLIP_FREE_CAST': {
+        const normalSpells = caster.hand
+          .map((c, idx) => ({ card: c, idx }))
+          .filter(item => item.card && item.card.type === 'NormalSpell');
+
+        if (normalSpells.length === 0) {
+          next();
+          return;
+        }
+
+        const castWithoutQuota = (handIdx) => {
+          const spellCard = caster.hand[handIdx];
+          if (!spellCard) { next(); return; }
+          const spellEff = (spellCard.effects || []).find(e => e.trigger === 'CAST_SPELL');
+          if (!spellEff) { next(); return; }
+          const subCtx = {
+            caster,
+            opponent,
+            sourceCard: spellCard,
+            spellHandIndex: handIdx,
+            excludeHandIndex: handIdx,
+            isAI
+          };
+          const check = this.canActivateEffect(spellEff, subCtx);
+          if (!check.ok) {
+            if (!isAI) setLog(`⚠️ ร่าย "${spellCard.name}" ไม่ได้: ${check.reason}`);
+            next();
+            return;
+          }
+          // ชดเชยโควต้า Normal Spell คืน 1 ครั้งเพื่อไม่เสียการจำกัดการใช้เวทมนตร์
+          caster.spellQuota.normalUsed = Math.max(-1, caster.spellQuota.normalUsed - 1);
+          setLog(`📹 ${cardTitle} สั่งใช้เวทมนตร์ "${spellCard.name}" จากบนมือโดยไม่เสียโควต้าเวทมนตร์!`);
+          this.activateSpecificEffect(spellEff, subCtx, next);
+        };
+
+        if (isAI) {
+          castWithoutQuota(normalSpells[0].idx);
+          return;
+        }
+
+        const opts = normalSpells.map(item => ({
+          label: `✨ ร่าย "${item.card.name}" ฟรี (ไม่เสียโควต้า Normal Spell)`,
+          color: '#0284c7',
+          onSelect: () => castWithoutQuota(item.idx)
+        }));
+        opts.push({ label: '❌ ยกเลิก', color: '#475569', onSelect: () => next() });
+        showChoiceModal(`📹 ${cardTitle}`, 'เลือกการ์ดเวทมนตร์จากบนมือเพื่อสั่งใช้งานโดยไม่เสียโควต้า:', opts);
+        return;
+      }
+
+      // --- บล็อกที่ 22: ไอเจย์นักบิด (JAY_DISCARD_AND_DRAW) ---
+      case 'JAY_DISCARD_AND_DRAW': {
+        if (opponent.hand.length > 0) {
+          const d = opponent.hand.pop();
+          resetCardStateForZoneChange(d);
+          opponent.graveyard.push(d);
+          setLog(`🏍️ ${cardTitle} บังคับให้ฝ่ายตรงข้ามทิ้ง "${d.name}" 1 ใบ!`);
+        }
+        drawCards(caster, 1);
+        setLog(`🏍️ ${cardTitle} ${caster.name} จั่วการ์ด 1 ใบ!`);
+        next();
+        return;
+      }
+
+      // --- บล็อกที่ 23: ไอดีนบ้าHee (DEAN_DRAW2_DISCARD1) ---
+      case 'DEAN_DRAW2_DISCARD1': {
+        drawCards(caster, 2);
+        if (caster.hand.length === 0) {
+          next();
+          return;
+        }
+        if (isAI) {
+          const d = caster.hand.pop();
+          resetCardStateForZoneChange(d);
+          caster.graveyard.push(d);
+          setLog(`🤪 ${cardTitle} จั่วการ์ด 2 ใบ และทิ้ง "${d.name}" 1 ใบ!`);
+          next();
+          return;
+        }
+        gameState.pendingAction = {
+          type: 'MODULAR_SELECT_TARGET',
+          targetZone: 'PLAYER_HAND',
+          remainingCount: 1,
+          promptText: `🤪 ${cardTitle} จั่วการ์ด 2 ใบแล้ว — คลิกเลือกการ์ดบนมือของคุณ 1 ใบเพื่อทิ้งลงนรก!`,
+          onSelectHand: (hIdx) => {
+            const d = caster.hand.splice(hIdx, 1)[0];
+            resetCardStateForZoneChange(d);
+            caster.graveyard.push(d);
+            setLog(`🤪 ${cardTitle} ทิ้ง "${d.name}" จากมือลงนรกเรียบร้อย!`);
+          },
+          onAllSelected: () => next()
+        };
+        setLog(gameState.pendingAction.promptText);
+        renderGame();
+        return;
+      }
+
+      // --- บล็อกที่ 24: สงครามความบ้า (CRAZY_WAR_SEARCH_PAIR) ---
+      case 'CRAZY_WAR_SEARCH_PAIR': {
+        const pickedNames = [];
+        let tookFromDeck = false;
+
+        ['OM01', 'OM02'].forEach(targetId => {
+          const gIdx = caster.graveyard.findIndex(c => c && c.id === targetId);
+          if (gIdx !== -1) {
+            const c = caster.graveyard.splice(gIdx, 1)[0];
+            resetCardStateForZoneChange(c);
+            caster.hand.push(c);
+            pickedNames.push(`${c.name} (จากนรก)`);
+          } else {
+            const dIdx = caster.deck.findIndex(c => c && c.id === targetId);
+            if (dIdx !== -1) {
+              const c = caster.deck.splice(dIdx, 1)[0];
+              resetCardStateForZoneChange(c);
+              caster.hand.push(c);
+              pickedNames.push(`${c.name} (จากกอง)`);
+              tookFromDeck = true;
+            }
+          }
+        });
+
+        if (tookFromDeck) {
+          caster.deck = shuffleDeck(caster.deck);
+        }
+        if (pickedNames.length > 0) {
+          setLog(`⚔️ ${cardTitle} นำ ${pickedNames.join(' และ ')} ขึ้นมือสำเร็จ!`);
+        } else {
+          setLog(`ℹ️ ${cardTitle} ไม่พบ "ไอโอ๊ตบ้าการ์ตูน" หรือ "ไอแบงค์บ้าเกม" ในกองและนรก`);
+        }
+        next();
+        return;
+      }
+
       default:
         next();
     }
@@ -1809,6 +2581,11 @@ function initiatePlayerSpell(handIndex) {
   const spell = player.hand[handIndex];
   if (!spell) return;
 
+  if (spell.type === 'LandSpell') {
+    setLog(`🏰 "${spell.name}" เป็นแลนด์สเปล (LandSpell) — จะแสดงผลความสามารถก็ต่อเมื่ออยู่ใน "มิติมืด" เท่านั้น (ไม่สามารถกดร่ายจากมือแบบปกติได้)!`);
+    return;
+  }
+
   if (spell.type === 'NormalSpell' && player.spellQuota.normalUsed >= 1) {
     setLog('❌ คุณใช้โควต้า Normal Spell (1 ใบ/เทิร์น) ไปแล้วในเทิร์นนี้!');
     return;
@@ -1824,6 +2601,14 @@ function initiatePlayerSpell(handIndex) {
   }
   if (spell.id === 'DNS03') {
     setLog('ℹ️ "เมเทโอ" เป็นเวทรีแอคเมื่ออีกฝ่ายโจมตี (ระบบจะเด้งถามอัตโนมัติเมื่ออีกฝ่ายโจมตีและบนสนามเรามียูนิทเผ่าไดโน 2 ใบขึ้นไป)');
+    return;
+  }
+  if (spell.id === 'DMS02') {
+    setLog('ℹ️ "คำเตือนต้องห้าม" เป็นเวทรีแอคเมื่ออีกฝ่ายโจมตีและเรามียูนิทเผ่า "ปีศาจ" บนสนาม (ระบบจะเด้งถามอัตโนมัติเมื่อถูกโจมตี)');
+    return;
+  }
+  if (spell.id === 'OS03') {
+    setLog('ℹ️ "เร็วขึ้นอีก!!!!!!" เป็นเวทรีแอคเมื่อ "ไอแบงค์บ้าเกม" โจมตี (ระบบจะเด้งถามอัตโนมัติเมื่อคุณสั่งไอแบงค์บ้าเกมโจมตี)');
     return;
   }
 
@@ -2775,6 +3560,116 @@ function canContestantAttack(contestant, monster) {
   return { allowed: true };
 }
 
+function triggerOatLeaderStartTurn(contestant, onComplete) {
+  if (!contestant.leader || contestant.leader.id !== 'L06' || contestant.deck.length === 0) {
+    if (onComplete) onComplete();
+    return;
+  }
+
+  const lookCount = Math.min(2, contestant.deck.length);
+  const top2 = [];
+  for (let i = 0; i < lookCount; i++) {
+    top2.push(contestant.deck.pop());
+  }
+
+  const placeRemainingCards = (remainingCards, placeWhere) => {
+    if (placeWhere === 'BOTTOM') {
+      remainingCards.forEach(c => {
+        resetCardStateForZoneChange(c);
+        contestant.deck.unshift(c);
+      });
+    } else {
+      remainingCards.forEach(c => {
+        resetCardStateForZoneChange(c);
+        contestant.deck.push(c);
+      });
+    }
+    renderGame();
+    if (onComplete) onComplete();
+  };
+
+  if (contestant !== gameState.player) {
+    const spellIdx = top2.findIndex(c => isSpellCard(c));
+    if (spellIdx !== -1) {
+      const sp = top2.splice(spellIdx, 1)[0];
+      resetCardStateForZoneChange(sp);
+      contestant.hand.push(sp);
+      setLog(`👑 [AI ไอโอ๊ตบ้าทุกสิ่ง] เปิด 2 ใบบนสุด นำเวทมนตร์ "${sp.name}" ขึ้นมือ!`);
+    }
+    const wantTop = top2.some(c => c.id === 'OM01' || c.id === 'OM07');
+    placeRemainingCards(top2, wantTop ? 'TOP' : 'BOTTOM');
+    return;
+  }
+
+  const askWhereToPlaceRemaining = (remaining) => {
+    if (remaining.length === 0) {
+      renderGame();
+      if (onComplete) onComplete();
+      return;
+    }
+    const remNames = remaining.map(c => c.name).join(', ');
+    showChoiceModal(
+      '👑 ไอโอ๊ตบ้าทุกสิ่ง: จัดเรียงการ์ดที่เหลือ',
+      `ต้องการนำการ์ด${remaining.length > 1 ? 'ทั้ง ' + remaining.length + ' ใบ' : ''}ด้านล่างไปไว้บนกองหรือล่างกองการ์ด?`,
+      [
+        {
+          label: '🔼 วางไว้บนกองการ์ด',
+          color: '#0284c7',
+          onSelect: () => {
+            setLog(`👑 [ไอโอ๊ตบ้าทุกสิ่ง] นำ "${remNames}" เรียงไว้บนกองการ์ด!`);
+            placeRemainingCards(remaining, 'TOP');
+          }
+        },
+        {
+          label: '🔽 วางไว้ล่างกองการ์ด',
+          color: '#475569',
+          onSelect: () => {
+            setLog(`👑 [ไอโอ๊ตบ้าทุกสิ่ง] นำ "${remNames}" เรียงไว้ใต้กองการ์ด!`);
+            placeRemainingCards(remaining, 'BOTTOM');
+          }
+        }
+      ],
+      { previewCards: remaining }
+    );
+  };
+
+  const spellsInTop2 = top2.filter(c => isSpellCard(c));
+  const topNames = top2.map(c => `${c.name} [${c.type}]`).join(' / ');
+
+  if (spellsInTop2.length === 0) {
+    setLog(`👑 [ไอโอ๊ตบ้าทุกสิ่ง] เปิด 2 ใบบนสุดพบ: ${topNames} (ไม่มีเวทมนตร์)`);
+    askWhereToPlaceRemaining(top2);
+    return;
+  }
+
+  const options = spellsInTop2.map(sp => ({
+    label: `✨ เลือกเวทมนตร์ "${sp.name}" นำขึ้นมือ`,
+    color: '#16a34a',
+    onSelect: () => {
+      resetCardStateForZoneChange(sp);
+      contestant.hand.push(sp);
+      setLog(`👑 [ไอโอ๊ตบ้าทุกสิ่ง] นำเวทมนตร์ "${sp.name}" ขึ้นมือสำเร็จ!`);
+      const rem = top2.filter(c => c.uid !== sp.uid);
+      askWhereToPlaceRemaining(rem);
+    }
+  }));
+  options.push({
+    label: 'ไม่นำเวทมนตร์ขึ้นมือ',
+    color: '#475569',
+    onSelect: () => askWhereToPlaceRemaining(top2)
+  });
+
+  const nonSpellsInTop2 = top2.filter(c => !isSpellCard(c));
+  showChoiceModal(
+    '👑 ออโต้เมื่อเข้าเทิร์น: ไอโอ๊ตบ้าทุกสิ่ง',
+    nonSpellsInTop2.length
+      ? `เปิดการ์ด 2 ใบบนสุดของกอง — การ์ดที่ไม่ใช่เวทมนตร์แสดงด้านบน\nคลิกรูปการ์ดเวทมนตร์ด้านล่างเพื่อนำขึ้นมือ (ไม่เกิน 1 ใบ):`
+      : `เปิดการ์ด 2 ใบบนสุดของกอง\nคลิกรูปการ์ดเวทมนตร์เพื่อนำขึ้นมือ (ไม่เกิน 1 ใบ):`,
+    options,
+    { previewCards: nonSpellsInTop2 }
+  );
+}
+
 function executeStartPhase(contestant, onStartEffectsComplete = null) {
   contestant.turnsTaken += 1;
   contestant.attacksThisTurn = 0;
@@ -2791,6 +3686,11 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
       m.state = 'Stand';
       m.usedSkills = {};
       m.indestructibleUntilNextTurn = false;
+      m.oatShieldUsedThisTurn = false;
+      m.beelzebubBuffThisTurn = false;
+      m.tauntedByLeviathanUid = null;
+      // ล้างบัฟ "จนจบเทิร์นอีกฝั่ง" ของฝ่ายตรงข้ามเมื่อจบเทิร์นอีกฝั่งแล้วเข้าเทิร์นเรา
+      m.untilEnemyEndPowerMod = 0;
     }
   });
 
@@ -2800,12 +3700,30 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
     return;
   }
 
+  if (contestant.leader && contestant.leader.id === 'L06') {
+    triggerOatLeaderStartTurn(contestant, onStartEffectsComplete);
+    return;
+  }
+
   triggerDoomsdayStartTurnQueue(contestant, onStartEffectsComplete);
 }
 
 function executeEndPhaseCleanup(activeContestant) {
+  // แลนด์สเปล "สัญญาปีศาจ" (DMS01) ในมิติมืด: เมื่อจบเทิร์น เลือกการ์ดจากดรอป 1 ใบขึ้นมือ
+  if (
+    Array.isArray(activeContestant.darkDimension) &&
+    activeContestant.darkDimension.some(d => d && d.id === 'DMS01') &&
+    activeContestant.graveyard.length > 0
+  ) {
+    const recovered = activeContestant.graveyard.pop();
+    resetCardStateForZoneChange(recovered);
+    activeContestant.hand.push(recovered);
+    setLog(`📜 [สัญญาปีศาจ - มิติมืด] เมื่อจบเทิร์น นำ "${recovered.name}" 1 ใบจากดรอปขึ้นมือของ ${activeContestant.name}!`);
+  }
+
   activeContestant.board.forEach((m, idx) => {
     if (!m) return;
+    m.beelzebubBuffThisTurn = false;
 
     if (m.returnFromDarkDimensionId) {
       const baseId = m.returnFromDarkDimensionId;
@@ -2932,7 +3850,7 @@ function handleHandCardClick(handIndex) {
   }
 
   // กรณีที่ 3: คลิกการ์ดเวทมนตร์
-  if (clickedCard.type === 'NormalSpell' || clickedCard.type === 'ReactionSpell') {
+  if (isSpellCard(clickedCard)) {
     initiatePlayerSpell(handIndex);
   }
 }
@@ -3403,6 +4321,27 @@ function playAttackVisualAnimation(attacker, defender, attackerSlot, targetType,
   }, 680);
 }
 
+function triggerBelphegorAttackSuccess(attacker, defender, attackingMonster) {
+  if (!attackingMonster || attackingMonster.id !== 'DMM07') return;
+  let movedMsg = [];
+  if (attacker.deck.length > 0) {
+    const c = attacker.deck.pop();
+    resetCardStateForZoneChange(c);
+    attacker.darkDimension.push(c);
+    movedMsg.push(`${attacker.name}: "${c.name}"`);
+  }
+  if (defender.deck.length > 0) {
+    const c = defender.deck.pop();
+    resetCardStateForZoneChange(c);
+    defender.darkDimension.push(c);
+    movedMsg.push(`${defender.name}: "${c.name}"`);
+  }
+  if (movedMsg.length > 0) {
+    setLog(`💤 [ออโต้ - เบลเฟกอร์ บาปเกียจคร้าน] โจมตีสำเร็จ! นำการ์ดใบบนสุดของทั้ง 2 ฝั่งเข้ามิติมืดของตน (${movedMsg.join(' | ')})!`);
+    checkGameOver();
+  }
+}
+
 // ฟังก์ชันหลักเมื่อสั่งโจมตี (เพิ่มแอนิเมชันพุ่งโจมตีก่อนประมวลผล)
 function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot, onCompleteCallback = null) {
   const attackingMonster = attacker.board[attackerSlot];
@@ -3412,32 +4351,90 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
     return;
   }
 
+  // 🐍 ตรวจสอบว่ายูนิทที่สั่งโจมตีถูกสกิลของ "ลิเวียธาน บาปความริษยา" (DMM03) ล็อกเป้าไว้หรือไม่
+  if (attackingMonster.tauntedByLeviathanUid) {
+    const leviSlot = defender.board.findIndex(m => m && m.uid === attackingMonster.tauntedByLeviathanUid);
+    if (leviSlot !== -1) {
+      targetType = 'monster';
+      targetSlot = leviSlot;
+      setLog(`🐍 [สกิลลิเวียธาน บาปความริษยา] เปลี่ยนเป้าหมายการโจมตีของ "${attackingMonster.name}" มาที่ "ลิเวียธาน บาปความริษยา" แทน!`);
+    }
+    attackingMonster.tauntedByLeviathanUid = null;
+  }
+
   attackingMonster.state = 'Rest';
   attacker.attacksThisTurn += 1;
   gameState.selectedAttackerSlot = null;
 
-  // เล่นแอนิเมชันพุ่งโจมตีให้ผู้เล่นเห็นก่อน
-  playAttackVisualAnimation(attacker, defender, attackerSlot, targetType, targetSlot, () => {
-    // 🌐 กรณีโหมด PvP และเราเป็นคนสั่งโจมตี: ส่งคำสั่งไปให้เครื่องของเพื่อนเป็นคนเลือกป้องกันเอง
-    if (typeof pvpState !== 'undefined' && pvpState.isMultiplayer && attacker === gameState.player) {
-      pvpState.waitingForDefense = true;
-      disableControls();
-      _originalSetLog(`⚔️ สั่ง "${attackingMonster.name}" โจมตีแล้ว — ⏳ รอฝ่ายตรงข้ามตัดสินใจป้องกัน...`);
-      _originalRenderGame();
+  const proceedWithAttackExecution = (unblockableAttack = false) => {
+    attackingMonster.unblockableThisAttack = unblockableAttack;
+    playAttackVisualAnimation(attacker, defender, attackerSlot, targetType, targetSlot, () => {
+      // 🌐 กรณีโหมด PvP และเราเป็นคนสั่งโจมตี: ส่งคำสั่งไปให้เครื่องของเพื่อนเป็นคนเลือกป้องกันเอง
+      if (typeof pvpState !== 'undefined' && pvpState.isMultiplayer && attacker === gameState.player) {
+        pvpState.waitingForDefense = true;
+        disableControls();
+        _originalSetLog(`⚔️ สั่ง "${attackingMonster.name}" โจมตีแล้ว — ⏳ รอฝ่ายตรงข้ามตัดสินใจป้องกัน...`);
+        _originalRenderGame();
 
-      sendPvpPacket({
-        type: 'DECLARE_ATTACK',
-        attackerSlot,
-        targetType,
-        targetSlot,
-        senderData: gameState.player,
-        receiverData: gameState.ai
-      });
+        sendPvpPacket({
+          type: 'DECLARE_ATTACK',
+          attackerSlot,
+          targetType,
+          targetSlot,
+          senderData: gameState.player,
+          receiverData: gameState.ai
+        });
+        return;
+      }
+
+      checkDefenderAttackReactions(attacker, defender, attackerSlot, targetType, targetSlot, onCompleteCallback);
+    });
+  };
+
+  // ⚡ ตรวจสอบเวทรีแอคฝ่ายบุก: "เร็วขึ้นอีก!!!!!!" (OS03) เมื่อ "ไอแบงค์บ้าเกม" (OM02) โจมตี
+  const os03Idx = attacker.hand.findIndex(c => c && c.id === 'OS03');
+  if (attackingMonster.id === 'OM02' && os03Idx !== -1 && attacker.spellQuota.reactionUsed < 1 && targetType === 'leader') {
+    if (attacker !== gameState.player) {
+      const spell = attacker.hand.splice(os03Idx, 1)[0];
+      attacker.spellQuota.reactionUsed += 1;
+      resetCardStateForZoneChange(spell);
+      attacker.graveyard.push(spell);
+      showCardShowcaseBanner(spell, 'AI ใช้เวทรีแอค เร็วขึ้นอีก!!!!!!', '⚔️ การโจมตีของ "ไอแบงค์บ้าเกม" ไม่สามารถนำยูนิทมาป้องกันได้!', '#38bdf8', 1100);
+      setLog('⚡ [AI - เร็วขึ้นอีก!!!!!!] เมื่อ "ไอแบงค์บ้าเกม" โจมตี ฝ่ายตรงข้ามไม่สามารถนำยูนิทมาป้องกันการโจมตีนี้ได้!');
+      proceedWithAttackExecution(true);
+      return;
+    } else {
+      showChoiceModal(
+        '⚡ สั่งใช้งานเวทรีแอค: เร็วขึ้นอีก!!!!!!',
+        '"ไอแบงค์บ้าเกม" กำลังประกาศโจมตี! คุณต้องการร่าย "เร็วขึ้นอีก!!!!!!" จากบนมือ เพื่อให้ฝ่ายตรงข้ามไม่สามารถนำยูนิทมาป้องกัน (Intercept) การโจมตีนี้ได้หรือไม่?',
+        [
+          {
+            label: '⚡ ร่าย "เร็วขึ้นอีก!!!!!!" (ห้ามอีกฝ่ายนำยูนิทมาป้องกันการโจมตีนี้!)',
+            color: '#0284c7',
+            onSelect: () => {
+              const idx = attacker.hand.findIndex(c => c && c.id === 'OS03');
+              if (idx !== -1) {
+                const spell = attacker.hand.splice(idx, 1)[0];
+                attacker.spellQuota.reactionUsed += 1;
+                resetCardStateForZoneChange(spell);
+                attacker.graveyard.push(spell);
+                setLog('⚡ [เร็วขึ้นอีก!!!!!!] ร่ายเวทรีแอคสำเร็จ — ฝ่ายตรงข้ามไม่สามารถนำยูนิทมาป้องกันการโจมตีของ "ไอแบงค์บ้าเกม" ได้!');
+              }
+              proceedWithAttackExecution(true);
+            }
+          },
+          {
+            label: 'ไม่ใช้ (โจมตีตามปกติ)',
+            color: '#475569',
+            onSelect: () => proceedWithAttackExecution(false)
+          }
+        ]
+      );
       return;
     }
+  }
 
-    checkDefenderAttackReactions(attacker, defender, attackerSlot, targetType, targetSlot, onCompleteCallback);
-  });
+  proceedWithAttackExecution(false);
 }
 
 function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetType, targetSlot, onCompleteCallback) {
@@ -3478,8 +4475,69 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
     && (dinoCountOnDefenderBoard >= 2)
     && (defender.spellQuota.reactionUsed < 1);
 
+  const demonCountOnDefenderBoard = defender.board.filter(m => m !== null && hasCardTribe(m, 'ปีศาจ')).length;
+  const dms02InHandIdx = defender.hand.findIndex(c => c.id === 'DMS02');
+  const canUseForbiddenWarning = (dms02InHandIdx !== -1)
+    && (demonCountOnDefenderBoard >= 1)
+    && (defender.spellQuota.reactionUsed < 1);
+
   // 🤖 กรณีฝ่ายตั้งรับเป็น AI: ให้ AI ตัดสินใจใช้สกิลเองพร้อมโชว์แบนเนอร์ให้ผู้เล่นเห็นชัดๆ
   if (!isLocalDefender) {
+    if (canUseForbiddenWarning && (targetType === 'leader' || defender.leader.hp <= 4)) {
+      const spellCard = defender.hand.splice(dms02InHandIdx, 1)[0];
+      defender.spellQuota.reactionUsed += 1;
+      defender.graveyard.push(spellCard);
+
+      showCardShowcaseBanner(spellCard, 'AI ใช้เวทรีแอค คำเตือนต้องห้าม!', '🌌 ทั้งสองฝ่ายนำการ์ดบนมือตนเอง 1 ใบเข้ามิติมืด และยกเลิกการโจมตี!', '#7c3aed', 1200);
+
+      if (attackingMonster.id === 'DM06') {
+        const atkRoll = Math.floor(Math.random() * 6) + 1;
+        const defRoll = Math.floor(Math.random() * 6) + 1;
+        if (atkRoll < defRoll) {
+          setLog(`🎲 [ออโต้ - โซเนบุ] โซเนบุทอยได้ [${atkRoll}] ชนะ AI [${defRoll}] -> เวทย์ "คำเตือนต้องห้าม" ของ AI ไร้ผล!`);
+          renderGame();
+          continueNormalAttackFlow();
+          return;
+        }
+      }
+
+      if (defender.hand.length > 0) {
+        const landIdx = defender.hand.findIndex(c => c.type === 'LandSpell');
+        const c = defender.hand.splice(landIdx !== -1 ? landIdx : 0, 1)[0];
+        resetCardStateForZoneChange(c);
+        defender.darkDimension.push(c);
+      }
+
+      if (attacker.hand.length > 0) {
+        gameState.pendingAction = {
+          type: 'MODULAR_SELECT_TARGET',
+          targetZone: 'PLAYER_HAND',
+          remainingCount: 1,
+          promptText: '🌌 [AI ใช้คำเตือนต้องห้าม] คลิกเลือกการ์ดบนมือของคุณ 1 ใบเพื่อนำเข้าสู่ "มิติมืด" (การโจมตีถูกยกเลิก):',
+          onSelectHand: (hIdx) => {
+            const c = attacker.hand.splice(hIdx, 1)[0];
+            resetCardStateForZoneChange(c);
+            attacker.darkDimension.push(c);
+            setLog(`🌌 [คำเตือนต้องห้าม] ทั้งสองฝ่ายนำการ์ดบนมือ 1 ใบเข้ามิติมืด และยกเลิกการโจมตี!`);
+            checkGameOver();
+          },
+          onAllSelected: () => {
+            renderGame();
+            if (onCompleteCallback) onCompleteCallback();
+          }
+        };
+        setLog(gameState.pendingAction.promptText);
+        renderGame();
+        return;
+      }
+
+      setLog('🌌 [AI - คำเตือนต้องห้าม] ทั้งสองฝ่ายนำการ์ดบนมือ 1 ใบเข้ามิติมืด และยกเลิกการโจมตี!');
+      checkGameOver();
+      renderGame();
+      if (onCompleteCallback) onCompleteCallback();
+      return;
+    }
+
     if (canUseMeteor && (targetType === 'leader' || defender.leader.hp <= 4)) {
       const spellCard = defender.hand.splice(dns03InHandIdx, 1)[0];
       defender.spellQuota.reactionUsed += 1;
@@ -3563,8 +4621,67 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
   }
 
   // 👤 กรณีเราเป็นฝ่ายถูกโจมตี: เด้งถามเฉพาะการ์ดของเราเอง
-  if (canUseMayaOnce || canUseWeWillHelp || canUseMeteor) {
+  if (canUseMayaOnce || canUseWeWillHelp || canUseMeteor || canUseForbiddenWarning) {
     const options = [];
+
+    if (canUseForbiddenWarning) {
+      options.push({
+        label: '🌌 ใช้การ์ด "คำเตือนต้องห้าม": เราและฝ่ายตรงข้ามนำการ์ดบนมือตนเอง 1 ใบเข้ามิติมืด และยกเลิกการโจมตี!',
+        color: '#7c3aed',
+        onSelect: () => {
+          const spellCard = defender.hand.splice(dms02InHandIdx, 1)[0];
+          defender.spellQuota.reactionUsed += 1;
+          defender.graveyard.push(spellCard);
+
+          if (attackingMonster.id === 'DM06') {
+            const atkRoll = Math.floor(Math.random() * 6) + 1;
+            const defRoll = Math.floor(Math.random() * 6) + 1;
+            if (atkRoll < defRoll) {
+              setLog(`🎲 [ออโต้ - โซเนบุ] โซเนบุทอยได้ [${atkRoll}] น้อยกว่าคุณ [${defRoll}] -> โซเนบุชนะ! เวทย์ "คำเตือนต้องห้าม" ไร้ผล!`);
+              renderGame();
+              continueNormalAttackFlow();
+              return;
+            }
+          }
+
+          // ฝ่ายตรงข้าม (AI) นำการ์ดบนมือ 1 ใบเข้ามิติมืด
+          if (attacker.hand.length > 0) {
+            const oppCard = attacker.hand.pop();
+            resetCardStateForZoneChange(oppCard);
+            attacker.darkDimension.push(oppCard);
+          }
+
+          // หากเรามีการ์ดบนมือเหลืออยู่ ให้คลิกเลือก 1 ใบเข้ามิติมืด
+          if (defender.hand.length > 0) {
+            gameState.pendingAction = {
+              type: 'MODULAR_SELECT_TARGET',
+              targetZone: 'PLAYER_HAND',
+              remainingCount: 1,
+              promptText: '🌌 [คำเตือนต้องห้าม] คลิกเลือกการ์ดบนมือของคุณ 1 ใบเพื่อนำเข้าสู่ "มิติมืด" (การโจมตีถูกยกเลิกแล้ว!):',
+              onSelectHand: (hIdx) => {
+                const myCard = defender.hand.splice(hIdx, 1)[0];
+                resetCardStateForZoneChange(myCard);
+                defender.darkDimension.push(myCard);
+                setLog(`🌌 [คำเตือนต้องห้าม] นำ "${myCard.name}" และการ์ดบนมืออีกฝั่ง 1 ใบเข้ามิติมืด — ยกเลิกการโจมตีสำเร็จ!`);
+                checkGameOver();
+              },
+              onAllSelected: () => {
+                renderGame();
+                if (onCompleteCallback) onCompleteCallback();
+              }
+            };
+            setLog(gameState.pendingAction.promptText);
+            renderGame();
+            return;
+          }
+
+          setLog('🌌 [คำเตือนต้องห้าม] นำการ์ดบนมือเข้ามิติมืด และยกเลิกการโจมตีสำเร็จ!');
+          checkGameOver();
+          renderGame();
+          if (onCompleteCallback) onCompleteCallback();
+        }
+      });
+    }
 
     if (canUseMeteor) {
       options.push({
@@ -3842,6 +4959,12 @@ function proceedToStandardIntercept(attacker, defender, attackerSlot, onComplete
       if (onCompleteCallback) onCompleteCallback();
       return;
     }
+    // 💤 ออโต้ของ "เบลเฟกอร์ บาปเกียจคร้าน" (DMM07): เมื่อโจมตีสำเร็จ นำการ์ดบนสุดของทั้ง 2 ฝั่งเข้ามิติมืดของตน
+    triggerBelphegorAttackSuccess(attacker, defender, attackingMonster);
+    if (gameState.gameOver) {
+      if (onCompleteCallback) onCompleteCallback();
+      return;
+    }
     // รันสกิลออโต้เมื่อโจมตีลีดเดอร์สำเร็จ (เช่น ไฮบริด — อินโดแรปเตอร์ ON_HIT_LEADER)
     EffectEngine.triggerCardEffects(attackingMonster, 'ON_HIT_LEADER', {
       caster: attacker,
@@ -3855,6 +4978,13 @@ function proceedToStandardIntercept(attacker, defender, attackerSlot, onComplete
       if (onCompleteCallback) onCompleteCallback();
     });
   };
+
+  // ⚡ หากมีเอฟเฟกต์ "เร็วขึ้นอีก!!!!!!" (OS03) ฝ่ายตรงข้ามไม่สามารถนำยูนิทมาป้องกันการโจมตีนี้ได้
+  if (attackingMonster.unblockableThisAttack) {
+    attackingMonster.unblockableThisAttack = false;
+    handleDirectLeaderHit(`⚡ [เร็วขึ้นอีก!!!!!!] ฝ่ายตรงข้ามไม่สามารถนำยูนิทมาป้องกันได้! "${attackingMonster.name}" โจมตีเข้าใส่ Leader ของ ${defender.name} โดยตรง! (เสีย 1 HP เหลือ ${Math.max(0, defender.leader.hp - 1)}/6)`);
+    return;
+  }
 
   if (standBlockerSlots.length === 0) {
     handleDirectLeaderHit(`💥 "${attackingMonster.name}" โจมตีเข้าใส่ Leader ของ ${defender.name} โดยตรง! (เสีย 1 HP เหลือ ${defender.leader.hp - 1 >= 0 ? defender.leader.hp - 1 : 0}/6)`);
@@ -3898,8 +5028,29 @@ function compareAndDestroyMonsters(contestantA, slotA, contestantB, slotB, onAft
     return '';
   }
 
-  const totalA = getEffectivePower(monsterA, contestantA);
-  const totalB = getEffectivePower(monsterB, contestantB);
+  let totalA = getEffectivePower(monsterA, contestantA);
+  let totalB = getEffectivePower(monsterB, contestantB);
+
+  // 😈 ออโต้ของ "ลูซิเฟอร์ บาปความหยิ่งผยอง" (DMM01):
+  // เมื่อเข้าเทิร์นฝ่ายตรงข้าม ถ้าในมิติมืดเรามี "ดินแดนปีศาจ" (DMS03) การ์ดที่ต่อสู้กับลูซิเฟอร์พลังโจมตีลด 1 หน่วย
+  let luciferNote = '';
+  if (
+    monsterB.id === 'DMM01' &&
+    Array.isArray(contestantB.darkDimension) &&
+    contestantB.darkDimension.some(d => d && d.id === 'DMS03')
+  ) {
+    totalA = Math.max(0, totalA - 1);
+    luciferNote = ` [😈 สกิลลูซิเฟอร์ลดพลัง "${monsterA.name}" -1 เหลือ ${totalA}]`;
+  }
+  if (
+    monsterA.id === 'DMM01' &&
+    Array.isArray(contestantA.darkDimension) &&
+    contestantA.darkDimension.some(d => d && d.id === 'DMS03') &&
+    gameState.activeTurn !== (contestantA === gameState.player ? 'player' : 'ai')
+  ) {
+    totalB = Math.max(0, totalB - 1);
+    luciferNote = ` [😈 สกิลลูซิเฟอร์ลดพลัง "${monsterB.name}" -1 เหลือ ${totalB}]`;
+  }
 
   if (totalA > totalB) {
     const hadBurn = !!monsterA.burnLeaderOnKill;
@@ -3910,7 +5061,10 @@ function compareAndDestroyMonsters(contestantA, slotA, contestantB, slotB, onAft
       contestantB.leader.hp = Math.max(0, contestantB.leader.hp - 1);
       burnMsg = ` และสกิลออโต้ของ "${monsterA.name}" ทำดาเมจใส่ Leader อีกฝ่าย 1 หน่วย (เหลือ ${contestantB.leader.hp}/6)!`;
     }
-    const msg = `"${monsterA.name}" (${totalA}) ชนะ "${monsterB.name}" (${totalB})!${burnMsg}`;
+    const msg = `"${monsterA.name}" (${totalA}) ชนะ "${monsterB.name}" (${totalB})!${luciferNote}${burnMsg}`;
+
+    // 💤 ออโต้ของ "เบลเฟกอร์ บาปเกียจคร้าน" (DMM07): เมื่อโจมตีชนะสำเร็จ นำการ์ดใบบนสุดของทั้ง 2 ฝั่งเข้ามิติมืดของตน
+    triggerBelphegorAttackSuccess(contestantA, contestantB, monsterA);
 
     if (resB.destroyed) {
       EffectEngine.triggerCardEffects(monsterA, 'ON_KILL_UNIT', {
@@ -3928,7 +5082,7 @@ function compareAndDestroyMonsters(contestantA, slotA, contestantB, slotB, onAft
     return msg;
   } else if (totalA < totalB) {
     const resA = destroyBoardMonster(contestantA, slotA, true, false);
-    const msg = `"${monsterB.name}" (${totalB}) พลังสูงกว่า! สวนกลับทำลาย "${monsterA.name}" (${totalA})!`;
+    const msg = `"${monsterB.name}" (${totalB}) พลังสูงกว่า! สวนกลับทำลาย "${monsterA.name}" (${totalA})!${luciferNote}`;
 
     if (resA.destroyed) {
       EffectEngine.triggerCardEffects(monsterB, 'ON_KILL_UNIT', {
@@ -3945,6 +5099,33 @@ function compareAndDestroyMonsters(contestantA, slotA, contestantB, slotB, onAft
     }
     return msg;
   } else {
+    // 🍔 ตรวจสอบสกิลของ "เบลเซบับ บาปตะกละ" (DMM06):
+    // ถ้าเปิดใช้งานสกิลในเทิร์นนี้ เมื่อต่อสู้กับการ์ดที่มีพลังโจมตีเท่ากัน จะชนะการต่อสู้นั้นทันทีและไม่ออกจากสนามจนจบเทิร์นเรา!
+    if (monsterA.beelzebubBuffThisTurn && !monsterB.beelzebubBuffThisTurn) {
+      const resB = destroyBoardMonster(contestantB, slotB, true, false);
+      const msg = `🍔 [สกิลเบลเซบับ บาปตะกละ] พลังเท่ากัน (${totalA}) แต่ "${monsterA.name}" ชนะการต่อสู้ทันทีและไม่ออกจากสนาม!${luciferNote}`;
+      if (resB.destroyed) {
+        EffectEngine.triggerCardEffects(monsterA, 'ON_KILL_UNIT', {
+          caster: contestantA, opponent: contestantB, sourceCard: monsterA, sourceSlot: slotA, isAI: contestantA !== gameState.player
+        }, () => { if (onAfterCombat) onAfterCombat(msg); });
+      } else if (onAfterCombat) {
+        onAfterCombat(msg);
+      }
+      return msg;
+    }
+    if (monsterB.beelzebubBuffThisTurn && !monsterA.beelzebubBuffThisTurn) {
+      const resA = destroyBoardMonster(contestantA, slotA, true, false);
+      const msg = `🍔 [สกิลเบลเซบับ บาปตะกละ] พลังเท่ากัน (${totalB}) แต่ "${monsterB.name}" ชนะการต่อสู้ทันทีและไม่ออกจากสนาม!${luciferNote}`;
+      if (resA.destroyed) {
+        EffectEngine.triggerCardEffects(monsterB, 'ON_KILL_UNIT', {
+          caster: contestantB, opponent: contestantA, sourceCard: monsterB, sourceSlot: slotB, isAI: contestantB !== gameState.player
+        }, () => { if (onAfterCombat) onAfterCombat(msg); });
+      } else if (onAfterCombat) {
+        onAfterCombat(msg);
+      }
+      return msg;
+    }
+
     const hadBurn = !!monsterA.burnLeaderOnKill;
     destroyBoardMonster(contestantA, slotA, true, false);
     const resB = destroyBoardMonster(contestantB, slotB, true, false);
@@ -3954,7 +5135,7 @@ function compareAndDestroyMonsters(contestantA, slotA, contestantB, slotB, onAft
       contestantB.leader.hp = Math.max(0, contestantB.leader.hp - 1);
       burnMsg = ` (สกิลออโต้ของ "${monsterA.name}" ทำดาเมจใส่ Leader อีกฝ่าย 1 หน่วย!)`;
     }
-    const msg = `พลังเท่ากัน (${totalA})! ปะทะกันทั้งสองฝ่าย!${burnMsg}`;
+    const msg = `พลังเท่ากัน (${totalA})! ปะทะกันทั้งสองฝ่าย!${luciferNote}${burnMsg}`;
     if (onAfterCombat) onAfterCombat(msg);
     return msg;
   }
@@ -4002,6 +5183,7 @@ function resolvePlayerIntercept(chosenSlotIndex) {
     defender.leader.hp = Math.max(0, defender.leader.hp - 1);
     setLog(`💥 คุณเลือกไม่ป้องกัน! Leader ของคุณเสีย 1 HP (เหลือ ${defender.leader.hp}/6)`);
     playSlotAnimation(true, 'leader', 'fx-target-hit');
+    triggerBelphegorAttackSuccess(attacker, defender, attackingMonster);
     renderGame();
     if (checkGameOver()) {
       if (onCompleteCallback) onCompleteCallback();
@@ -4072,11 +5254,13 @@ function openAISetupModal() {
         <div style="margin-bottom: 20px;">
           <div style="font-weight: bold; color: #38bdf8; margin-bottom: 8px; font-size: 14px;">🃏 2. เลือกเด็คของ AI:</div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;" id="ai-deck-buttons">
-            <button class="btn ai-deck-btn" data-deck="RANDOM" style="padding: 10px; font-size: 13px;">🎲 สุ่มเด็ค (Random)</button>
+            <button class="btn ai-deck-btn" data-deck="RANDOM" style="padding: 10px; font-size: 13px; grid-column: span 2;">🎲 สุ่มเด็ค (Random)</button>
             <button class="btn ai-deck-btn" data-deck="L01" style="padding: 10px; font-size: 13px;">🔥 เด็คจิต (ฮีโร่)</button>
             <button class="btn ai-deck-btn" data-deck="L02" style="padding: 10px; font-size: 13px;">🐘 เด็คเหนือ (ไทย)</button>
             <button class="btn ai-deck-btn" data-deck="L03" style="padding: 10px; font-size: 13px;">⏳ เด็ควันสิ้นโลก</button>
-            <button class="btn ai-deck-btn" data-deck="L04" style="padding: 10px; font-size: 13px; grid-column: span 2;">🦖 เด็คไดโน (ศูนย์วิจัยไดโน)</button>
+            <button class="btn ai-deck-btn" data-deck="L04" style="padding: 10px; font-size: 13px;">🦖 เด็คไดโน (ศูนย์วิจัยไดโน)</button>
+            <button class="btn ai-deck-btn" data-deck="L05" style="padding: 10px; font-size: 13px;">😈 เด็คปีศาจ</button>
+            <button class="btn ai-deck-btn" data-deck="L06" style="padding: 10px; font-size: 13px;">🤪 เด็คโอ็ต</button>
           </div>
         </div>
 
@@ -4462,6 +5646,14 @@ function performSingleAIMainAction() {
           setLog(`💥 [AI บาคุจิต] อัญเชิญลงสนามและทำลายมอนสเตอร์ช่องที่ ${bestTarget + 1} ของคุณ!`);
           playSlotAnimation(true, bestTarget, 'fx-target-hit');
         }
+      } else if (summoned.id !== 'NM04' && Array.isArray(summoned.effects) && summoned.effects.some(e => e.trigger === 'ON_SUMMON')) {
+        EffectEngine.triggerCardEffects(summoned, 'ON_SUMMON', {
+          caster: ai,
+          opponent: player,
+          sourceCard: summoned,
+          sourceSlot: emptySlot,
+          isAI: true
+        });
       }
 
       renderGame();
@@ -4624,6 +5816,19 @@ function performSingleAIMainAction() {
       renderGame();
       playSlotAnimation(false, slotIdx, 'fx-skill-glow');
       return true;
+    }
+
+    // 3.8 สกิล ACTIVATE_MAIN ของเด็คปีศาจ / เด็คโอ็ต (DMM06, OM02, OM04, OM07)
+    if (['DMM06', 'OM02', 'OM04', 'OM07'].includes(m.id) && Array.isArray(m.effects)) {
+      if (m.id === 'OM02' && (m.usedSkills.aiBankUsedThisTurn || ai.hand.length < 2)) continue;
+      const eff = m.effects.find(e => e.trigger === 'ACTIVATE_MAIN' && EffectEngine.canActivateEffect(e, { caster: ai, opponent: player, sourceCard: m, sourceSlot: slotIdx, isAI: true }));
+      if (eff) {
+        if (m.id === 'OM02') m.usedSkills.aiBankUsedThisTurn = true;
+        showCardShowcaseBanner(m, 'AI ใช้สกิลยูนิต!', `⚡ ${eff.label || m.name}`, '#a855f7');
+        EffectEngine.activateSpecificEffect(eff, { caster: ai, opponent: player, sourceCard: m, sourceSlot: slotIdx, isAI: true });
+        playSlotAnimation(false, slotIdx, 'fx-skill-glow');
+        return true;
+      }
     }
   }
 
@@ -4833,6 +6038,21 @@ function aiCastBestNormalSpell(ai, player, diff) {
     setLog(`✨ AI ใช้ "หมอไพร่เหนือ" เก็บ "${rec.name}" จากนรกขึ้นมือ!`);
     renderGame();
     return true;
+  }
+
+  // 7. เวทเด็คโอ็ต (OS01 ท่าไม้ตาย(มั้ง) / OS02 โดนแน่มึง)
+  const osIdx = ai.hand.findIndex(c => c.id === 'OS01' || c.id === 'OS02');
+  if (osIdx !== -1) {
+    const spell = ai.hand[osIdx];
+    const eff = (spell.effects || []).find(e => e.trigger === 'ON_CAST');
+    if (eff && EffectEngine.canActivateEffect(eff, { caster: ai, opponent: player, sourceCard: spell, isAI: true })) {
+      ai.hand.splice(osIdx, 1);
+      ai.spellQuota.normalUsed += 1;
+      ai.graveyard.push(spell);
+      showCardShowcaseBanner(spell, 'AI ใช้การ์ดเวทมนตร์!', `🤪 ${spell.name}!`, '#f97316');
+      EffectEngine.activateSpecificEffect(eff, { caster: ai, opponent: player, sourceCard: spell, isAI: true });
+      return true;
+    }
   }
 
   return false;
@@ -5296,8 +6516,36 @@ function renderMulliganModal() {
   }
 }
 
+// 😈 สกิลออโต้เมื่อเริ่มเกมของหลีดเดอร์ "ปีศาจ" (L05):
+// "ออโต้ : เมื่อเริ่มเกม นำการ์ด 'ดินแดนปีศาจ' ในกองไปที่มิติมืด จากนั้นจั่วการ์ด 2 ใบ และสับกอง"
+function applyStartOfGameLeaderEffects(contestant) {
+  if (!contestant || !contestant.leader) return;
+  if (contestant.leader.id === 'L05' && !contestant.demonStartOfGameTriggered) {
+    contestant.demonStartOfGameTriggered = true;
+    let realmCard = null;
+    const deckIdx = contestant.deck.findIndex(c => c && (c.id === 'DMS03' || c.name === 'ดินแดนปีศาจ'));
+    if (deckIdx !== -1) {
+      realmCard = contestant.deck.splice(deckIdx, 1)[0];
+    } else {
+      const handIdx = contestant.hand.findIndex(c => c && (c.id === 'DMS03' || c.name === 'ดินแดนปีศาจ'));
+      if (handIdx !== -1) {
+        realmCard = contestant.hand.splice(handIdx, 1)[0];
+      }
+    }
+    if (realmCard) {
+      resetCardStateForZoneChange(realmCard);
+      contestant.darkDimension.push(realmCard);
+    }
+    contestant.deck = shuffleDeck(contestant.deck);
+    drawCards(contestant, 2);
+    setLog(`😈 [ออโต้เริ่มเกม - ${contestant.leader.name}] (${contestant.name}) นำ "ดินแดนปีศาจ" ไปยังมิติมืด จั่วการ์ด 2 ใบ และสับกอง!`);
+  }
+}
+
 document.getElementById('btn-confirm-mulligan').addEventListener('click', () => {
   performMulligan(gameState.player, gameState.mulliganSelected);
+  applyStartOfGameLeaderEffects(gameState.player);
+  applyStartOfGameLeaderEffects(gameState.ai);
   document.getElementById('mulligan-modal').style.display = 'none';
   startPlayerTurn();
 });
@@ -5473,6 +6721,24 @@ document.getElementById('btn-default-deck')?.addEventListener('click', () => {
           currentDeckConfig.mainDeck = [...DEFAULT_DINO_DECK_LIST];
           renderDeckBuilder();
         }
+      },
+      {
+        label: '😈 โหลด "เด็คปีศาจ" (Leader: ปีศาจ + 20 ใบ [เผ่าปีศาจ])',
+        color: '#9333ea',
+        onSelect: () => {
+          currentDeckConfig.leaderId = 'L05';
+          currentDeckConfig.mainDeck = [...DEFAULT_DEMON_DECK_LIST];
+          renderDeckBuilder();
+        }
+      },
+      {
+        label: '🤪 โหลด "เด็คโอ็ต" (Leader: ไอโอ๊ตบ้าทุกสิ่ง + 20 ใบ [เผ่าบ้า])',
+        color: '#ea580c',
+        onSelect: () => {
+          currentDeckConfig.leaderId = 'L06';
+          currentDeckConfig.mainDeck = [...DEFAULT_OAT_DECK_LIST];
+          renderDeckBuilder();
+        }
       }
     ]
   );
@@ -5505,7 +6771,7 @@ function initGame() {
   const scrollbox = document.getElementById('action-log-scrollbox');
   if (scrollbox) scrollbox.innerHTML = '';
 
-  const allLeaderIds = ['L01', 'L02', 'L03', 'L04'];
+  const allLeaderIds = ['L01', 'L02', 'L03', 'L04', 'L05', 'L06'];
   const chosenAiLeaderId = (aiConfig.deckChoice === 'RANDOM')
     ? allLeaderIds[Math.floor(Math.random() * allLeaderIds.length)]
     : aiConfig.deckChoice;
@@ -5586,9 +6852,11 @@ function bindMultiplayerButtons() {
 
     newMulliganBtn.addEventListener('click', () => {
       performMulligan(gameState.player, gameState.mulliganSelected);
+      applyStartOfGameLeaderEffects(gameState.player);
       document.getElementById('mulligan-modal').style.display = 'none';
 
       if (!pvpState.isMultiplayer) {
+        applyStartOfGameLeaderEffects(gameState.ai);
         startPlayerTurn();
         return;
       }

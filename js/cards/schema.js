@@ -102,6 +102,71 @@ const CARD_SCHEMA = {
       enums: {},
       desc: 'ระเบิดปูพรม: ผลตามจำนวนทหารเหนือ (NM02/NM03/NM04) บนสนามฝั่งเรา',
     },
+    MAMMON_SUMMON_CHOICE: {
+      required: [], optional: [],
+      enums: {},
+      desc: 'แมมมอน: อีกฝั่งเลือกทิ้งการ์ด 1 ใบ (ถ้าทิ้งเวทเราจั่ว 1) หรือโม่ใบบนสุดกอง 1 ใบแล้วเรานำการ์ดจากนรกขึ้นมือ 1 ใบ',
+    },
+    LEVIATHAN_MARK_TARGET: {
+      required: [], optional: [],
+      enums: {},
+      desc: 'ลิเวียธาน: เลือกยูนิทฝั่งตรงข้ามที่มีพลังโจมตี 2 หน่วย 1 ใบ บังคับเปลี่ยนเป้าโจมตีมาที่ใบนี้',
+    },
+    SATAN_WRATH_EFFECT: {
+      required: [], optional: [],
+      enums: {},
+      desc: 'ซาตาน: 1 เกม เมื่อเรามีเลือด 1 หน่วย ทิ้งมือ 5 ใบ ทำลายใบอื่นบนสนามทุกใบ และอีกฝ่ายทิ้งมือ 3 ใบ',
+    },
+    ASMODEUS_TOP3_SPELL: {
+      required: [], optional: [],
+      enums: {},
+      desc: 'แอสโมดิวส์: ดู 3 ใบบนสุดของกอง เลือกเวทไม่เกิน 1 ใบขึ้นมือ (ถ้าเป็นสัญญาปีศาจส่งเข้ามิติมืด) ที่เหลือไว้ใต้กอง',
+    },
+    BEELZEBUB_GLUTTONY_SKILL: {
+      required: [], optional: [],
+      enums: {},
+      desc: 'เบลเซบับ: นำการ์ดจากดรอปกลับเข้ากอง 2 ใบขึ้นไป ได้รับบัฟชนะเมื่อสู้กับพลังเท่ากันและไม่ถูกทำลายจนจบเทิร์นเรา',
+    },
+    BANK_SUMMON_TOP2: {
+      required: [], optional: [],
+      enums: {},
+      desc: 'ไอแบงค์บ้าเกม: เปิด 2 ใบบนสุดของกอง เลือกยูนิต 1 ใบลงสนาม ที่เหลือไว้บนกอง',
+    },
+    JIT_CRAZY_DEBUFF: {
+      required: [], optional: [],
+      enums: {},
+      desc: 'ไอจิตบ้ากาม: ลดพลังโจมตียูนิทฝ่ายตรงข้าม 1 ใบ (หรือทุกใบถ้าอัปเกรดแล้ว) ลง 1 จนจบเทิร์น',
+    },
+    ARM_TRIPLE_CHECK: {
+      required: [], optional: [],
+      enums: {},
+      desc: 'ไออาร์มบ้าการ์ดเกม: ตรวจสอบไอโอ๊ตบ้าการ์ตูน, ไอแบงค์บ้าเกม, ไอจิตบ้ากาม บนสนามตามลำดับ',
+    },
+    NUEA_CLIP_TOP3_SPELL: {
+      required: [], optional: [],
+      enums: {},
+      desc: 'ไอเหนือผู้มีคลิปแปลก: ดูการ์ด 3 ใบบนสุดของกอง เลือกเวทไม่เกิน 1 ใบขึ้นมือ ที่เหลือไว้ใต้กอง',
+    },
+    NUEA_CLIP_FREE_CAST: {
+      required: [], optional: [],
+      enums: {},
+      desc: 'ไอเหนือผู้มีคลิปแปลก: สั่งใช้การ์ดเวทมนตร์จากบนมือโดยไม่เสียโควต้าเวทมนตร์',
+    },
+    JAY_DISCARD_AND_DRAW: {
+      required: [], optional: [],
+      enums: {},
+      desc: 'ไอเจย์นักบิด: ฝั่งตรงข้ามทิ้งการ์ดบนมือ 1 ใบ และเราจั่วการ์ด 1 ใบ',
+    },
+    DEAN_DRAW2_DISCARD1: {
+      required: [], optional: [],
+      enums: {},
+      desc: 'ไอดีนบ้าHee: จั่วการ์ด 2 ใบ และทิ้งการ์ดบนมือ 1 ใบ',
+    },
+    CRAZY_WAR_SEARCH_PAIR: {
+      required: [], optional: [],
+      enums: {},
+      desc: 'สงครามความบ้า: หาไอโอ๊ตบ้าการ์ตูน และ ไอแบงค์บ้าเกม จากกองหรือนรกอย่างละไม่เกิน 1 ใบขึ้นมือ',
+    },
   },
   conditions: {
     MIN_TRIBE_COUNT: { required: ['tribe', 'count'], optional: [] },
@@ -111,9 +176,9 @@ const CARD_SCHEMA = {
     PER_OTHER_ALLY_NAME: { required: ['nameKeyword'], optional: [] },
     PER_GRAVE_COUNT: { required: ['divisor'], optional: [] },
   },
-  cardTypes: ['Leader', 'Monster', 'NormalSpell', 'ReactionSpell'],
-  rarities: ['N', 'R', 'SR', 'Legend'],
-  tribes: ['ฮีโร่', 'ไทย', 'วันสิ้นโลก', 'ไดโน'],
+  cardTypes: ['Leader', 'Monster', 'NormalSpell', 'ReactionSpell', 'LandSpell'],
+  rarities: ['N', 'R', 'SR', 'SSR'],
+  tribes: ['ฮีโร่', 'ไทย', 'วันสิ้นโลก', 'ไดโน', 'ปีศาจ', 'บ้า'],
 };
 
 // ระยะแก้ไข (Levenshtein) ≤ 2 ที่ใกล้ที่สุด ไม่งั้น null

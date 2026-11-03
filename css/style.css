@@ -354,6 +354,7 @@ body {
 .card.Monster { background: #2b261f; border: 2px solid #d97706; }
 .card.NormalSpell { background: #172a24; border: 2px solid #10b981; }
 .card.ReactionSpell { background: #281a2e; border: 2px solid #a855f7; }
+.card.LandSpell { background: #1e1633; border: 2px solid #c084fc; }
 
 .card-header {
   display: flex;

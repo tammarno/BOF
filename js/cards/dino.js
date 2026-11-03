@@ -5,7 +5,7 @@ CARD_DATABASE.push(
     name: 'ทีเร็กซ์ — ราชันนักล่า',
     type: 'Monster',
     tribe: 'ไดโน',
-    rarity: 'SR', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'R', // ระดับความหายาก: N / R / SR / SSR
     power: 2,
     image: 'images/ไดโน/2.png',
     ability: 'TREX_KILL_DESTROY',
@@ -48,7 +48,7 @@ CARD_DATABASE.push(
     name: 'ไทรเซราทอปส์ — ปราการมีชีวิต',
     type: 'Monster',
     tribe: 'ไดโน',
-    rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 2,
     image: 'images/ไดโน/4.png',
     ability: 'TRICERATOPS_GUARD',
@@ -92,7 +92,7 @@ CARD_DATABASE.push(
     name: 'สไปโนซอรัส — ผู้ล่าแห่งสายน้ำ',
     type: 'Monster',
     tribe: 'ไดโน',
-    rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 0,
     image: 'images/ไดโน/6.png',
     ability: 'SPINOSAURUS_GRAVE_POWER',
@@ -111,7 +111,7 @@ CARD_DATABASE.push(
     name: 'ไฮบริด — อินโดมินัสเร็กซ์',
     type: 'Monster',
     tribe: 'ไดโน',
-    rarity: 'Legend', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'SR', // ระดับความหายาก: N / R / SR / SSR
     power: 3,
     cannotNormalSummon: true,
     hybridMaterials: ['ทีเร็กซ์', 'เวโลซิแรปเตอร์'],
@@ -133,7 +133,7 @@ CARD_DATABASE.push(
     name: 'ไฮบริด — อินโดแรปเตอร์',
     type: 'Monster',
     tribe: 'ไดโน',
-    rarity: 'Legend', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'SR', // ระดับความหายาก: N / R / SR / SSR
     power: 2,
     cannotNormalSummon: true,
     hybridMaterials: ['ทีเร็กซ์', 'เวโลซิแรปเตอร์'],
@@ -155,7 +155,7 @@ CARD_DATABASE.push(
     id: 'DNS01',
     name: 'DNA กลายพันธุ์',
     type: 'NormalSpell',
-    rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     effect: 'SPELL_DINO_SEARCH_2',
     image: 'images/ไดโน/9.png',
     desc: 'หายูนิทเผ่า ไดโน ไม่เกิน 2 ใบ จากกองการ์ด แสดงแล้วนำขึ้นมือ',
@@ -191,7 +191,7 @@ CARD_DATABASE.push(
     id: 'DNS03',
     name: 'เมเทโอ',
     type: 'ReactionSpell',
-    rarity: 'SR', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     effect: 'SPELL_METEOR_WIPE',
     image: 'images/ไดโน/11.png',
     desc: 'เมื่อการ์ดฝั่งตรงข้ามโจมตีแล้วบนสนามเรามียูนิทเผ่า ไดโน 2 ใบขึ้นไป ทำลายการ์ดทั้งหมดบนสนามทั้ง 2 ฝั่ง'

@@ -186,7 +186,7 @@
 /* เลือกรูปโปรไฟล์ลีดเดอร์ */
 .bof-avatar-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
   margin-top: 6px;
 }

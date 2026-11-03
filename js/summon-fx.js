@@ -7,9 +7,10 @@
     N: { shards: 8, dist: 70, shake: 0, sparks: 0 },
     R: { shards: 14, dist: 100, shake: 2, sparks: 6 },
     SR: { shards: 22, dist: 140, shake: 4, sparks: 12, rainbow: true, sweep: true },
+    SSR: { shards: 34, dist: 220, shake: 7, sparks: 24, rainbow: true, sweep: true, prism: true },
     Legend: { shards: 34, dist: 220, shake: 7, sparks: 24, rainbow: true, sweep: true, prism: true },
   };
-  const COLOR_VAR = { N: '--rar-n', R: '--rar-r', SR: '--rar-sr', Legend: '--rar-legend' };
+  const COLOR_VAR = { N: '--rar-n', R: '--rar-r', SR: '--rar-sr', SSR: '--rar-legend', Legend: '--rar-legend' };
   const T = { shell: 160, flash: 450, shardMin: 500, shardMax: 900, shake: 220, sweep: 650, reduced: 200, failsafe: 1600 };
   const COARSE_FACTOR = 0.6;
 
@@ -122,7 +123,7 @@
       play(spawn('sfx-flash', x, y, 420, 420, { '--c': color }), [{ opacity: 0.7 }, { opacity: 0 }], { duration: 600, easing: 'ease-out' });
       const st = spawn('sfx-stamp', x, y - 70, 220, 40, { '--c': color });
       if (st) {
-        st.textContent = 'LEGEND';
+        st.textContent = r === 'SSR' ? 'SSR' : 'LEGEND';
         play(st, [
           { transform: 'scale(2.4)', opacity: 0 },
           { transform: 'scale(.95)', opacity: 1, offset: 0.25 },

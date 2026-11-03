@@ -24,10 +24,12 @@
   const DECK_STORAGE_KEY = 'my_card_game_deck';
 
   const AVATAR_LEADERS = [
-    { id: 'L01', label: 'เดจิต', image: 'images/เด็คจิต/1.png' },
-    { id: 'L02', label: 'ขุนเหนือ', image: 'images/เด็คเหนือ/1.png' },
-    { id: 'L03', label: 'วันสิ้นโลก', image: 'images/วันสิ้นโลก/1.png' },
-    { id: 'L04', label: 'ศูนย์วิจัยไดโน', image: 'images/ไดโน/1.png' }
+    { id: 'L01', label: 'เด็คจิต (เดจิต)', image: 'images/เด็คจิต/1.png' },
+    { id: 'L02', label: 'เด็คขุนเหนือ', image: 'images/เด็คเหนือ/1.png' },
+    { id: 'L03', label: 'เด็ควันสิ้นโลก', image: 'images/วันสิ้นโลก/1.png' },
+    { id: 'L04', label: 'เด็คศูนย์วิจัยไดโน', image: 'images/ไดโน/1.png' },
+    { id: 'L05', label: 'เด็คปีศาจ', image: 'images/เด็คปีศาจ/1.png' },
+    { id: 'L06', label: 'เด็คโอ็ต', image: 'images/เด็คโอ๊ต/1.png' }
   ];
 
   let currentUser = null;
@@ -178,6 +180,11 @@
           wins: currentUser.wins || 0,
           losses: currentUser.losses || 0,
           matches: currentUser.matches || 0,
+          coins: typeof currentUser.coins === 'number' ? currentUser.coins : 2000,
+          shards: typeof currentUser.shards === 'number' ? currentUser.shards : 300,
+          pityCount: typeof currentUser.pityCount === 'number' ? currentUser.pityCount : 0,
+          ownedCards: currentUser.ownedCards || null,
+          packsOpened: currentUser.packsOpened || 0,
           savedDeck: currentUser.savedDeck || null,
           updatedAt: Date.now()
         }, { merge: true });
@@ -187,9 +194,27 @@
     }
     renderAuthBar();
     updateInGamePlayerIdentity();
+    if (window.BOFShop && typeof window.BOFShop.reloadFromProfile === 'function') {
+      window.BOFShop.reloadFromProfile();
+    }
   }
 
   /* ---------------- สมัครสมาชิก & เข้าสู่ระบบ ---------------- */
+  function buildStarterDeckAndCollection(leaderId) {
+    const validId = ['L01', 'L02', 'L03', 'L04', 'L05', 'L06'].includes(leaderId) ? leaderId : 'L01';
+    const mainList = (typeof getDefaultDeckForLeader === 'function')
+      ? [...getDefaultDeckForLeader(validId)]
+      : (typeof DECK_LISTS !== 'undefined' && DECK_LISTS[validId] ? [...DECK_LISTS[validId]] : []);
+    const owned = { [validId]: 1 };
+    mainList.forEach(cid => {
+      owned[cid] = (owned[cid] || 0) + 1;
+    });
+    return {
+      starterDeck: { leaderId: validId, mainDeck: mainList },
+      starterOwned: owned
+    };
+  }
+
   async function registerAccount(usernameRaw, passwordRaw, avatarId) {
     const username = normalizeUsername(usernameRaw);
     const password = String(passwordRaw || '');
@@ -201,7 +226,8 @@
     }
 
     const key = usernameKey(username);
-    const currentDeck = readCurrentDeckFromStorage();
+    const chosenLeaderId = avatarId || 'L01';
+    const { starterDeck, starterOwned } = buildStarterDeckAndCollection(chosenLeaderId);
 
     if (firebaseReady && fbAuth && fbDb) {
       const email = usernameToSyntheticEmail(username);
@@ -211,16 +237,21 @@
         const profile = {
           uid,
           username,
-          avatarId: avatarId || 'L01',
+          avatarId: chosenLeaderId,
+          starterDeckId: chosenLeaderId,
+          coins: 2000,
+          ownedCards: starterOwned,
+          packsOpened: 0,
           wins: 0,
           losses: 0,
           matches: 0,
-          savedDeck: currentDeck,
+          savedDeck: starterDeck,
           createdAt: Date.now(),
           updatedAt: Date.now()
         };
         await fbDb.collection('bof_users').doc(uid).set(profile);
         currentUser = profile;
+        applyProfileDeckToGame(profile);
         await persistCurrentUserProfile();
         return profile;
       } catch (err) {
@@ -231,7 +262,7 @@
       }
     }
 
-    // โหมดบัญชีในเครื่อง + รองรับรหัสย้ายเครื่อง
+    // โหมดบัญชีในเครื่อง
     const db = loadLocalAccounts();
     if (db[key]) {
       throw new Error('ชื่อผู้ใช้นี้ถูกใช้งานแล้ว กรุณาเลือกแท็บ "เข้าสู่ระบบ"');
@@ -241,17 +272,22 @@
       uid: `local_${Date.now()}`,
       username,
       passwordHash: passHash,
-      avatarId: avatarId || 'L01',
+      avatarId: chosenLeaderId,
+      starterDeckId: chosenLeaderId,
+      coins: 2000,
+      ownedCards: starterOwned,
+      packsOpened: 0,
       wins: 0,
       losses: 0,
       matches: 0,
-      savedDeck: currentDeck,
+      savedDeck: starterDeck,
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
     db[key] = profile;
     saveLocalAccounts(db);
     currentUser = profile;
+    applyProfileDeckToGame(profile);
     await persistCurrentUserProfile();
     return profile;
   }
@@ -272,14 +308,20 @@
         const uid = cred.user.uid;
         const doc = await fbDb.collection('bof_users').doc(uid).get();
         const data = doc.exists ? doc.data() : {};
+        const fallbackLeader = data.avatarId || 'L01';
+        const fallbackStarter = buildStarterDeckAndCollection(fallbackLeader);
         currentUser = {
           uid,
           username: data.username || username,
-          avatarId: data.avatarId || 'L01',
+          avatarId: fallbackLeader,
+          starterDeckId: data.starterDeckId || fallbackLeader,
+          coins: typeof data.coins === 'number' ? data.coins : 2000,
+          ownedCards: data.ownedCards || fallbackStarter.starterOwned,
+          packsOpened: Number(data.packsOpened || 0),
           wins: Number(data.wins || 0),
           losses: Number(data.losses || 0),
           matches: Number(data.matches || 0),
-          savedDeck: data.savedDeck || readCurrentDeckFromStorage()
+          savedDeck: data.savedDeck || fallbackStarter.starterDeck
         };
         applyProfileDeckToGame(currentUser);
         await persistCurrentUserProfile();
@@ -298,6 +340,12 @@
     if (record.passwordHash && record.passwordHash !== passHash) {
       throw new Error('รหัสผ่านไม่ถูกต้อง');
     }
+    if (!record.ownedCards) {
+      const fallbackStarter = buildStarterDeckAndCollection(record.avatarId || 'L01');
+      record.ownedCards = fallbackStarter.starterOwned;
+      record.savedDeck = record.savedDeck || fallbackStarter.starterDeck;
+    }
+    if (typeof record.coins !== 'number') record.coins = 2000;
     currentUser = record;
     applyProfileDeckToGame(currentUser);
     await persistCurrentUserProfile();
@@ -314,6 +362,9 @@
     } catch (e) {}
     renderAuthBar();
     updateInGamePlayerIdentity();
+    if (window.BOFShop && typeof window.BOFShop.reloadFromProfile === 'function') {
+      window.BOFShop.reloadFromProfile();
+    }
   }
 
   /* ---------------- อัปเดต UI ปุ่มโปรไฟล์บนหน้าล็อบบี้และในเกม ---------------- */
@@ -418,10 +469,11 @@
       if (avatarField) avatarField.style.display = authMode === 'register' ? 'block' : 'none';
       if (submitBtn) submitBtn.textContent = authMode === 'login' ? 'เข้าสู่ระบบ ▶' : 'สร้างบัญชีและเริ่มซิงค์ ▶';
 
-      renderAvatarPicker('bof-register-avatar-picker', selectedAvatarId, newId => {
+      const handlePickStarterDeck = newId => {
         selectedAvatarId = newId;
-        renderAvatarPicker('bof-register-avatar-picker', selectedAvatarId, null);
-      });
+        renderAvatarPicker('bof-register-avatar-picker', selectedAvatarId, handlePickStarterDeck);
+      };
+      renderAvatarPicker('bof-register-avatar-picker', selectedAvatarId, handlePickStarterDeck);
     }
   }
 
@@ -600,7 +652,16 @@
     currentUser: () => currentUser,
     loginAccount,
     registerAccount,
-    logoutAccount
+    logoutAccount,
+    syncEconomy: eco => {
+      if (!currentUser || !eco) return;
+      currentUser.coins = eco.coins;
+      currentUser.shards = eco.shards;
+      currentUser.pityCount = eco.pityCount;
+      currentUser.ownedCards = eco.ownedCards;
+      currentUser.packsOpened = eco.packsOpened;
+      persistCurrentUserProfile();
+    }
   };
 
   bindAuthUI();

@@ -5,7 +5,7 @@ CARD_DATABASE.push(
     name: 'บาคุจิต',
     type: 'Monster',
     tribe: 'ฮีโร่',
-    rarity: 'SR', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'R', // ระดับความหายาก: N / R / SR / SSR
     power: 2,
     image: 'images/เด็คจิต/2.png',
     ability: 'BAKU_SKILL',
@@ -31,7 +31,7 @@ CARD_DATABASE.push(
     name: 'โทโดโรจิต',
     type: 'Monster',
     tribe: 'ฮีโร่',
-    rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 1,
     image: 'images/เด็คจิต/3.png',
     ability: 'TODORO_SKILL',
@@ -59,7 +59,7 @@ CARD_DATABASE.push(
     name: 'ออลจิต',
     type: 'Monster',
     tribe: 'ฮีโร่',
-    rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'R', // ระดับความหายาก: N / R / SR / SSR
     power: 2,
     image: 'images/เด็คจิต/4.png',
     ability: 'ALL_JIT_HAND_INTERCEPT',
@@ -70,7 +70,7 @@ CARD_DATABASE.push(
     name: 'ออลฟอจิต',
     type: 'Monster',
     tribe: 'ฮีโร่',
-    rarity: 'Legend', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'SR', // ระดับความหายาก: N / R / SR / SSR
     power: 3,
     image: 'images/เด็คจิต/5.png',
     ability: 'ALL_FOR_JIT_GRAVE',
@@ -82,7 +82,7 @@ CARD_DATABASE.push(
     name: 'เอ็นเดจิต',
     type: 'Monster',
     tribe: 'ฮีโร่',
-    rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 2,
     image: 'images/เด็คจิต/6.png',
     ability: 'ENDE_SKILL',
@@ -106,7 +106,7 @@ CARD_DATABASE.push(
     name: 'ฮออ์กส์ฟีม',
     type: 'Monster',
     tribe: 'ฮีโร่',
-    rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 2,
     image: 'images/เด็คจิต/7.png',
     ability: 'HAWKS_SKILL',
@@ -128,7 +128,7 @@ CARD_DATABASE.push(
     id: 'S01',
     name: 'โอ็ยใครเหยียบตีน!!!',
     type: 'NormalSpell',
-    rarity: 'SR', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'SR', // ระดับความหายาก: N / R / SR / SSR
     effect: 'SPELL_DISCARD_DESTROY',
     image: 'images/เด็คจิต/8.png',
     desc: 'ทิ้งการ์ดบนมือ 1 ใบ เลือกทำลายยูนิทฝั่งตรงข้าม 1 ใบ',
@@ -147,7 +147,7 @@ CARD_DATABASE.push(
     id: 'S02',
     name: 'เชี่ย หุ้นตก',
     type: 'NormalSpell',
-    rarity: 'SR', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'R', // ระดับความหายาก: N / R / SR / SSR
     effect: 'SPELL_DEBUFF_ALL_3',
     image: 'images/เด็คจิต/9.png',
     desc: 'ลดพลังโจมตีของยูนิทฝั่งตรงข้ามทุกใบลง 3 หน่วย จนจบเทิร์น',
@@ -165,7 +165,7 @@ CARD_DATABASE.push(
     id: 'S03',
     name: 'หนึ่งเดียวเพื่อทุกสิ่ง',
     type: 'NormalSpell',
-    rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     effect: 'SPELL_REST_1_HEAL_1',
     image: 'images/เด็คจิต/10.png',
     desc: 'Rest ยูนิทที่ Stand อยู่ฝั่งเรา 1 ใบ แล้วเพิ่มพลังชีวิตลีดเดอร์เรา +1',
@@ -184,7 +184,7 @@ CARD_DATABASE.push(
     id: 'S04',
     name: 'ทุกสิ่งเพื่อหนึ่งเดียว',
     type: 'NormalSpell',
-    rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     effect: 'SPELL_REST_2_GRANT_BURN',
     image: 'images/เด็คจิต/11.png',
     desc: 'Rest ยูนิทฝั่งเรา 2 ใบ เลือกยูนิทเรา 1 ใบได้รับออโต้: เมื่อตีทำลายยูนิทสำเร็จ ทำดาเมจลีดเดอร์อีกฝ่าย 1',

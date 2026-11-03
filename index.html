@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>My Card Game - Visual & Dice Edition</title>
+  <title>Battle of Friends (BOF)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap">
@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="css/panel-motion.css">
   <link rel="stylesheet" href="css/lobby.css">
   <link rel="stylesheet" href="css/auth.css">
+  <link rel="stylesheet" href="css/shop.css">
   <script>document.documentElement.classList.add('lm-pre');setTimeout(function(){document.documentElement.classList.remove('lm-pre')},1500);</script>
 </head>
 <body>
@@ -25,7 +26,7 @@
     <div class="lb-tint" aria-hidden="true"></div>
     <div class="lb-vignette" aria-hidden="true"></div>
 
-    <h1 class="lb-logo">MY CARD TCG</h1>
+    <h1 class="lb-logo">BATTLE OF FRIENDS</h1>
 
     <!-- ปุ่มโปรไฟล์ / เข้าสู่ระบบ (Guest หรือชื่อผู้เล่นที่ล็อกอิน) -->
     <button type="button" id="lb-auth-bar" aria-label="โปรไฟล์และเข้าสู่ระบบ">
@@ -37,7 +38,18 @@
       <span class="lb-auth-badge" style="display: none;">✓ ล็อกอินแล้ว</span>
     </button>
 
+    <!-- ปุ่มเหรียญทองสำหรับเปิดร้านค้าสุ่มซองการ์ด -->
+    <button type="button" id="lb-coin-pill" aria-label="ร้านค้าเปิดซองการ์ด">
+      <span class="lb-coin-icon">🪙</span>
+      <span id="lb-coin-val">2,000</span>
+      <span class="lb-coin-plus">+ ร้านค้า</span>
+    </button>
+
     <nav class="lb-menu" aria-label="เมนู">
+      <a href="#" id="nav-shop" class="lb-menu-item">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <span>สุ่มซอง</span>
+      </a>
       <a href="#" id="nav-deck" class="lb-menu-item">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="12" height="16" rx="2"/><path d="M8 21h10a2 2 0 0 0 2-2V7"/></svg>
         <span>จัดเด็ค</span>
@@ -115,13 +127,15 @@
 
     <!-- หน้าต่าง: วิธีเล่น -->
     <dialog id="lb-howto-dialog" class="lb-dialog" aria-labelledby="lb-howto-title">
-      <h2 id="lb-howto-title">เริ่มดวลใน 3 ขั้น</h2>
+      <h2 id="lb-howto-title">📖 วิธีเล่นเข้าใจง่าย</h2>
       <ol class="lb-steps">
-        <li><b>ไม่กี่วินาที</b> ก่อนอื่น เลือกเด็คมาตรฐานหรือจัดเด็คเอง</li>
-        <li><b>ไม่ถึงนาที</b> จากนั้น สร้างห้องแล้วส่งรหัสให้เพื่อน หรือเลือกเล่นกับบอท</li>
-        <li><b>ราว 10 นาที</b> สุดท้าย ทอยเต๋า ลงการ์ด ทำให้ HP ลีดเดอร์อีกฝ่ายหมด</li>
+        <li><b>🎯 เป้าหมายชนะ:</b> โจมตี <b>Leader</b> อีกฝ่ายจน <b>HP เหลือ 0</b> (เริ่มต้น 6 HP)</li>
+        <li><b>🃏 เริ่มเกม (เด็ค 21 ใบ):</b> จั่วการ์ดเริ่มต้น 4 ใบ เลือกเปลี่ยนใบที่ไม่ต้องการได้สูงสุด 2 ใบ และจั่วเพิ่มเทิร์นละ 1 ใบ</li>
+        <li><b>⚡ Main Phase:</b> ลง <b>ยูนิต</b> ได้สูงสุด 3 ช่องสนาม, กดใช้สกิล Leader/ยูนิต และใช้ <b>Normal Spell</b> ได้เทิร์นละ 1 ใบ</li>
+        <li><b>⚔️ Battle Phase:</b> สั่งยูนิตที่ตั้งอยู่ (Stand) โจมตียูนิตหรือ Leader อีกฝ่าย (พลังโจมตี ≥ เป้าหมาย = ทำลายยูนิตนั้น)</li>
+        <li><b>🛡️ ป้องกัน & เวทสวนกลับ:</b> เมื่อถูกโจมตี เลือกยูนิตที่ Stand มารับดาเมจแทน (Intercept) หรือใช้ <b>Reaction Spell</b> (เทิร์นละ 1 ใบ)</li>
       </ol>
-      <p class="lb-counts" data-counts>การ์ดทั้งหมด 39 ใบ · Legend 5 · SR 12 · R 17 · N 5 · เด็คละ 21 ใบ</p>
+      <p class="lb-counts" data-counts>การ์ดทั้งหมด 72 ใบ · SSR 6 · SR 16 · R 23 · N 27 · เด็คละ 21 ใบ</p>
       <button type="button" class="lb-btn lb-btn-primary lb-dialog-ok" data-close>เข้าใจแล้ว</button>
     </dialog>
 
@@ -171,7 +185,10 @@
             </div>
 
             <div id="bof-avatar-field" class="bof-auth-field" style="display: none;">
-              <label>🖼️ เลือกรูปโปรไฟล์ประจำตัว</label>
+              <label>
+                🃏 เลือกเด็คเริ่มต้น 1 เด็ค
+                <span style="display: block; margin-top: 3px; font-size: 12px; font-weight: 500; color: #fde047; white-space: nowrap;">(รับการ์ดเฉพาะในเด็คที่เลือก 21 ใบ + เหรียญเริ่มต้น 2,000 🪙)</span>
+              </label>
               <div id="bof-register-avatar-picker" class="bof-avatar-grid"></div>
             </div>
 
@@ -211,6 +228,51 @@
 
           <div class="bof-profile-actions">
             <button type="button" id="bof-btn-logout" class="bof-btn-danger">🚪 ออกจากระบบ (กลับเป็น Guest)</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- หน้าต่าง: ร้านค้าสุ่มซองการ์ดแยกตาม 6 สายเด็ค (ซองละ 5 ใบ / สุ่ม 10 ซองลด 10%) -->
+    <dialog id="bof-shop-dialog" aria-labelledby="bof-shop-title">
+      <div class="bof-shop-panel">
+        <div class="bof-shop-top">
+          <div class="bof-shop-title-wrap">
+            <h2 id="bof-shop-title">📦 ร้านค้าเปิดซองสุ่มการ์ด (Booster Shop)</h2>
+            <p>เลือกเปิดซองตามสายเด็คที่ต้องการ · ซองละ 5 ใบ (สุ่ม 10 ซองลดราคา 10%)</p>
+          </div>
+          <div class="bof-shop-top-right">
+            <div class="bof-shop-balance">
+              <span>🪙</span>
+              <span id="bof-shop-coin-val">2,000</span>
+              <span style="font-size:12px;color:#cbd5e1;">Coins</span>
+            </div>
+            <div class="bof-shop-code-box">
+              <input type="text" id="bof-shop-code-input" class="bof-shop-code-input" placeholder="กรอกโค้ดรับเหรียญ..." autocomplete="off">
+              <button type="button" id="bof-shop-code-btn" class="bof-shop-bonus-btn">🎁 ใช้โค้ด</button>
+            </div>
+            <button type="button" id="bof-shop-close" class="bof-auth-close-x" aria-label="ปิด">✕</button>
+          </div>
+        </div>
+
+        <p id="bof-shop-toast" class="bof-auth-msg is-ok" style="display:none;margin-top:10px;"></p>
+
+        <!-- พื้นที่แสดงตัวอย่างฟอยล์ 4 ระดับ + ตัวเลือกแอนิเมชันเปิดซอง 3 แบบ + ตู้ซองทั้ง 6 สายเด็ค -->
+        <div id="bof-shop-dynamic-body"></div>
+
+        <!-- ฉากแอนิเมชันเปิดซองสุ่มการ์ด (วงเวทมิติพลังงาน) -->
+        <div id="bof-pack-anim-stage" class="bof-pack-anim-stage"></div>
+
+        <!-- หน้าต่างป๊อปอัปแสดงผลการเปิดซองและพลิกการ์ด 3D (ขึ้นทันทีหลังจบแอนิเมชัน!) -->
+        <div id="bof-reveal-stage" class="bof-reveal-stage">
+          <div class="bof-reveal-box">
+            <strong id="bof-reveal-title" style="color:#fde047;font-size:16px;text-align:center;">✨ ผลการเปิดซองการ์ด</strong>
+            <div id="bof-reveal-summary" class="bof-reveal-summary"></div>
+            <div id="bof-reveal-cards" class="bof-reveal-cards"></div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:4px;">
+              <button type="button" id="bof-reveal-flip-all" class="bof-buy-btn" style="width:auto;padding:0 22px;height:40px;font-size:14px;">🔄 พลิกเปิดทั้งหมด</button>
+              <button type="button" id="bof-reveal-hide" class="bof-buy-btn is-multi" style="width:auto;padding:0 22px;height:40px;font-size:14px;background:#475569;color:#fff;">เก็บเข้าคลัง</button>
+            </div>
           </div>
         </div>
       </div>
@@ -427,6 +489,8 @@
   <script src="js/cards/nuea.js"></script>
   <script src="js/cards/doom.js"></script>
   <script src="js/cards/dino.js"></script>
+  <script src="js/cards/demon.js"></script>
+  <script src="js/cards/oat.js"></script>
   <script src="js/cards/schema.js"></script>
   <script src="js/game.js"></script>
   <script src="js/hand-shuffle.js"></script>
@@ -435,6 +499,7 @@
   <script src="js/holo.js"></script>
   <script src="js/lobby.js"></script>
   <script src="js/auth.js"></script>
+  <script src="js/shop.js"></script>
   <script src="vendor/gsap.min.js"></script>
   <script src="js/lobby-motion.js"></script>
   <script src="js/ui-motion.js"></script>

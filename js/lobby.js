@@ -4,7 +4,7 @@
    สเปก: docs/specs/2026-10-24-lobby-game-design.md
    ============================================================================ */
 (function () {
-  const RARITIES = ['Legend', 'SR', 'R', 'N'];
+  const RARITIES = ['SSR', 'SR', 'R', 'N'];
   const THAI_DIGITS = '๐๑๒๓๔๕๖๗๘๙';
 
   const DECKS = [
@@ -12,12 +12,14 @@
     { key: 'nuea', leaderId: 'L02', name: 'เด็คเหนือ', style: 'ส่งไพร่และทหารลงสนามให้ครบทัพ แล้วชุบกลับจากนรกไม่รู้จบ' },
     { key: 'doom', leaderId: 'L03', name: 'เด็ควันสิ้นโลก', style: 'ปลุกยูนิทจากนรก แล้ววิวัฒน์สู่ร่างแห่งอนาคต' },
     { key: 'dino', leaderId: 'L04', name: 'เด็คไดโน', style: 'สะสมเผ่าไดโนและผสานร่างไฮบริดสุดแกร่งจากมิติมืด' },
+    { key: 'demon', leaderId: 'L05', name: 'เด็คปีศาจ', style: 'สะสมการ์ดในมิติมืดและใช้พลังแห่งบาปทั้ง 7 พิชิตชัยชนะ' },
+    { key: 'oat', leaderId: 'L06', name: 'เด็คโอ็ต', style: 'เปิดท็อปกองคอลพรรคพวกสายบ้าลงสนามและถล่มด้วยคอมโบสุดปั่น' },
   ];
 
   const byId = id => CARD_DATABASE.find(c => c.id === id);
 
   function rarityCounts() {
-    const counts = { Legend: 0, SR: 0, R: 0, N: 0, total: 0 };
+    const counts = { SSR: 0, SR: 0, R: 0, N: 0, total: 0 };
     for (const card of CARD_DATABASE) {
       const r = RARITIES.includes(card.rarity) ? card.rarity : 'N';
       counts[r]++; counts.total++;
@@ -46,15 +48,15 @@
     const cfg = key === 'mine' ? loadSavedDeck() : { leaderId: key, mainDeck: getDefaultDeckForLeader(key) };
     return [byId(cfg.leaderId), ...[...new Set(cfg.mainDeck)].map(byId)].filter(Boolean);
   }
-  const legendCount = key => cardsOfDeck(key).filter(c => c.rarity === 'Legend').length;
+  const legendCount = key => cardsOfDeck(key).filter(c => c.rarity === 'SSR').length;
 
   window.LobbyData = { DECKS, rarityCounts, deckInfo, normalizeRoomCode, thumbOf, cardsOfDeck, legendCount };
 
   /* ---------------- การแสดงผล (ล็อบบี้เกมหน้าจอเดียว v0.8) ---------------- */
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
-  const DECK_COLOURS = { L01: '#3ee08f', L02: '#f0a347', L03: '#5fd0ff', L04: '#a3e635' };
-  const STANDARD = ['L01', 'L02', 'L03', 'L04'];
+  const DECK_COLOURS = { L01: '#3ee08f', L02: '#f0a347', L03: '#5fd0ff', L04: '#a3e635', L05: '#c084fc', L06: '#fb923c' };
+  const STANDARD = ['L01', 'L02', 'L03', 'L04', 'L05', 'L06'];
   const small = () => matchMedia('(max-width: 767px)').matches;
   const wallSize = () => (small() ? { cols: 6, rows: 6 } : { cols: 12, rows: 5 });
 
@@ -104,7 +106,7 @@
     $('.lb-deck-name').textContent = key === 'mine' ? 'เด็คของฉัน' : deck.name;
     $('.lb-leader-name').textContent = info.leader.name;
     $('.lb-deck-style').textContent = key === 'mine' ? `จัดเองจาก${deck.name}` : deck.style;
-    $('.lb-chips').replaceChildren(...[`HP ${info.hp}`, `${info.total} ใบ`, `Legend ${legendCount(key)}`].map(t => {
+    $('.lb-chips').replaceChildren(...[`HP ${info.hp}`, `${info.total} ใบ`, `SSR ${legendCount(key)}`].map(t => {
       const s = document.createElement('span'); s.textContent = t; return s;
     }));
   }
@@ -114,6 +116,11 @@
     const box = $('#lb-leader'); if (!box) return;
     const leader = byId(leaderIdOf(key));
     const img = new Image(); img.src = leader.image; img.alt = leader.name; img.decoding = 'async';
+    box.onclick = () => {
+      if (typeof window.openCardDetailModal === 'function') {
+        window.openCardDetailModal(leader, null, box);
+      }
+    };
     if (!keepOld) { box.replaceChildren(img); return; }
     const old = [...box.querySelectorAll('img')];
     old.forEach(o => o.setAttribute('aria-hidden', 'true'));
@@ -148,7 +155,7 @@
   function renderCounts() {
     const c = rarityCounts();
     const el = $('[data-counts]');
-    if (el) el.textContent = `การ์ดทั้งหมด ${c.total} ใบ · Legend ${c.Legend} · SR ${c.SR} · R ${c.R} · N ${c.N} · เด็คละ 21 ใบ`;
+    if (el) el.textContent = `การ์ดทั้งหมด ${c.total} ใบ · SSR ${c.SSR} · SR ${c.SR} · R ${c.R} · N ${c.N} · เด็คละ 21 ใบ`;
   }
 
   /* ---------------- หน้าต่าง ---------------- */

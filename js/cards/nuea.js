@@ -16,7 +16,7 @@ CARD_DATABASE.push(
     name: 'ทหารหลวงเหนือ',
     type: 'Monster',
     tribe: 'ไทย',
-    rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 2,
     image: 'images/เด็คเหนือ/3.png',
     ability: 'ROYAL_GUARD_SKILL',
@@ -49,7 +49,7 @@ CARD_DATABASE.push(
     name: 'ทหารเกณฑ์เหนือ',
     type: 'Monster',
     tribe: 'ไทย',
-    rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'N', // ระดับความหายาก: N / R / SR / SSR
     power: 1,
     image: 'images/เด็คเหนือ/5.png',
     ability: 'CONSCRIPT_SKILL',
@@ -82,7 +82,7 @@ CARD_DATABASE.push(
     name: 'สายลับไพร่เหนือ',
     type: 'Monster',
     tribe: 'ไทย',
-    rarity: 'N', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'R', // ระดับความหายาก: N / R / SR / SSR
     power: 0,
     image: 'images/เด็คเหนือ/6.png',
     ability: 'SPY_SKILL',
@@ -156,7 +156,7 @@ CARD_DATABASE.push(
     id: 'NS04',
     name: 'หน่วยข่าวกรอง',
     type: 'NormalSpell',
-    rarity: 'R', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'SR', // ระดับความหายาก: N / R / SR / SSR
     effect: 'SPELL_RECOVER_SPELL',
     image: 'images/เด็คเหนือ/10.png',
     desc: 'นำการ์ดเวทจากในนรกขึ้นมือ 1 ใบ',
@@ -174,7 +174,7 @@ CARD_DATABASE.push(
     id: 'NS05',
     name: 'จีวรบิน',
     type: 'NormalSpell',
-    rarity: 'SR', // ระดับความหายาก (ภาพเท่านั้น): N / R / SR / Legend
+    rarity: 'R', // ระดับความหายาก: N / R / SR / SSR
     effect: 'SPELL_BOUNCE_ENEMY',
     image: 'images/เด็คเหนือ/11.png',
     desc: 'เลือกยูนิทฝั่งตรงข้าม 1 ใบ นำการ์ดใบนั้นกลับขึ้นมือเจ้าของ',

@@ -99,6 +99,9 @@
   filter: grayscale(.7);
   cursor: not-allowed;
 }
+/* การ์ดที่แสดงให้ดูอย่างเดียว (ไม่ใช่ตัวเลือก) */
+.um-card-pick-item.is-preview { cursor: default; }
+.um-card-pick-item.is-preview:hover { transform: none; box-shadow: none; background: rgba(255, 255, 255, .03); }
 .um-card-pick-item .card {
   width: 118px;
   height: 162px;

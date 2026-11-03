@@ -9,9 +9,9 @@
 (function () {
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const canHover = matchMedia('(hover: hover) and (pointer: fine)').matches;
-  const STARS = { N: 0, R: 1, SR: 3, Legend: 6 };
-  const STAR_TINT = { R: '#9fd0ff', SR: '#ffb3bd', Legend: '#ffe39a' };
-  const TYPE_TH = { Leader: 'Leader', Monster: 'ยูนิต', NormalSpell: 'Normal Spell', ReactionSpell: 'Reaction Spell' };
+  const STARS = { N: 0, R: 1, SR: 3, SSR: 6, Legend: 6 };
+  const STAR_TINT = { R: '#9fd0ff', SR: '#ffb3bd', SSR: '#ffe39a', Legend: '#ffe39a' };
+  const TYPE_TH = { Leader: 'Leader', Monster: 'ยูนิต', NormalSpell: 'Normal Spell', ReactionSpell: 'Reaction Spell', LandSpell: 'Land Spell' };
   const cardOf = new WeakMap(); // element → { card, owner }
 
   function rarityOf(card) {
@@ -291,9 +291,9 @@
   }
   function disableGyro() { gyroOn = false; removeEventListener('deviceorientation', onOrient); }
 
-  // ละอองทองรอบการ์ด (Legend เท่านั้น)
+  // ละอองทองรอบการ์ด (SSR เท่านั้น)
   function startFx() {
-    stopFx(); if (reduceMotion || !current || current.dataset.rarity !== 'Legend') return;
+    stopFx(); if (reduceMotion || !current || (current.dataset.rarity !== 'SSR' && current.dataset.rarity !== 'Legend')) return;
     const cv = document.createElement('canvas'); cv.id = 'holo-fx'; big.append(cv);
     const g = cv.getContext('2d'); const dpr = Math.min(devicePixelRatio || 1, 2);
     cv.width = cv.clientWidth * dpr; cv.height = cv.clientHeight * dpr;
@@ -362,5 +362,5 @@
 
   bindTilt(document.getElementById('player-hand'), 12);
   bindLongPress();
-  window.HoloTilt = { bind: bindTilt };
+  window.HoloTilt = { bind: bindTilt, decorate, holoLayersHTML, addStars };
 })();
