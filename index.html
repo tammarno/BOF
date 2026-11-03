@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="css/choice-ui.css">
   <link rel="stylesheet" href="css/panel-motion.css">
   <link rel="stylesheet" href="css/lobby.css">
+  <link rel="stylesheet" href="css/auth.css">
   <script>document.documentElement.classList.add('lm-pre');setTimeout(function(){document.documentElement.classList.remove('lm-pre')},1500);</script>
 </head>
 <body>
@@ -25,6 +26,16 @@
     <div class="lb-vignette" aria-hidden="true"></div>
 
     <h1 class="lb-logo">MY CARD TCG</h1>
+
+    <!-- ปุ่มโปรไฟล์ / เข้าสู่ระบบ (Guest หรือชื่อผู้เล่นที่ล็อกอิน) -->
+    <button type="button" id="lb-auth-bar" aria-label="โปรไฟล์และเข้าสู่ระบบ">
+      <img class="lb-auth-avatar" src="images/เด็คจิต/1.png" alt="">
+      <span class="lb-auth-meta">
+        <span class="lb-auth-name">ผู้เยี่ยมชม (Guest)</span>
+        <span class="lb-auth-sub">คลิกเพื่อเข้าสู่ระบบ / สมัคร</span>
+      </span>
+      <span class="lb-auth-badge" style="display: none;">✓ ล็อกอินแล้ว</span>
+    </button>
 
     <nav class="lb-menu" aria-label="เมนู">
       <a href="#" id="nav-deck" class="lb-menu-item">
@@ -129,6 +140,80 @@
     <dialog id="lb-join-dialog" class="lb-dialog" aria-label="เข้าห้องด้วยรหัส">
       <div class="lb-join-dialog-slot"></div>
       <button type="button" class="lb-dialog-close" data-close>ปิด</button>
+    </dialog>
+
+    <!-- หน้าต่าง: เข้าสู่ระบบ / สมัครสมาชิก / โปรไฟล์ผู้เล่น -->
+    <dialog id="bof-auth-dialog" aria-labelledby="bof-auth-title">
+      <div class="bof-auth-panel">
+        <div class="bof-auth-header">
+          <h2 id="bof-auth-title" class="bof-auth-title">🔐 เข้าสู่ระบบ</h2>
+          <button type="button" id="bof-auth-close" class="bof-auth-close-x" aria-label="ปิด">✕</button>
+        </div>
+
+        <p id="bof-auth-msg" class="bof-auth-msg" aria-live="polite"></p>
+
+        <!-- มุมมองที่ 1: ฟอร์มกรอกชื่อผู้ใช้ + รหัสผ่าน -->
+        <div id="bof-auth-form-view">
+          <div class="bof-auth-tabs" role="tablist">
+            <button type="button" id="bof-tab-login" class="bof-auth-tab is-active">เข้าสู่ระบบ</button>
+            <button type="button" id="bof-tab-register" class="bof-auth-tab">สมัครสมาชิกใหม่</button>
+          </div>
+
+          <form id="bof-auth-form" autocomplete="off">
+            <div class="bof-auth-field">
+              <label for="bof-input-username">👤 ชื่อผู้ใช้ (Username)</label>
+              <input id="bof-input-username" class="bof-auth-input" type="text" maxlength="20" placeholder="เช่น นักดวลแห่งสยาม" required>
+            </div>
+
+            <div class="bof-auth-field">
+              <label for="bof-input-password">🔑 รหัสผ่าน (Password อย่างน้อย 6 ตัวอักษร)</label>
+              <input id="bof-input-password" class="bof-auth-input" type="password" minlength="6" placeholder="••••••" required>
+            </div>
+
+            <div id="bof-avatar-field" class="bof-auth-field" style="display: none;">
+              <label>🖼️ เลือกรูปโปรไฟล์ประจำตัว</label>
+              <div id="bof-register-avatar-picker" class="bof-avatar-grid"></div>
+            </div>
+
+            <button type="submit" id="bof-auth-submit-btn" class="bof-auth-submit">เข้าสู่ระบบ ▶</button>
+          </form>
+        </div>
+
+        <!-- มุมมองที่ 2: ข้อมูลโปรไฟล์เมื่อล็อกอินแล้ว -->
+        <div id="bof-auth-profile-view" style="display: none;">
+          <div class="bof-profile-card">
+            <img id="bof-profile-avatar" src="images/เด็คจิต/1.png" alt="Avatar">
+            <div class="bof-profile-info">
+              <h3 id="bof-profile-username">-</h3>
+              <p id="bof-profile-deck-info">🃏 เด็คที่ซิงค์: -</p>
+            </div>
+          </div>
+
+          <div class="bof-stats-grid">
+            <div class="bof-stat-box">
+              <span id="bof-stat-wins" class="bof-stat-val" style="color: #4ade80;">0</span>
+              <span class="bof-stat-lbl">🏆 ชนะ (Wins)</span>
+            </div>
+            <div class="bof-stat-box">
+              <span id="bof-stat-losses" class="bof-stat-val" style="color: #f87171;">0</span>
+              <span class="bof-stat-lbl">💀 แพ้ (Losses)</span>
+            </div>
+            <div class="bof-stat-box">
+              <span id="bof-stat-winrate" class="bof-stat-val" style="color: #ffe39a;">0%</span>
+              <span class="bof-stat-lbl">📊 อัตราชนะ</span>
+            </div>
+          </div>
+
+          <div class="bof-auth-field">
+            <label>🖼️ เปลี่ยนรูปโปรไฟล์ประจำตัว</label>
+            <div id="bof-profile-avatar-picker" class="bof-avatar-grid"></div>
+          </div>
+
+          <div class="bof-profile-actions">
+            <button type="button" id="bof-btn-logout" class="bof-btn-danger">🚪 ออกจากระบบ (กลับเป็น Guest)</button>
+          </div>
+        </div>
+      </div>
     </dialog>
   </div>
 
@@ -349,6 +434,7 @@
   <script src="js/card-drag.js"></script>
   <script src="js/holo.js"></script>
   <script src="js/lobby.js"></script>
+  <script src="js/auth.js"></script>
   <script src="vendor/gsap.min.js"></script>
   <script src="js/lobby-motion.js"></script>
   <script src="js/ui-motion.js"></script>

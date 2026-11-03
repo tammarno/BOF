@@ -1,0 +1,385 @@
+/* ============================================================================
+   AUTH & PROFILE SYSTEM (BOF) — ระบบล็อกอินด้วยชื่อผู้ใช้ (Username) + รหัสผ่าน (Password)
+   รองรับทั้ง:
+   1. Cloud Sync (Firebase Auth + Firestore) — ซิงค์ข้ามเครื่องอัตโนมัติเมื่อใส่ FIREBASE_CONFIG
+   2. Local Account + รหัสย้ายเครื่อง (Transfer Code) — ใช้งานได้ทันทีโดยไม่ต้องตั้งค่าเซิร์ฟเวอร์!
+   ============================================================================ */
+
+#lb-auth-bar {
+  position: absolute;
+  left: 24px;
+  top: 56px;
+  z-index: 15;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 6px;
+  border-radius: 999px;
+  background: rgba(22, 26, 58, 0.92);
+  border: 1px solid rgba(243, 201, 105, 0.45);
+  color: #e8eaf7;
+  font: 600 14px/1.2 var(--font-display, 'Kanit', sans-serif);
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  transition: border-color 0.2s, background-color 0.2s, transform 0.15s;
+}
+
+#lb-auth-bar:hover {
+  border-color: #f3c969;
+  background: rgba(34, 40, 84, 0.96);
+  transform: translateY(-1px);
+}
+
+.lb-auth-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center 18%;
+  border: 2px solid #f3c969;
+  background: #0b0d1a;
+  flex-shrink: 0;
+}
+
+.lb-auth-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+
+.lb-auth-name {
+  font: 700 14px/1.15 var(--font-display, 'Kanit', sans-serif);
+  color: #ffe39a;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lb-auth-sub {
+  font: 500 11px/1.1 var(--font-body, 'IBM Plex Sans Thai', sans-serif);
+  color: #b9bee0;
+}
+
+.lb-auth-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(62, 224, 143, 0.18);
+  border: 1px solid rgba(62, 224, 143, 0.55);
+  color: #3ee08f;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ---------- หน้าต่าง Modal ล็อกอิน / โปรไฟล์ ---------- */
+#bof-auth-dialog {
+  margin: auto;
+  border: 0;
+  border-radius: 20px;
+  padding: 0;
+  width: min(460px, calc(100vw - 28px));
+  background: transparent;
+  color: #e8eaf7;
+  box-shadow: none;
+  overflow: visible;
+}
+
+#bof-auth-dialog::backdrop {
+  background: rgba(7, 8, 15, 0.82);
+}
+
+.bof-auth-panel {
+  padding: 24px;
+  border-radius: 20px;
+  background: #12142a;
+  border: 1px solid rgba(243, 201, 105, 0.55);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.75), 0 0 40px rgba(243, 201, 105, 0.16);
+  font-family: var(--font-body, 'IBM Plex Sans Thai', sans-serif);
+}
+
+.bof-auth-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.bof-auth-title {
+  font: 700 24px/1.2 var(--font-display, 'Kanit', sans-serif);
+  color: #f3c969;
+  margin: 0;
+}
+
+.bof-auth-close-x {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(160, 175, 255, 0.25);
+  background: rgba(255, 255, 255, 0.05);
+  color: #b9bee0;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.bof-auth-close-x:hover {
+  color: #fff;
+  border-color: #f3c969;
+}
+
+/* แท็บสลับ เข้าสู่ระบบ / สมัครสมาชิก */
+.bof-auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 5px;
+  border-radius: 12px;
+  background: #0b0d1a;
+  border: 1px solid rgba(160, 175, 255, 0.18);
+  margin-bottom: 16px;
+}
+
+.bof-auth-tab {
+  height: 38px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #b9bee0;
+  font: 600 14px var(--font-display, 'Kanit', sans-serif);
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.bof-auth-tab.is-active {
+  background: linear-gradient(135deg, #ffe39a, #e0a83c);
+  color: #1a1405;
+}
+
+.bof-auth-field {
+  margin-bottom: 14px;
+}
+
+.bof-auth-field label {
+  display: block;
+  margin-bottom: 6px;
+  font: 600 13px var(--font-display, 'Kanit', sans-serif);
+  color: #cbd5e1;
+}
+
+.bof-auth-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(160, 175, 255, 0.28);
+  background: #0b0d1a;
+  color: #fff;
+  font: 500 15px var(--font-body, 'IBM Plex Sans Thai', sans-serif);
+}
+
+.bof-auth-input:focus {
+  outline: none;
+  border-color: #f3c969;
+  box-shadow: 0 0 0 2px rgba(243, 201, 105, 0.25);
+}
+
+/* เลือกรูปโปรไฟล์ลีดเดอร์ */
+.bof-avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.bof-avatar-option {
+  position: relative;
+  padding: 4px;
+  border-radius: 12px;
+  border: 2px solid rgba(160, 175, 255, 0.2);
+  background: #0b0d1a;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.2s, transform 0.15s;
+}
+
+.bof-avatar-option:hover {
+  border-color: rgba(243, 201, 105, 0.6);
+}
+
+.bof-avatar-option.is-selected {
+  border-color: #f3c969;
+  background: rgba(243, 201, 105, 0.14);
+  transform: translateY(-2px);
+}
+
+.bof-avatar-option img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  object-position: center 18%;
+  border-radius: 8px;
+  display: block;
+}
+
+.bof-avatar-option span {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #cbd5e1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bof-auth-msg {
+  min-height: 20px;
+  margin: 8px 0 12px;
+  font-size: 13px;
+  color: #fbbf24;
+}
+
+.bof-auth-msg.is-error {
+  color: #f87171;
+}
+
+.bof-auth-msg.is-ok {
+  color: #4ade80;
+}
+
+.bof-auth-submit {
+  width: 100%;
+  height: 48px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffe39a, #e0a83c);
+  color: #1a1405;
+  font: 700 17px var(--font-display, 'Kanit', sans-serif);
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(224, 168, 60, 0.35);
+}
+
+.bof-auth-submit:hover {
+  filter: brightness(1.06);
+}
+
+.bof-auth-submit:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* มุมมองโปรไฟล์เมื่อล็อกอินแล้ว */
+.bof-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #0b0d1a;
+  border: 1px solid rgba(160, 175, 255, 0.22);
+  margin-bottom: 14px;
+}
+
+.bof-profile-card img {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center 18%;
+  border: 2px solid #f3c969;
+}
+
+.bof-profile-info h3 {
+  margin: 0;
+  font: 700 20px var(--font-display, 'Kanit', sans-serif);
+  color: #ffe39a;
+}
+
+.bof-profile-info p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.bof-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.bof-stat-box {
+  padding: 10px;
+  border-radius: 12px;
+  background: #0b0d1a;
+  border: 1px solid rgba(160, 175, 255, 0.18);
+  text-align: center;
+}
+
+.bof-stat-val {
+  display: block;
+  font: 700 22px var(--font-display, 'Kanit', sans-serif);
+  color: #fff;
+}
+
+.bof-stat-lbl {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.bof-profile-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bof-btn-secondary {
+  width: 100%;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid rgba(160, 175, 255, 0.28);
+  background: #1a2042;
+  color: #e8eaf7;
+  font: 600 14px var(--font-display, 'Kanit', sans-serif);
+  cursor: pointer;
+}
+
+.bof-btn-secondary:hover {
+  border-color: #f3c969;
+  background: #232b59;
+}
+
+.bof-btn-danger {
+  width: 100%;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  background: rgba(185, 28, 28, 0.25);
+  color: #fca5a5;
+  font: 600 14px var(--font-display, 'Kanit', sans-serif);
+  cursor: pointer;
+}
+
+.bof-btn-danger:hover {
+  background: rgba(220, 38, 38, 0.45);
+  color: #fff;
+}
+
+.bof-mode-note {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px dashed rgba(148, 163, 184, 0.3);
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+
+@media (max-width: 767px) {
+  #lb-auth-bar {
+    position: relative;
+    left: auto;
+    top: auto;
+    padding: 4px 12px 4px 4px;
+  }
+}
