@@ -1011,6 +1011,81 @@ body {
   }
 }
 
+/* ปรับแต่งรายละเอียดเพิ่มเติมบนจอมือถือ (โมดัล, ทัชทาร์เก็ต, การ์ดรายละเอียด) */
+@media (max-width: 768px) {
+  input[type="text"], input[type="password"] {
+    font-size: 16px !important; /* ป้องกัน iOS ซูมหน้าจอเมื่อแตะช่องกรอก */
+  }
+
+  .btn, button {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #dice-modal .dice-box {
+    width: min(340px, 92vw);
+    padding: 16px;
+  }
+
+  #card-detail-view-modal .modal-box {
+    width: 95% !important;
+    max-height: 88dvh;
+    padding: 14px !important;
+    gap: 10px !important;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #card-detail-view-modal #detail-card-img {
+    width: clamp(120px, 36vw, 160px) !important;
+    height: auto !important;
+    aspect-ratio: 750 / 1050;
+  }
+
+  #card-detail-view-modal #detail-card-name {
+    font-size: 16px !important;
+  }
+
+  #fx-card-cutin-banner {
+    max-width: 92vw !important;
+    min-width: 0 !important;
+    padding: 10px 14px !important;
+    gap: 10px !important;
+  }
+
+  #fx-card-cutin-banner img {
+    width: 56px !important;
+    height: 78px !important;
+  }
+
+  .cutin-info-actor {
+    font-size: 10.5px !important;
+  }
+
+  .cutin-info-title {
+    font-size: 15px !important;
+  }
+
+  .cutin-info-sub {
+    font-size: 11px !important;
+  }
+
+  #pvp-room-modal .modal-box {
+    width: 95% !important;
+    padding: 14px !important;
+  }
+
+  #mulligan-modal .modal-box,
+  #intercept-modal .modal-box {
+    width: 95% !important;
+    padding: 14px !important;
+  }
+
+  .mulligan-cards, .intercept-options {
+    gap: 8px !important;
+  }
+}
+
 /* รองรับหน้าจอมือถือขนาดเล็กความสูงน้อย (เช่น iPhone SE / จอความสูง < 680px) */
 @media (max-width: 768px) and (max-height: 680px) {
   .leader-box, .pile-group .info-box {

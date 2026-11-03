@@ -382,4 +382,57 @@
     top: auto;
     padding: 4px 12px 4px 4px;
   }
+
+  #bof-auth-dialog {
+    width: calc(100vw - 20px);
+    border-radius: 16px;
+  }
+
+  .bof-auth-panel {
+    padding: 16px 14px;
+    border-radius: 16px;
+    max-height: 90dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .bof-auth-title {
+    font-size: 20px;
+  }
+
+  .bof-auth-input {
+    font-size: 16px; /* ป้องกัน iOS Auto Zoom */
+    height: 42px;
+  }
+
+  .bof-avatar-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .bof-avatar-option {
+    padding: 3px;
+    border-radius: 8px;
+    touch-action: manipulation;
+  }
+
+  .bof-stats-grid {
+    gap: 6px;
+  }
+
+  .bof-stat-box {
+    padding: 6px 4px;
+  }
+
+  .bof-stat-val {
+    font-size: 18px;
+  }
+
+  .bof-stat-lbl {
+    font-size: 10.5px;
+  }
+
+  .bof-auth-submit, .bof-btn-secondary, .bof-btn-danger {
+    touch-action: manipulation;
+  }
 }

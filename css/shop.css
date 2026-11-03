@@ -837,16 +837,216 @@
     position: relative;
     left: auto;
     top: auto;
-    height: 38px;
+    height: 34px;
+    font-size: 13.5px;
+  }
+
+  #bof-shop-dialog {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 20px);
+    border-radius: 18px;
+  }
+
+  .bof-shop-panel {
+    padding: 14px 12px;
+    max-height: calc(100dvh - 20px);
+    border-radius: 18px;
+  }
+
+  .bof-shop-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding-bottom: 10px;
+  }
+
+  .bof-shop-title-wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+
+  .bof-shop-title-wrap h2 {
+    font-size: 18px;
+  }
+
+  .bof-shop-title-wrap p {
+    font-size: 11px;
+    line-height: 1.3;
+  }
+
+  .bof-shop-top-right {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .bof-shop-balance {
+    font-size: 13px;
+    padding: 5px 10px;
+    gap: 5px;
+  }
+
+  .bof-shop-code-box {
+    flex: 1;
+    min-width: 160px;
+    padding: 2px 3px 2px 10px;
+  }
+
+  .bof-shop-code-input {
+    width: 100%;
+    min-width: 80px;
+    height: 28px;
+    font-size: 16px; /* ป้องกัน iOS ซูมอัตโนมัติ */
+  }
+
+  .bof-shop-bonus-btn {
+    height: 28px;
+    padding: 0 10px;
+    font-size: 11px;
+    white-space: nowrap;
+    touch-action: manipulation;
+  }
+
+  .bof-shop-rate-banner {
+    font-size: 11px;
+    padding: 6px 10px;
+    line-height: 1.4;
+  }
+
+  .bof-packs-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .bof-pack-card {
+    padding: 10px 8px;
+    border-radius: 12px;
+  }
+
+  .bof-pack-art-wrap {
+    width: 80px;
+    margin-bottom: 8px;
+  }
+
+  .bof-pack-card h3 {
     font-size: 14px;
   }
+
+  .bof-pack-desc {
+    font-size: 10.5px;
+    margin: 2px 0 4px;
+    line-height: 1.25;
+  }
+
+  .bof-pack-owned-badge {
+    font-size: 10px;
+    margin-bottom: 6px;
+  }
+
+  .bof-pack-actions {
+    gap: 5px;
+  }
+
+  .bof-buy-btn {
+    height: 32px;
+    font-size: 11.5px;
+    padding: 0 6px;
+    border-radius: 8px;
+    touch-action: manipulation;
+  }
+
+  .bof-buy-btn-10x {
+    height: 32px;
+    font-size: 11.5px;
+    padding: 0 4px;
+    border-radius: 8px;
+    touch-action: manipulation;
+  }
+
+  .bof-discount-tag {
+    font-size: 9.5px;
+    padding: 1px 4px;
+  }
+
   .bof-foil-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
-  .bof-packs-grid {
-    grid-template-columns: repeat(2, 1fr);
+
+  .bof-foil-card-item {
+    padding: 8px 6px;
   }
+
+  .bof-foil-card-thumb {
+    width: 85px;
+  }
+
+  /* Reveal popup stage */
+  .bof-reveal-stage {
+    padding: 10px 8px;
+  }
+
+  .bof-reveal-box {
+    width: 96vw;
+    max-height: 92dvh;
+    padding: 14px 10px;
+    border-radius: 16px;
+  }
+
+  #bof-reveal-title {
+    font-size: 12.5px;
+    line-height: 1.35;
+    text-align: center;
+  }
+
+  .bof-reveal-summary {
+    gap: 5px;
+    margin-top: 6px;
+  }
+
+  .bof-sum-badge {
+    font-size: 10.5px;
+    padding: 2px 8px;
+  }
+
+  .bof-reveal-cards {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin: 10px 0;
+    max-height: 56dvh;
+    padding: 6px 2px;
+  }
+
   .bof-flip-card {
-    width: 122px;
+    width: clamp(94px, 28vw, 130px);
+    touch-action: manipulation;
+  }
+
+  .bof-flip-back {
+    font-size: 11px;
+  }
+
+  .bof-reveal-actions {
+    gap: 8px;
+    margin-top: 6px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .bof-reveal-btn {
+    height: 38px;
+    font-size: 13px;
+    padding: 0 14px;
+    flex: 1;
+    max-width: 170px;
+    touch-action: manipulation;
   }
 }
