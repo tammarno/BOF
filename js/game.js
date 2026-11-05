@@ -119,12 +119,28 @@ CARD_DATABASE.forEach(c => {
   if (!c.desc) c.desc = getCardDescription(c);
 });
 
-function shuffleDeck(deckArray) {
+function shuffleDeck(deckArray, contestant = null) {
   const arr = [...deckArray];
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
+
+  // เล่นแอนิเมชันสับกองอัตโนมัติเฉพาะระหว่างการเล่นเกมจริง (เมื่อมีการค้นหากอง หรือการ์ดสั่งให้สับกอง)
+  if (typeof gameState !== 'undefined' && gameState && !gameState.gameOver && gameState.phase !== 'Setup') {
+    let side = null;
+    if (contestant) {
+      side = (contestant === gameState.player) ? 'player' : 'ai';
+    } else if (gameState.player && deckArray === gameState.player.deck) {
+      side = 'player';
+    } else if (gameState.ai && deckArray === gameState.ai.deck) {
+      side = 'ai';
+    }
+    if (side && typeof playDeckShuffleAnimation === 'function') {
+      playDeckShuffleAnimation(null, side);
+    }
+  }
+
   return arr;
 }
 
@@ -321,6 +337,17 @@ function performMulligan(contestant, indicesToMulligan) {
 }
 
 // วางการ์ดทับช่องเดิม: ส่งใบเก่าลงนรกโดย "ไม่ถือว่าถูกทำลาย"
+
+function getCardOriginalOwner(card, fallbackContestant = null) {
+  if (!card) return fallbackContestant;
+  if (card.originalOwner) return card.originalOwner;
+  if (card.uid) {
+    if (card.uid.startsWith('P1')) return gameState.player;
+    if (card.uid.startsWith('AI')) return gameState.ai;
+  }
+  return fallbackContestant;
+}
+
 function sendOverwrittenMonsterToGrave(contestant, slotIndex) {
   const oldMonster = contestant.board[slotIndex];
   if (!oldMonster) return null;
@@ -329,9 +356,10 @@ function sendOverwrittenMonsterToGrave(contestant, slotIndex) {
     setLog(`🛡️ [ออโต้/1 เทิร์น - ${oldMonster.name}] ป้องกันการถูกทำลายหรือนำลงนรกสำเร็จ!`);
     return oldMonster;
   }
+  const targetGraveContestant = getCardOriginalOwner(oldMonster, contestant);
   contestant.board[slotIndex] = null;
   resetCardStateForZoneChange(oldMonster);
-  contestant.graveyard.push(oldMonster);
+  targetGraveContestant.graveyard.push(oldMonster);
   return oldMonster;
 }
 
@@ -365,8 +393,9 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
   boardOwner.unitsDestroyedThisTurn = (boardOwner.unitsDestroyedThisTurn || 0) + 1;
   const otherContestant = (boardOwner === gameState.player) ? gameState.ai : gameState.player;
 
+  const targetGraveContestant = getCardOriginalOwner(monster, boardOwner);
   resetCardStateForZoneChange(monster);
-  boardOwner.graveyard.push(monster);
+  targetGraveContestant.graveyard.push(monster);
 
   // รันบล็อกความสามารถเมื่อถูกทำลาย (ON_DESTROY)
   EffectEngine.triggerCardEffects(monster, 'ON_DESTROY', {
@@ -478,6 +507,7 @@ const gameState = {
   isWaitingForChoice: false,
   isRollingDice: false,
   gameOver: false,
+  matchLogHistory: [],
   player: null,
   ai: null
 };
@@ -532,6 +562,20 @@ function setLog(message) {
     scrollbox.appendChild(logItem);
     scrollbox.scrollTop = scrollbox.scrollHeight;
   }
+
+  if (!Array.isArray(gameState.matchLogHistory)) gameState.matchLogHistory = [];
+  let logCategory = 'OTHER';
+  if (/โจมตี|ดาเมจ|⚔️|💥|ตี/i.test(message)) logCategory = 'ATTACK';
+  else if (/เวท|สกิล|✨|⚡|🔮|🏰|🌌/i.test(message)) logCategory = 'SPELL';
+  else if (/อัญเชิญ|ลงสนาม|คอล|🦖|👑/i.test(message)) logCategory = 'SUMMON';
+
+  gameState.matchLogHistory.push({
+    turn: gameState.turnCount,
+    category: logCategory,
+    message,
+    isAI: message.includes('🤖') || message.includes('AI'),
+    time: new Date().toLocaleTimeString('th-TH', { hour12: false })
+  });
 }
 
 function checkGameOver() {
@@ -778,45 +822,165 @@ function ensureZoneUIAndViewers() {
     });
   }
 
-  const aiGraveCountEl = document.getElementById('ai-grave-count');
-  if (aiGraveCountEl) {
-    const aiGraveBox = aiGraveCountEl.parentElement;
+  const aiGraveBox = document.getElementById('ai-grave-box');
+  if (aiGraveBox) {
     aiGraveBox.style.cursor = 'pointer';
-    aiGraveBox.title = 'แตะเพื่อดูการ์ดในนรกของฝ่ายตรงข้าม';
-    aiGraveBox.onclick = () => openZoneViewerModal('🪦 กองนรกของฝ่ายตรงข้าม (Graveyard)', gameState.ai.graveyard, gameState.ai);
-
-    const aiPileGroup = aiGraveBox.parentElement;
-    if (aiPileGroup && !document.getElementById('ai-dark-box')) {
-      const darkBox = document.createElement('div');
-      darkBox.id = 'ai-dark-box';
-      darkBox.className = 'info-box dark-box';
-      darkBox.style.cursor = 'pointer';
-      darkBox.title = 'แตะเพื่อดูการ์ดในมิติมืดของฝ่ายตรงข้าม';
-      darkBox.innerHTML = `<div class="pile-label">🌌 มิติมืด</div><h2 id="ai-dark-count">0</h2><div class="pile-sub-hint">(คลิกดู)</div>`;
-      darkBox.onclick = () => openZoneViewerModal('🌌 มิติมืดของฝ่ายตรงข้าม (Dark Dimension)', gameState.ai.darkDimension, gameState.ai);
-      aiPileGroup.appendChild(darkBox);
-    }
+    aiGraveBox.title = 'คลิกดูการ์ดในดรอปโซนของคู่แข่ง';
+    aiGraveBox.onclick = () => openZoneViewerModal('🪦 ดรอปโซนของคู่แข่ง (Graveyard)', gameState.ai.graveyard, gameState.ai);
   }
 
-  const playerGraveCountEl = document.getElementById('player-grave-count');
-  if (playerGraveCountEl) {
-    const playerGraveBox = playerGraveCountEl.parentElement;
+  const aiDarkBox = document.getElementById('ai-dark-box');
+  if (aiDarkBox) {
+    aiDarkBox.style.cursor = 'pointer';
+    aiDarkBox.title = 'คลิกดูการ์ดในมิติมืดของคู่แข่ง';
+    aiDarkBox.onclick = () => openZoneViewerModal('🌌 มิติมืดของคู่แข่ง (Dark Dimension)', gameState.ai.darkDimension, gameState.ai);
+  }
+
+  const aiDeckBox = document.getElementById('ai-deck-box');
+  if (aiDeckBox) {
+    aiDeckBox.onclick = null;
+    aiDeckBox.style.cursor = 'default';
+  }
+
+  const playerGraveBox = document.getElementById('player-grave-box');
+  if (playerGraveBox) {
     playerGraveBox.style.cursor = 'pointer';
-    playerGraveBox.title = 'แตะเพื่อดูการ์ดในนรกของคุณ';
-    playerGraveBox.onclick = () => openZoneViewerModal('🪦 กองนรกของคุณ (Graveyard)', gameState.player.graveyard, gameState.player);
-
-    const playerPileGroup = playerGraveBox.parentElement;
-    if (playerPileGroup && !document.getElementById('player-dark-box')) {
-      const darkBox = document.createElement('div');
-      darkBox.id = 'player-dark-box';
-      darkBox.className = 'info-box dark-box';
-      darkBox.style.cursor = 'pointer';
-      darkBox.title = 'แตะเพื่อดูการ์ดในมิติมืดของคุณ';
-      darkBox.innerHTML = `<div class="pile-label">🌌 มิติมืด</div><h2 id="player-dark-count">0</h2><div class="pile-sub-hint">(คลิกดู)</div>`;
-      darkBox.onclick = () => openZoneViewerModal('🌌 มิติมืดของคุณ (Dark Dimension)', gameState.player.darkDimension, gameState.player);
-      playerPileGroup.appendChild(darkBox);
-    }
+    playerGraveBox.title = 'คลิกดูการ์ดในดรอปโซนของคุณ';
+    playerGraveBox.onclick = () => openZoneViewerModal('🪦 ดรอปโซนของคุณ (Graveyard)', gameState.player.graveyard, gameState.player);
   }
+
+  const playerDarkBox = document.getElementById('player-dark-box');
+  if (playerDarkBox) {
+    playerDarkBox.style.cursor = 'pointer';
+    playerDarkBox.title = 'คลิกดูการ์ดในมิติมืดของคุณ';
+    playerDarkBox.onclick = () => openZoneViewerModal('🌌 มิติมืดของคุณ (Dark Dimension)', gameState.player.darkDimension, gameState.player);
+  }
+
+  const playerDeckBox = document.getElementById('player-deck-box');
+  if (playerDeckBox) {
+    playerDeckBox.onclick = null;
+    playerDeckBox.style.cursor = 'default';
+  }
+}
+
+
+
+/**
+ * ระบบสับกองการ์ดพร้อมแอนิเมชันแบบ Cardfight Vanguard / BOF
+ * @param {Function} [onDone] - Callback เมื่อสับเสร็จ
+ * @param {string} [targetZone] - 'all' | 'player' | 'ai'
+ */
+function playDeckShuffleAnimation(onDone, targetZone = 'all') {
+  if (window.BOF_AUDIO && typeof window.BOF_AUDIO.playDeckShuffle === 'function') {
+    window.BOF_AUDIO.playDeckShuffle();
+  }
+
+  const targets = [];
+  if (targetZone === 'all' || targetZone === 'player') {
+    const pDeck = document.getElementById('player-deck-box');
+    if (pDeck) targets.push(pDeck);
+  }
+  if (targetZone === 'all' || targetZone === 'ai') {
+    const aiDeck = document.getElementById('ai-deck-box');
+    if (aiDeck) targets.push(aiDeck);
+  }
+
+  targets.forEach(deckEl => {
+    const oldAnim = deckEl.querySelector('.deck-shuffle-anim');
+    if (oldAnim) oldAnim.remove();
+
+    const animEl = document.createElement('div');
+    animEl.className = 'deck-shuffle-anim';
+    animEl.innerHTML = `
+      <div class="deck-packet packet-left"></div>
+      <div class="deck-packet packet-right"></div>
+    `;
+    deckEl.appendChild(animEl);
+
+    setTimeout(() => {
+      animEl.remove();
+    }, 1250);
+  });
+
+  setTimeout(() => {
+    if (typeof onDone === 'function') onDone();
+  }, 1300);
+}
+
+/**
+ * ระบบทอยเหรียญตัดสินใครเริ่มก่อน (Coin Toss System) ตามตัวอย่างวิดีโอ
+ * @param {Object} options
+ * @param {Function} options.onComplete - callback(isPlayerFirst)
+ * @param {boolean} [options.forcedResult] - บังคับผล (ใช้สำหรับ PvP ซิงค์ผล)
+ */
+function startCoinToss(options = {}) {
+  const modal = document.getElementById('coin-toss-modal');
+  const coinEl = document.getElementById('bof-coin-element');
+  const resultBanner = document.getElementById('coin-result-banner');
+  const winnerTitle = document.getElementById('coin-winner-title');
+  const detailText = document.getElementById('coin-detail-text');
+  const instructionText = document.getElementById('coin-instruction-text');
+  const proceedBtn = document.getElementById('btn-coin-proceed');
+
+  const isPlayerFirst = options.forcedResult !== undefined ? options.forcedResult : (Math.random() < 0.5);
+
+  if (!modal || !coinEl) {
+    if (typeof options.onComplete === 'function') options.onComplete(isPlayerFirst);
+    return;
+  }
+
+  modal.style.display = 'flex';
+  resultBanner.style.display = 'none';
+  proceedBtn.style.display = 'none';
+  instructionText.style.display = 'block';
+  instructionText.textContent = 'กำลังทอยเหรียญ...';
+  coinEl.className = 'bof-coin';
+
+  if (window.BOF_AUDIO && typeof window.BOF_AUDIO.playCoinFlip === 'function') {
+    window.BOF_AUDIO.playCoinFlip();
+  }
+
+  setTimeout(() => {
+    coinEl.classList.add(isPlayerFirst ? 'flipping-heads' : 'flipping-tails');
+  }, 50);
+
+  setTimeout(() => {
+    if (window.BOF_AUDIO && typeof window.BOF_AUDIO.playCoinLand === 'function') {
+      window.BOF_AUDIO.playCoinLand();
+    }
+
+    resultBanner.style.display = 'block';
+    if (isPlayerFirst) {
+      winnerTitle.textContent = '🎉 คุณได้เริ่มก่อน (PLAYER FIRST)';
+      winnerTitle.style.color = '#4ade80';
+      detailText.textContent = '🪙 เหรียญออก: หัว (Heads)';
+    } else {
+      winnerTitle.textContent = '🤖 AI เริ่มก่อน (AI FIRST)';
+      winnerTitle.style.color = '#f472b6';
+      detailText.textContent = '🪙 เหรียญออก: ก้อย (Tails)';
+    }
+
+    instructionText.textContent = 'สับและหยิบมือเริ่มต้น 5 ใบ';
+    proceedBtn.style.display = 'inline-block';
+    proceedBtn.disabled = false;
+
+    let handled = false;
+    const handleProceed = () => {
+      if (handled) return;
+      handled = true;
+      modal.style.display = 'none';
+      if (typeof options.onComplete === 'function') {
+        options.onComplete(isPlayerFirst);
+      }
+    };
+
+    proceedBtn.onclick = handleProceed;
+    setTimeout(() => {
+      if (modal.style.display !== 'none' && !handled) {
+        handleProceed();
+      }
+    }, 4500);
+  }, 1400);
 }
 
 function openZoneViewerModal(titleText, cardArray, ownerContestant) {
@@ -1851,18 +2015,41 @@ const EffectEngine = {
             opponent.graveyard.push(milled);
             setLog(`💰 ${cardTitle} อีกฝั่งเลือกนำ "${milled.name}" ใบบนสุดของกองลงนรก!`);
           }
+          renderGame();
           if (caster.graveyard.length > 0) {
             this.executeSingleStep({ block: 'RECOVER_FROM_GRAVE', count: 1 }, context, () => {
               gameState.isWaitingForChoice = false;
+              renderGame();
               next();
             });
           } else {
             gameState.isWaitingForChoice = false;
+            renderGame();
             next();
           }
         };
 
         gameState.isWaitingForChoice = true;
+
+        // ในโหมดเล่นกับเพื่อนออนไลน์ (PVP): ส่งหน้าต่างตัวเลือกไปยังเครื่องของเพื่อนจริง ๆ
+        if (pvpState.isMultiplayer && pvpState.conn && pvpState.conn.open) {
+          setLog(`💰 [แมมมอน บาปความโลภ] กำลังรอฝ่ายตรงข้ามเลือก 1 จาก 2 ทางเลือก...`);
+          sendPvpPacket({
+            type: 'REQUEST_PVP_CHOICE',
+            choiceId: 'mammon_' + Date.now(),
+            title: `💰 ${cardTitle} ลงสนาม!`,
+            description: 'ฝ่ายตรงข้ามลงแมมมอน! กรุณาเลือกทำ 1 อย่างจาก 2 อย่างด้านล่าง:',
+            options: [
+              { label: '1) ทิ้งการ์ดบนมือ 1 ใบ (ถ้าทิ้งเวทมนตร์ อีกฝ่ายได้จั่ว 1 ใบ)', color: '#d97706' },
+              { label: '2) นำการ์ดใบบนสุดของกองเราลงนรก (อีกฝ่ายนำการ์ดจากดรอป 1 ใบขึ้นมือ)', color: '#7c3aed' }
+            ]
+          });
+          pvpState.pendingChoiceResolver = (optIdx) => {
+            if (optIdx === 0) doOption1();
+            else doOption2();
+          };
+          return;
+        }
 
         // ถ้าอีกฝั่งเป็น AI (ผู้เล่นลงแมมมอน): AI จะคิดและตัดสินใจ พร้อมแจ้งเตือนให้ผู้เล่นเห็นชัดเจน (ผู้เล่นต้องรอ AI เลือกเสร็จก่อน)
         if (!isAI) {
@@ -2621,6 +2808,7 @@ function activateMonsterOnBoardPlayer(slotIndex) {
 
 // สั่งใช้งานการ์ดเวทมนตร์จากมือผ่าน EffectEngine
 function initiatePlayerSpell(handIndex) {
+  if (window.BOF_AUDIO) window.BOF_AUDIO.playSpell();
   const player = gameState.player;
   const spell = player.hand[handIndex];
   if (!spell) return;
@@ -3759,10 +3947,31 @@ function executeEndPhaseCleanup(activeContestant) {
     activeContestant.darkDimension.some(d => d && d.id === 'DMS01') &&
     activeContestant.graveyard.length > 0
   ) {
-    const recovered = activeContestant.graveyard.pop();
-    resetCardStateForZoneChange(recovered);
-    activeContestant.hand.push(recovered);
-    setLog(`📜 [สัญญาปีศาจ - มิติมืด] เมื่อจบเทิร์น นำ "${recovered.name}" 1 ใบจากดรอปขึ้นมือของ ${activeContestant.name}!`);
+    if (activeContestant === gameState.player && activeContestant.graveyard.length > 1) {
+      const uniqueMap = new Map();
+      activeContestant.graveyard.forEach(c => { if (!uniqueMap.has(c.id)) uniqueMap.set(c.id, c); });
+      const options = Array.from(uniqueMap.values()).map(targetCard => ({
+        label: `นำ "${targetCard.name}" ขึ้นมือ`,
+        color: '#7c3aed',
+        onSelect: () => {
+          const gIdx = activeContestant.graveyard.findIndex(c => c.id === targetCard.id);
+          if (gIdx !== -1) {
+            const recovered = activeContestant.graveyard.splice(gIdx, 1)[0];
+            resetCardStateForZoneChange(recovered);
+            activeContestant.hand.push(recovered);
+            setLog(`📜 [สัญญาปีศาจ - มิติมืด] เมื่อจบเทิร์น นำ "${recovered.name}" จากดรอปขึ้นมือสำเร็จ!`);
+            renderGame();
+          }
+        }
+      }));
+      showChoiceModal('📜 สัญญาปีศาจ (มิติมืด)', 'เมื่อจบเทิร์น เลือกการ์ด 1 ใบจากกองดรอป (นรก) เพื่อนำกลับขึ้นมือ:', options);
+    } else {
+      const recovered = activeContestant.graveyard.pop();
+      resetCardStateForZoneChange(recovered);
+      activeContestant.hand.push(recovered);
+      setLog(`📜 [สัญญาปีศาจ - มิติมืด] เมื่อจบเทิร์น นำ "${recovered.name}" 1 ใบจากดรอปขึ้นมือของ ${activeContestant.name}!`);
+      renderGame();
+    }
   }
 
   activeContestant.board.forEach((m, idx) => {
@@ -3909,7 +4118,11 @@ function handleHandCardClick(handIndex) {
 // เมื่อผู้เล่นคลิกที่ช่องบนสนามฝั่งตัวเอง
 function handlePlayerSlotClick(slotIndex) {
   if (gameState.gameOver || gameState.isRollingDice) return;
-  const awaitingBoardTarget = gameState.pendingAction && gameState.pendingAction.type === 'MODULAR_SELECT_TARGET' && ['PLAYER_BOARD', 'ANY_BOARD'].includes(gameState.pendingAction.targetZone);
+  const awaitingBoardTarget = gameState.pendingAction && (
+    (gameState.pendingAction.type === 'MODULAR_SELECT_TARGET' && ['PLAYER_BOARD', 'ANY_BOARD'].includes(gameState.pendingAction.targetZone)) ||
+    gameState.pendingAction.type === 'CALL_FROM_EFFECT_SELECT_SLOT' ||
+    gameState.pendingAction.type === 'JUTI_SELECT_SLOT'
+  );
   if (gameState.activeTurn !== 'player' && !awaitingBoardTarget) return;
 
   const player = gameState.player;
@@ -4129,6 +4342,7 @@ function handleAISlotClick(aiSlotIndex) {
       const spy = player.hand.splice(gameState.selectedHandIndex, 1)[0];
       resetCardStateForZoneChange(spy);
       spy.state = 'Stand';
+      spy.originalOwner = player;
       ai.board[aiSlotIndex] = spy;
       gameState.selectedHandIndex = null;
       setLog(`🕵️ อัญเชิญ "สายลับไพร่เหนือ" ลงไปยึดช่องที่ ${aiSlotIndex + 1} บนสนามของฝ่ายตรงข้ามสำเร็จ!`);
@@ -5464,12 +5678,21 @@ function handlePlayerSurrender() {
         onSelect: () => {
           gameState.player.leader.hp = 0;
           gameState.gameOver = true;
+          gameState.pendingAction = null;
+          disableControls();
           setLog('🏳️ คุณประกาศยอมแพ้ในแมตช์นี้!');
           renderGame();
           if (typeof pvpState !== 'undefined' && pvpState.isMultiplayer) {
             syncBoardToOpponent('🏳️ ฝ่ายตรงข้ามประกาศยอมแพ้! คุณเป็นฝ่ายชนะ!');
           }
-          checkGameOver();
+          if (typeof playSoundEffect === 'function') {
+            playSoundEffect('defeat');
+          } else if (window.BOF_AUDIO) {
+            window.BOF_AUDIO.playDefeat();
+          }
+          setTimeout(() => {
+            showEndMatchModal('💀 คุณยอมแพ้การประลอง!', 'คุณได้กดยืนยันยอมแพ้ในแมตช์นี้');
+          }, 300);
         }
       },
       {
@@ -5650,6 +5873,7 @@ function performSingleAIMainAction() {
     if (spyHandIdx !== -1 && targetPlayerSlot !== -1) {
       const spyCard = ai.hand.splice(spyHandIdx, 1)[0];
       resetCardStateForZoneChange(spyCard);
+      spyCard.originalOwner = ai;
       player.board[targetPlayerSlot] = spyCard;
       showCardShowcaseBanner(spyCard, 'AI ส่งสายลับ!', `🕵️ ยึดช่องที่ ${targetPlayerSlot + 1} บนสนามของคุณ!`, '#7c3aed');
       setLog(`🕵️ AI ส่ง "สายลับไพร่เหนือ" ลงไปยึดช่องที่ ${targetPlayerSlot + 1} บนสนามของคุณ!`);
@@ -5893,10 +6117,14 @@ function performSingleAIMainAction() {
       return true;
     }
 
-    // 3.8 สกิล ACTIVATE_MAIN ของเด็คปีศาจ / เด็คโอ็ต (DMM06, OM02, OM04, OM07)
-    if (['DMM06', 'OM02', 'OM04', 'OM07'].includes(m.id) && Array.isArray(m.effects)) {
+    // 3.8 สกิล ACTIVATE_MAIN ของยูนิต (รองรับทั้งเด็คปีศาจ, เด็คโอ็ต และยูนิตทุกใบที่มีสกิลสั่งใช้)
+    if (Array.isArray(m.effects)) {
       if (m.id === 'OM02' && (m.usedSkills && m.usedSkills.aiBankUsedThisTurn || ai.hand.length < 2)) continue;
-      const eff = m.effects.find(e => e.trigger === 'ACTIVATE_MAIN' && EffectEngine.canActivateEffect(e, { caster: ai, opponent: player, sourceCard: m, sourceSlot: slotIdx, isAI: true }).ok);
+      const eff = m.effects.find(e =>
+        e.trigger === 'ACTIVATE_MAIN' &&
+        (!m.usedSkills || !m.usedSkills[e.id]) &&
+        EffectEngine.canActivateEffect(e, { caster: ai, opponent: player, sourceCard: m, sourceSlot: slotIdx, isAI: true }).ok
+      );
       if (eff) {
         m.usedSkills = m.usedSkills || {};
         m.usedSkills[eff.id] = true;
@@ -6121,7 +6349,7 @@ function aiCastBestNormalSpell(ai, player, diff) {
   const osIdx = ai.hand.findIndex(c => c.id === 'OS01' || c.id === 'OS02');
   if (osIdx !== -1) {
     const spell = ai.hand[osIdx];
-    const eff = (spell.effects || []).find(e => e.trigger === 'ON_CAST');
+    const eff = (spell.effects || []).find(e => e.trigger === 'CAST_SPELL' || e.trigger === 'ON_CAST');
     if (eff && EffectEngine.canActivateEffect(eff, { caster: ai, opponent: player, sourceCard: spell, isAI: true }).ok) {
       ai.hand.splice(osIdx, 1);
       ai.spellQuota.normalUsed += 1;
@@ -6353,20 +6581,17 @@ function createCardElement(card, ownerContestant = null) {
   const headerTypeText = card.tribe ? `${card.type} (${card.tribe}) ${statusTag}` : `${card.type} ${statusTag}`;
 
   div.innerHTML = `
-    <div>
-      <div class="card-header">
-        <span class="card-type">${headerTypeText.trim()}</span>
-      </div>
-      <div class="card-art">
-        <img src="${card.image}" alt="${card.name}">
-      </div>
-      <div class="card-name">${card.name}</div>
+    <div class="card-art">
+      <img src="${card.image}" alt="${card.name}">
     </div>
+    <div class="card-name">${card.name} ${statusTag}</div>
     ${card.type === 'Monster'
       ? `<div class="card-power">⚔️ ${effectivePower}</div>`
-      : `<div class="card-desc">${card.desc}</div>`
+      : ''
     }
   `;
+  div.addEventListener('mouseenter', () => updateCardDetailPanel(card));
+  div.addEventListener('click', () => updateCardDetailPanel(card));
 
   attachCardTooltipEvents(div, card, ownerContestant);
   return div;
@@ -6459,58 +6684,78 @@ function renderGame() {
 
   const isMobileView = window.innerWidth <= 768;
 
-  document.getElementById('ai-leader-name').textContent = ai.leader.name;
-  document.getElementById('ai-leader-hp').textContent = ai.leader.hp;
-  document.getElementById('ai-leader-img').src = ai.leader.image;
   document.getElementById('ai-deck-count').textContent = ai.deck.length;
   document.getElementById('ai-grave-count').textContent = ai.graveyard.length;
   document.getElementById('ai-hand-count').textContent = ai.hand.length;
   const aiDarkCountEl = document.getElementById('ai-dark-count');
   if (aiDarkCountEl) aiDarkCountEl.textContent = ai.darkDimension.length;
 
+  // แสดงตัวการ์ดลีดเดอร์ของ AI เต็มใบ พร้อมหลอดเลือด ❤️ มุมซ้ายบน
   const aiLeaderBox = document.getElementById('ai-leader-box');
-  if (gameState.selectedAttackerSlot !== null && !gameState.pendingAction) {
-    aiLeaderBox.classList.add('attack-target');
-  } else {
-    aiLeaderBox.classList.remove('attack-target');
+  if (aiLeaderBox) {
+    aiLeaderBox.innerHTML = '';
+    const aiLeaderCard = createCardElement(ai.leader, ai);
+    const aiHpBadge = document.createElement('div');
+    aiHpBadge.className = 'leader-hp-badge';
+    aiHpBadge.innerHTML = `❤️ <span id="ai-leader-hp">${ai.leader.hp}</span>/6`;
+    aiLeaderBox.appendChild(aiHpBadge);
+    aiLeaderBox.appendChild(aiLeaderCard);
+
+    if (gameState.selectedAttackerSlot !== null && !gameState.pendingAction) {
+      aiLeaderBox.classList.add('attack-target');
+    } else {
+      aiLeaderBox.classList.remove('attack-target');
+    }
+    aiLeaderBox.onclick = null;
+    aiLeaderBox.oncontextmenu = (e) => {
+      e.preventDefault();
+      hideCardTooltip();
+      openCardDetailModal(ai.leader, ai, aiLeaderBox);
+    };
+    aiLeaderBox.onmouseenter = (e) => showCardTooltip(e, ai.leader, ai);
+    aiLeaderBox.onmousemove = (e) => moveCardTooltip(e);
+    aiLeaderBox.onmouseleave = () => hideCardTooltip();
   }
-  aiLeaderBox.onclick = null;
-  aiLeaderBox.oncontextmenu = (e) => {
-    e.preventDefault();
-    hideCardTooltip();
-    openCardDetailModal(ai.leader, ai, aiLeaderBox);
-  };
-  aiLeaderBox.onmouseenter = (e) => showCardTooltip(e, ai.leader, ai);
-  aiLeaderBox.onmousemove = (e) => moveCardTooltip(e);
-  aiLeaderBox.onmouseleave = () => hideCardTooltip();
 
   const hasActiveLeaderSkill = Array.isArray(player.leader.effects) && player.leader.effects.some(e => e.trigger === 'ACTIVATE_LEADER');
-  const leaderSuffix = isMobileView
-    ? (hasActiveLeaderSkill ? (player.leader.abilityUsedThisTurn ? '✓' : '⚡') : '')
-    : (hasActiveLeaderSkill ? (player.leader.abilityUsedThisTurn ? '(ใช้สกิลแล้ว)' : '(คลิกใช้สกิล)') : '');
 
-  document.getElementById('player-leader-name').textContent = `${player.leader.name} ${leaderSuffix}`.trim();
-  document.getElementById('player-leader-hp').textContent = player.leader.hp;
-  document.getElementById('player-leader-img').src = player.leader.image;
   document.getElementById('player-deck-count').textContent = player.deck.length;
   document.getElementById('player-grave-count').textContent = player.graveyard.length;
   const playerDarkCountEl = document.getElementById('player-dark-count');
   if (playerDarkCountEl) playerDarkCountEl.textContent = player.darkDimension.length;
 
+  // แสดงตัวการ์ดลีดเดอร์ของผู้เล่นเต็มใบ พร้อมหลอดเลือด ❤️ มุมซ้ายบน
   const playerLeaderBox = document.getElementById('player-leader-box');
-  playerLeaderBox.style.cursor = 'pointer';
-  playerLeaderBox.onclick = () => {
-    hideCardTooltip();
-    handlePlayerSlotClick('leader');
-  };
-  playerLeaderBox.oncontextmenu = (e) => {
-    e.preventDefault();
-    hideCardTooltip();
-    openCardDetailModal(player.leader, player, playerLeaderBox);
-  };
-  playerLeaderBox.onmouseenter = (e) => showCardTooltip(e, player.leader, player);
-  playerLeaderBox.onmousemove = (e) => moveCardTooltip(e);
-  playerLeaderBox.onmouseleave = () => hideCardTooltip();
+  if (playerLeaderBox) {
+    playerLeaderBox.innerHTML = '';
+    const playerLeaderCard = createCardElement(player.leader, player);
+    if (hasActiveLeaderSkill) {
+      if (player.leader.abilityUsedThisTurn) {
+        playerLeaderCard.style.filter = 'grayscale(0.4)';
+      } else {
+        playerLeaderCard.style.boxShadow = '0 0 16px rgba(250, 204, 21, 0.9)';
+      }
+    }
+    const playerHpBadge = document.createElement('div');
+    playerHpBadge.className = 'leader-hp-badge';
+    playerHpBadge.innerHTML = `❤️ <span id="player-leader-hp">${player.leader.hp}</span>/6`;
+    playerLeaderBox.appendChild(playerHpBadge);
+    playerLeaderBox.appendChild(playerLeaderCard);
+
+    playerLeaderBox.style.cursor = 'pointer';
+    playerLeaderBox.onclick = () => {
+      hideCardTooltip();
+      handlePlayerSlotClick('leader');
+    };
+    playerLeaderBox.oncontextmenu = (e) => {
+      e.preventDefault();
+      hideCardTooltip();
+      openCardDetailModal(player.leader, player, playerLeaderBox);
+    };
+    playerLeaderBox.onmouseenter = (e) => showCardTooltip(e, player.leader, player);
+    playerLeaderBox.onmousemove = (e) => moveCardTooltip(e);
+    playerLeaderBox.onmouseleave = () => hideCardTooltip();
+  }
 
   document.getElementById('turn-indicator').textContent =
     `Turn ${gameState.turnCount} (${gameState.activeTurn === 'player' ? 'ตาคุณ' : 'ตาอีกฝ่าย'})`;
@@ -6626,12 +6871,36 @@ function applyStartOfGameLeaderEffects(contestant) {
   }
 }
 
+function startAIFirstTurn() {
+  if (gameState.gameOver) return;
+  gameState.activeTurn = 'ai';
+  gameState.turnCount = 1;
+  gameState.phase = 'Start Phase';
+
+  setLog(`🤖 ตาของ ${gameState.ai.name} (เริ่มก่อน): จั่วการ์ด 1 ใบและเตรียมพร้อมยูนิต`);
+  executeStartPhase(gameState.ai, () => {
+    renderGame();
+    setTimeout(() => {
+      if (gameState.gameOver) return;
+      gameState.phase = 'Main Phase';
+      setLog(`🤖 ${gameState.ai.name} เข้าสู่ Main Phase...`);
+      renderGame();
+      setTimeout(() => aiPlayMainPhase(onAIMainPhaseDone), 900);
+    }, 1000);
+  });
+}
+
 document.getElementById('btn-confirm-mulligan').addEventListener('click', () => {
   performMulligan(gameState.player, gameState.mulliganSelected);
   applyStartOfGameLeaderEffects(gameState.player);
   applyStartOfGameLeaderEffects(gameState.ai);
   document.getElementById('mulligan-modal').style.display = 'none';
-  startPlayerTurn();
+
+  if (gameState.activeTurn === 'ai') {
+    startAIFirstTurn();
+  } else {
+    startPlayerTurn();
+  }
 });
 
 // หน้าต่างเลือก (เช่น ขุนเหนือ) เปิดค้างโดยไม่ตั้ง pendingAction → ห้ามสับไพ่ใต้หน้าต่างนั้น
@@ -6865,13 +7134,34 @@ function initGame() {
   gameState.player = createContestant('Player', true, 'P1', currentDeckConfig.leaderId, currentDeckConfig.mainDeck);
   gameState.ai = createContestant('AI', false, 'AI', chosenAiLeaderId, chosenAiDeckList);
 
-  drawCards(gameState.player, 5);
-  drawCards(gameState.ai, 5);
-
-  document.getElementById('mulligan-modal').style.display = 'flex';
-  setLog(`🎲 เริ่มเกมใหม่! AI ใช้ [${gameState.ai.leader.name}] ระดับความยาก [${getAIDifficultyLabel(aiConfig.difficulty)}]`);
+  ensureZoneUIAndViewers();
+  setupInGameControlBar();
+  initArenaCustomBackground();
   renderGame();
-  renderMulliganModal();
+
+  const mulliganModal = document.getElementById('mulligan-modal');
+  if (mulliganModal) mulliganModal.style.display = 'none';
+
+  setLog(`⚔️ การประลองเริ่มต้น! AI ใช้ลีดเดอร์ [${gameState.ai.leader.name}] ระดับความยาก [${getAIDifficultyLabel(aiConfig.difficulty)}]`);
+
+  // ทอยเหรียญตัดสินว่าใครเริ่มก่อน แล้วสับกองการ์ด
+  startCoinToss({
+    onComplete: (isPlayerFirst) => {
+      gameState.activeTurn = isPlayerFirst ? 'player' : 'ai';
+      gameState.player.isFirstPlayer = isPlayerFirst;
+      gameState.ai.isFirstPlayer = !isPlayerFirst;
+      setLog(`🪙 ผลการทอยเหรียญ: ${isPlayerFirst ? 'ผู้เล่นเริ่มก่อน (หัว)' : 'AI เริ่มก่อน (ก้อย)'}! กำลังสับกองการ์ด...`);
+      
+      playDeckShuffleAnimation(() => {
+        drawCards(gameState.player, 5);
+        drawCards(gameState.ai, 5);
+        if (mulliganModal) mulliganModal.style.display = 'flex';
+        setLog(`🃏 จั่วการ์ดเริ่มต้น 5 ใบ! เข้าสู่ช่วง Mulligan (เปลี่ยนการ์ดเริ่มต้น)`);
+        renderGame();
+        renderMulliganModal();
+      });
+    }
+  });
 }
 
 
@@ -6887,7 +7177,8 @@ const pvpState = {
   localMulliganDone: false,
   remoteMulliganDone: false,
   isApplyingRemote: false,
-  waitingForDefense: false
+  waitingForDefense: false,
+  pendingChoiceResolver: null
 };
 
 function sendPvpPacket(packet) {
@@ -6942,7 +7233,11 @@ function bindMultiplayerButtons() {
 
       if (!pvpState.isMultiplayer) {
         applyStartOfGameLeaderEffects(gameState.ai);
-        startPlayerTurn();
+        if (gameState.activeTurn === 'ai') {
+          startAIFirstTurn();
+        } else {
+          startPlayerTurn();
+        }
         return;
       }
 
@@ -7084,6 +7379,25 @@ function handleIncomingPvpData(data) {
       syncBoardToOpponent();
     } else if (data.type === 'LOG_ONLY') {
       _originalSetLog(`🌐 [เพื่อน] ${data.message}`);
+    } else if (data.type === 'REQUEST_PVP_CHOICE') {
+      const opts = (data.options || []).map((o, idx) => ({
+        label: o.label,
+        color: o.color || '#3b82f6',
+        onSelect: () => {
+          sendPvpPacket({
+            type: 'SUBMIT_PVP_CHOICE',
+            choiceId: data.choiceId,
+            optionIndex: idx
+          });
+        }
+      }));
+      showChoiceModal(data.title || '❓ ฝ่ายตรงข้ามขอการตัดสินใจ', data.description || 'กรุณาเลือก 1 อย่าง:', opts);
+    } else if (data.type === 'SUBMIT_PVP_CHOICE') {
+      if (typeof pvpState.pendingChoiceResolver === 'function') {
+        const resolver = pvpState.pendingChoiceResolver;
+        pvpState.pendingChoiceResolver = null;
+        resolver(data.optionIndex);
+      }
     }
   } finally {
     pvpState.isApplyingRemote = false;
@@ -7117,12 +7431,26 @@ function startPvpMatchBoard(role) {
   const isFirst = (role === 'host');
   gameState.player = createContestant('Player', isFirst, isFirst ? 'P1' : 'P2', currentDeckConfig.leaderId, currentDeckConfig.mainDeck);
   gameState.ai = createContestant('ฝ่ายตรงข้าม', !isFirst, isFirst ? 'P2' : 'P1', 'L01', DEFAULT_DECK_LIST);
-  drawCards(gameState.player, 5);
 
-  document.getElementById('mulligan-modal').style.display = 'flex';
-  _originalSetLog(`🌐 เชื่อมต่อสำเร็จ! (${isFirst ? 'คุณเริ่มก่อน' : 'เพื่อนเริ่มก่อน'}) เลือก Mulligan`);
+  ensureZoneUIAndViewers();
+  initArenaCustomBackground();
   _originalRenderGame();
-  renderMulliganModal();
+
+  const mulliganModal = document.getElementById('mulligan-modal');
+  if (mulliganModal) mulliganModal.style.display = 'none';
+
+  startCoinToss({
+    forcedResult: isFirst,
+    onComplete: () => {
+      playDeckShuffleAnimation(() => {
+        drawCards(gameState.player, 5);
+        if (mulliganModal) mulliganModal.style.display = 'flex';
+        _originalSetLog(`🎉 เริ่มการดวลออนไลน์! (${isFirst ? 'คุณได้เริ่มก่อน' : 'เพื่อนได้เริ่มก่อน'}) เข้าสู่ช่วง Mulligan`);
+        _originalRenderGame();
+        renderMulliganModal();
+      });
+    }
+  });
 }
 
 function createPvpRoomAsHost() {
@@ -7191,3 +7519,262 @@ function setupLobbyEvents() {
 }
 
 setupLobbyEvents();
+
+/* ============================================================================
+   COMBAT LOG DRAWER & SOUND CONTROLS BINDING
+   ============================================================================ */
+let activeCombatLogFilter = 'ALL';
+
+function renderCombatLogModal() {
+  const listEl = document.getElementById('combat-log-list');
+  if (!listEl) return;
+  listEl.innerHTML = '';
+
+  const history = Array.isArray(gameState.matchLogHistory) ? gameState.matchLogHistory : [];
+  const filtered = activeCombatLogFilter === 'ALL'
+    ? history
+    : history.filter(item => item.category === activeCombatLogFilter);
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = '<div style="color:#64748b;text-align:center;padding:30px;font-size:14px;">ยังไม่มีประวัติในหมวดหมู่นี้</div>';
+    return;
+  }
+
+  filtered.forEach(item => {
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.gap = '6px';
+    row.style.alignItems = 'center';
+    row.style.padding = '8px 10px';
+    row.style.borderRadius = '8px';
+    row.style.fontSize = '13px';
+    row.style.lineHeight = '1.4';
+    row.style.background = item.isAI ? 'rgba(30, 27, 75, 0.7)' : 'rgba(15, 23, 42, 0.75)';
+    row.style.borderLeft = item.isAI ? '4px solid #ef4444' : '4px solid #10b981';
+    row.style.marginBottom = '6px';
+
+    // 1. ชิปบอกเลขเทิร์น
+    const turnBadge = document.createElement('span');
+    turnBadge.style.fontSize = '10.5px';
+    turnBadge.style.fontWeight = 'bold';
+    turnBadge.style.padding = '2px 8px';
+    turnBadge.style.borderRadius = '999px';
+    turnBadge.style.whiteSpace = 'nowrap';
+    turnBadge.style.background = '#1e293b';
+    turnBadge.style.border = '1px solid #475569';
+    turnBadge.style.color = '#e2e8f0';
+    turnBadge.textContent = `เทิร์น ${item.turn}`;
+
+    // 2. ชิปบอกฝั่ง (เรา vs คู่แข่ง)
+    const sideBadge = document.createElement('span');
+    sideBadge.style.fontSize = '10.5px';
+    sideBadge.style.fontWeight = 'bold';
+    sideBadge.style.padding = '2px 8px';
+    sideBadge.style.borderRadius = '999px';
+    sideBadge.style.whiteSpace = 'nowrap';
+    if (item.isAI) {
+      sideBadge.style.background = '#991b1b';
+      sideBadge.style.color = '#fecaca';
+      sideBadge.textContent = '🤖 คู่แข่ง';
+    } else {
+      sideBadge.style.background = '#065f46';
+      sideBadge.style.color = '#a7f3d0';
+      sideBadge.textContent = '👤 ฝั่งเรา';
+    }
+
+    // 3. ชิปประเภทการกระทำ (โจมตี / เวท / อัญเชิญ / ระบบ)
+    const catBadge = document.createElement('span');
+    catBadge.style.fontSize = '10px';
+    catBadge.style.fontWeight = 'bold';
+    catBadge.style.padding = '2px 7px';
+    catBadge.style.borderRadius = '999px';
+    catBadge.style.whiteSpace = 'nowrap';
+    if (item.category === 'ATTACK') {
+      catBadge.style.background = '#b91c1c';
+      catBadge.style.color = '#fee2e2';
+      catBadge.textContent = '⚔️ โจมตี';
+    } else if (item.category === 'SPELL') {
+      catBadge.style.background = '#7e22ce';
+      catBadge.style.color = '#f3e8ff';
+      catBadge.textContent = '✨ เวท';
+    } else if (item.category === 'SUMMON') {
+      catBadge.style.background = '#0f766e';
+      catBadge.style.color = '#ccfbf1';
+      catBadge.textContent = '🃏 อัญเชิญ';
+    } else {
+      catBadge.style.background = '#334155';
+      catBadge.style.color = '#e2e8f0';
+      catBadge.textContent = '📢 ระบบ';
+    }
+
+    const textSpan = document.createElement('span');
+    textSpan.style.color = item.isAI ? '#e0e7ff' : '#f8fafc';
+    textSpan.style.flex = '1';
+    textSpan.style.margin = '0 4px';
+    textSpan.textContent = item.message;
+
+    const timeSpan = document.createElement('span');
+    timeSpan.style.fontSize = '10px';
+    timeSpan.style.color = '#64748b';
+    timeSpan.style.whiteSpace = 'nowrap';
+    timeSpan.textContent = item.time;
+
+    row.appendChild(turnBadge);
+    row.appendChild(sideBadge);
+    row.appendChild(catBadge);
+    row.appendChild(textSpan);
+    row.appendChild(timeSpan);
+    listEl.appendChild(row);
+  });
+
+  listEl.scrollTop = listEl.scrollHeight;
+}
+
+function initCombatLogAndAudioControls() {
+  const btnOpenLog = document.getElementById('btn-open-combat-log');
+  const btnCloseLog = document.getElementById('btn-close-combat-log');
+  const logModal = document.getElementById('combat-log-modal');
+  if (btnOpenLog && logModal) {
+    btnOpenLog.onclick = () => {
+      renderCombatLogModal();
+      logModal.style.display = 'flex';
+    };
+  }
+  if (btnCloseLog && logModal) {
+    btnCloseLog.onclick = () => {
+      logModal.style.display = 'none';
+    };
+  }
+
+  // Filter buttons
+  document.querySelectorAll('.combat-filter-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.combat-filter-btn').forEach(b => {
+        b.classList.remove('is-active');
+        b.style.background = '#334155';
+      });
+      btn.classList.add('is-active');
+      btn.style.background = '#3b82f6';
+      activeCombatLogFilter = btn.dataset.filter || 'ALL';
+      renderCombatLogModal();
+    };
+  });
+
+  // Sound toggle button in game board
+  const btnSound = document.getElementById('btn-toggle-sound');
+  if (btnSound && window.BOF_AUDIO) {
+    const syncBoardSoundBtn = () => {
+      const on = window.BOF_AUDIO.isSoundEnabled();
+      btnSound.textContent = on ? '🔊' : '🔇';
+      btnSound.title = on ? 'เสียง: เปิด (คลิกเพื่อปิด)' : 'เสียง: ปิด (คลิกเพื่อเปิด)';
+      btnSound.style.background = on ? '#334155' : '#7f1d1d';
+    };
+    btnSound.onclick = () => {
+      window.BOF_AUDIO.toggleSound();
+      syncBoardSoundBtn();
+    };
+    syncBoardSoundBtn();
+  }
+
+  // Sound settings in Lobby settings dialog
+  const soundSwitch = document.getElementById('lb-setting-sound');
+  const volumeSlider = document.getElementById('lb-setting-volume');
+  if (soundSwitch && window.BOF_AUDIO) {
+    soundSwitch.checked = window.BOF_AUDIO.isSoundEnabled();
+    soundSwitch.onchange = () => {
+      window.BOF_AUDIO.setSoundEnabled(soundSwitch.checked);
+      if (btnSound) {
+        btnSound.textContent = soundSwitch.checked ? '🔊' : '🔇';
+        btnSound.style.background = soundSwitch.checked ? '#334155' : '#7f1d1d';
+      }
+    };
+  }
+  if (volumeSlider && window.BOF_AUDIO) {
+    volumeSlider.value = localStorage.getItem('bof_sound_volume') || '0.7';
+    volumeSlider.oninput = () => {
+      window.BOF_AUDIO.setVolume(volumeSlider.value);
+    };
+  }
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCombatLogAndAudioControls);
+  } else {
+    initCombatLogAndAudioControls();
+  }
+}
+
+
+function updateCardDetailPanel(card) {
+  if (!card) return;
+  const desc = card.desc || (typeof getCardDescription === 'function' ? getCardDescription(card) : '');
+  const html = `
+    <div style="display:flex;gap:6px;align-items:flex-start;">
+      <img src="${card.image || ''}" style="width:38px;aspect-ratio:750/1050;border-radius:4px;border:1px solid #64748b;object-fit:cover;" alt="">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11.5px;font-weight:bold;color:#fde047;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${card.name}</div>
+        <div style="font-size:10px;color:#94a3b8;">${card.tribe ? `[${card.tribe}]` : ''} ${card.power !== undefined ? `⚔️ ${card.power}` : (card.type || '')}</div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:#e2e8f0;margin-top:4px;line-height:1.35;max-height:92px;overflow-y:auto;white-space:pre-line;">${desc || 'ไม่มีความสามารถ'}</div>
+  `;
+  const pBox = document.getElementById('player-detail-content');
+  if (pBox) pBox.innerHTML = html;
+  const aBox = document.getElementById('ai-detail-content');
+  if (aBox) aBox.innerHTML = html;
+}
+
+function initArenaCustomBackground() {
+  const arenaEl = document.getElementById('bof-game-arena') || document.querySelector('.game-container');
+  const lobbyInput = document.getElementById('lobby-arena-bg-input');
+  const lobbyResetBtn = document.getElementById('btn-lobby-reset-arena-bg');
+  const statusEl = document.getElementById('lobby-arena-bg-status');
+
+  const updateStatus = () => {
+    const savedBg = localStorage.getItem('bof_arena_bg');
+    if (statusEl) {
+      statusEl.style.display = savedBg ? 'block' : 'none';
+    }
+    if (savedBg && arenaEl) {
+      arenaEl.style.backgroundImage = `url("${savedBg}")`;
+      arenaEl.style.backgroundSize = 'cover';
+      arenaEl.style.backgroundPosition = 'center';
+    } else if (arenaEl) {
+      arenaEl.style.backgroundImage = '';
+    }
+  };
+
+  updateStatus();
+
+  if (lobbyInput && !lobbyInput._bofBound) {
+    lobbyInput._bofBound = true;
+    lobbyInput.addEventListener('change', e => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = evt => {
+        const dataUrl = evt.target.result;
+        try {
+          localStorage.setItem('bof_arena_bg', dataUrl);
+          updateStatus();
+          alert('🖼️ บันทึกภาพพื้นหลังสนามประลองใหม่เรียบร้อยแล้ว!');
+        } catch (err) {
+          alert('ขนาดไฟล์ภาพใหญ่เกินไป กรุณาเลือกไฟล์ภาพที่มีขนาดเล็กลง');
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (lobbyResetBtn && !lobbyResetBtn._bofBound) {
+    lobbyResetBtn._bofBound = true;
+    lobbyResetBtn.addEventListener('click', () => {
+      localStorage.removeItem('bof_arena_bg');
+      updateStatus();
+      alert('🔄 รีเซ็ตภาพพื้นหลังสนามกลับเป็นค่าเริ่มต้นเรียบร้อยแล้ว');
+    });
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground());

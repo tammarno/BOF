@@ -80,8 +80,56 @@
   }
 
   function getAvatarImage(avatarId) {
+    if (currentUser && currentUser.customAvatar) return currentUser.customAvatar;
     const found = AVATAR_LEADERS.find(a => a.id === avatarId) || AVATAR_LEADERS[0];
     return found.image;
+  }
+
+  function generateAccountSyncKey(profile) {
+    if (!profile) return '';
+    const payload = {
+      v: 1,
+      username: profile.username,
+      passwordHash: profile.passwordHash,
+      avatarId: profile.avatarId || 'L01',
+      customAvatar: profile.customAvatar || null,
+      coins: typeof profile.coins === 'number' ? profile.coins : 2000,
+      shards: typeof profile.shards === 'number' ? profile.shards : 150,
+      ownedCards: profile.ownedCards || {},
+      packsOpened: Number(profile.packsOpened || 0),
+      wins: Number(profile.wins || 0),
+      losses: Number(profile.losses || 0),
+      matches: Number(profile.matches || 0),
+      savedDeck: profile.savedDeck || null,
+      pity: profile.pity || {},
+      dailyProgress: profile.dailyProgress || null,
+      claimedQuests: profile.claimedQuests || {},
+      exportedAt: Date.now()
+    };
+    return btoa(encodeURIComponent(JSON.stringify(payload)));
+  }
+
+  function parseAccountSyncKey(encoded) {
+    try {
+      const json = decodeURIComponent(atob(encoded.trim()));
+      const data = JSON.parse(json);
+      if (!data.username) throw new Error('ไม่พบข้อมูลชื่อผู้ใช้ในรหัสย้ายเครื่อง');
+      return data;
+    } catch (e) {
+      throw new Error('รหัสย้ายเครื่องไม่ถูกต้องหรือชำรุด กรุณาตรวจสอบอีกครั้ง');
+    }
+  }
+
+  async function importAccountSyncKey(rawKey) {
+    const profile = parseAccountSyncKey(rawKey);
+    const key = usernameKey(profile.username);
+    const db = loadLocalAccounts();
+    db[key] = { ...profile, updatedAt: Date.now() };
+    saveLocalAccounts(db);
+    currentUser = db[key];
+    applyProfileDeckToGame(currentUser);
+    await persistCurrentUserProfile();
+    return currentUser;
   }
 
   function loadLocalAccounts() {
@@ -334,7 +382,7 @@
     const db = loadLocalAccounts();
     const record = db[key];
     if (!record) {
-      throw new Error('ไม่พบชื่อผู้ใช้นี้ กรุณาสมัครสมาชิกก่อน');
+      throw new Error(`⚠️ ไม่พบบัญชี "${username}" ในเครื่องนี้\n• หากคุณเคยสมัครในเครื่องอื่นไว้ ให้เลือกแท็บ "🔑 กู้คืน/ย้ายเครื่อง" เพื่อนำเข้าบัญชี\n• หรือเลือกแท็บ "สมัครสมาชิกใหม่" เพื่อสร้างบัญชีใหม่`);
     }
     const passHash = await hashPassword(password);
     if (record.passwordHash && record.passwordHash !== passHash) {
@@ -428,6 +476,8 @@
       const sWinrate = document.getElementById('bof-stat-winrate');
 
       if (pAvatar) pAvatar.src = getAvatarImage(currentUser.avatarId);
+      const resetBtn = document.getElementById('bof-btn-reset-avatar');
+      if (resetBtn) resetBtn.style.display = currentUser.customAvatar ? 'inline-block' : 'none';
       if (pName) pName.textContent = currentUser.username;
 
       const deckCfg = currentUser.savedDeck || readCurrentDeckFromStorage();
@@ -455,19 +505,33 @@
         renderAuthDialogContent();
       });
     } else {
-      if (titleEl) titleEl.textContent = authMode === 'login' ? '🔐 เข้าสู่ระบบ' : '✨ สมัครสมาชิกใหม่';
+      if (titleEl) {
+        titleEl.textContent = authMode === 'login' ? '🔐 เข้าสู่ระบบ' : (authMode === 'register' ? '✨ สมัครสมาชิกใหม่' : '🔑 กู้คืน/ย้ายเครื่อง');
+      }
       if (formView) formView.style.display = 'block';
       if (profileView) profileView.style.display = 'none';
 
       const tabLogin = document.getElementById('bof-tab-login');
       const tabReg = document.getElementById('bof-tab-register');
+      const tabSync = document.getElementById('bof-tab-sync');
+      const formEl = document.getElementById('bof-auth-form');
+      const syncView = document.getElementById('bof-auth-sync-view');
       const avatarField = document.getElementById('bof-avatar-field');
       const submitBtn = document.getElementById('bof-auth-submit-btn');
 
       tabLogin?.classList.toggle('is-active', authMode === 'login');
       tabReg?.classList.toggle('is-active', authMode === 'register');
-      if (avatarField) avatarField.style.display = authMode === 'register' ? 'block' : 'none';
-      if (submitBtn) submitBtn.textContent = authMode === 'login' ? 'เข้าสู่ระบบ ▶' : 'สร้างบัญชีและเริ่มซิงค์ ▶';
+      tabSync?.classList.toggle('is-active', authMode === 'sync');
+
+      if (authMode === 'sync') {
+        if (formEl) formEl.style.display = 'none';
+        if (syncView) syncView.style.display = 'block';
+      } else {
+        if (formEl) formEl.style.display = 'block';
+        if (syncView) syncView.style.display = 'none';
+        if (avatarField) avatarField.style.display = authMode === 'register' ? 'block' : 'none';
+        if (submitBtn) submitBtn.textContent = authMode === 'login' ? 'เข้าสู่ระบบ ▶' : 'สร้างบัญชีและเริ่มซิงค์ ▶';
+      }
 
       const handlePickStarterDeck = newId => {
         selectedAvatarId = newId;
@@ -600,6 +664,107 @@
       renderAuthDialogContent();
     });
 
+    document.getElementById('bof-tab-sync')?.addEventListener('click', () => {
+      authMode = 'sync';
+      renderAuthDialogContent();
+    });
+
+    // ปุ่มคัดลอกรหัสย้ายเครื่อง
+    document.getElementById('bof-btn-copy-sync-key')?.addEventListener('click', () => {
+      if (!currentUser) return;
+      const keyStr = generateAccountSyncKey(currentUser);
+      navigator.clipboard.writeText(keyStr).then(() => {
+        setStatusMessage('📋 คัดลอกรหัสย้ายเครื่องสำเร็จ! นำไปวางในเครื่องอื่นเพื่อเล่นต่อได้ทันที', false);
+      }).catch(() => {
+        prompt('รหัสย้ายเครื่องของคุณ (กด Ctrl+C เพื่อคัดลอก):', keyStr);
+      });
+    });
+
+    // ปุ่มดาวน์โหลดไฟล์สำรอง .bof
+    document.getElementById('bof-btn-download-backup')?.addEventListener('click', () => {
+      if (!currentUser) return;
+      const keyStr = generateAccountSyncKey(currentUser);
+      const blob = new Blob([keyStr], { type: 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `bof_account_${currentUser.username}.bof`;
+      a.click();
+      setStatusMessage('💾 บันทึกไฟล์สำรองบัญชี .bof สำเร็จ!', false);
+    });
+
+    // ปุ่มนำเข้ารหัสย้ายเครื่อง
+    document.getElementById('bof-btn-import-sync')?.addEventListener('click', async () => {
+      const keyInp = document.getElementById('bof-input-sync-key');
+      if (!keyInp || !keyInp.value.trim()) {
+        setStatusMessage('⚠️ กรุณาวางรหัสย้ายเครื่องก่อนกดยืนยัน', true);
+        return;
+      }
+      try {
+        await importAccountSyncKey(keyInp.value.trim());
+        keyInp.value = '';
+        renderAuthDialogContent();
+        setStatusMessage('🎉 กู้คืนบัญชีและเข้าสู่ระบบสำเร็จ!', false);
+      } catch (err) {
+        setStatusMessage(err.message || 'รหัสย้ายเครื่องไม่ถูกต้อง', true);
+      }
+    });
+
+    // เลือกไฟล์ .bof จากเครื่อง
+    document.getElementById('bof-file-import-account')?.addEventListener('change', e => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async evt => {
+        try {
+          await importAccountSyncKey(evt.target.result.trim());
+          renderAuthDialogContent();
+          setStatusMessage('🎉 นำเข้าไฟล์บัญชีสำเร็จ!', false);
+        } catch (err) {
+          setStatusMessage(err.message || 'ไฟล์บัญชีไม่ถูกต้อง', true);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // อัปโหลดรูปโปรไฟล์ของฉันเอง
+    document.getElementById('bof-upload-custom-avatar')?.addEventListener('change', e => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = evt => {
+        const img = new Image();
+        img.onload = async () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 160;
+          let w = img.width, h = img.height;
+          if (w > h) { if (w > maxDim) { h = (h * maxDim) / w; w = maxDim; } }
+          else { if (h > maxDim) { w = (w * maxDim) / h; h = maxDim; } }
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          if (currentUser) {
+            currentUser.customAvatar = dataUrl;
+            await persistCurrentUserProfile();
+            renderAuthDialogContent();
+            setStatusMessage('✨ อัปโหลดรูปโปรไฟล์ใหม่สำเร็จ!', false);
+          }
+        };
+        img.src = evt.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // ปุ่มรีเซ็ตรูปโปรไฟล์กลับเป็นค่าเริ่มต้น
+    document.getElementById('bof-btn-reset-avatar')?.addEventListener('click', async () => {
+      if (currentUser && currentUser.customAvatar) {
+        delete currentUser.customAvatar;
+        await persistCurrentUserProfile();
+        renderAuthDialogContent();
+        setStatusMessage('🔄 รีเซ็ตรูปโปรไฟล์กลับเป็นรูปเริ่มต้นแล้ว', false);
+      }
+    });
+
     document.getElementById('bof-auth-form')?.addEventListener('submit', async e => {
       e.preventDefault();
       const userInp = document.getElementById('bof-input-username');
@@ -656,10 +821,12 @@
     syncEconomy: eco => {
       if (!currentUser || !eco) return;
       currentUser.coins = eco.coins;
-      currentUser.shards = eco.shards;
-      currentUser.pityCount = eco.pityCount;
+      currentUser.shards = typeof eco.shards === 'number' ? eco.shards : (currentUser.shards || 150);
+      currentUser.pity = eco.pity;
       currentUser.ownedCards = eco.ownedCards;
       currentUser.packsOpened = eco.packsOpened;
+      currentUser.lastDailyClaimDate = eco.lastDailyClaimDate;
+      currentUser.claimedQuests = eco.claimedQuests;
       persistCurrentUserProfile();
     }
   };

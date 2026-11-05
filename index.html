@@ -147,6 +147,34 @@
         <input type="checkbox" role="switch" id="lb-setting-shuffle" class="lb-switch-input">
         <span class="lb-switch-track" aria-hidden="true"></span>
       </label>
+      <label class="lb-switch" style="margin-top: 10px;">
+        <span class="lb-switch-text">เสียงเอฟเฟกต์ (Sound FX)</span>
+        <input type="checkbox" role="switch" id="lb-setting-sound" class="lb-switch-input" checked>
+        <span class="lb-switch-track" aria-hidden="true"></span>
+      </label>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px; font-size: 13px; color: #cbd5e1; padding: 0 4px;">
+        <span>ระดับเสียง</span>
+        <input type="range" id="lb-setting-volume" min="0" max="1" step="0.05" value="0.7" style="width: 130px; accent-color: #38bdf8;">
+      </div>
+
+      <!-- ปรับแต่งภาพพื้นหลังสนามประลองจากหน้าล็อบบี้ -->
+      <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(148, 163, 184, 0.2);">
+        <label style="display: block; font-size: 13px; font-weight: bold; color: #fde047; margin-bottom: 4px;">
+          🖼️ ภาพพื้นหลังสนามประลอง (Arena Background)
+        </label>
+        <p style="font-size: 11px; color: #94a3b8; margin: 0 0 10px 0;">เลือกรูปภาพจากเครื่องเพื่อใช้เป็นภาพพื้นหลังกระดานประลอง</p>
+        <div style="display: flex; gap: 8px;">
+          <label class="btn" style="flex: 1; background: #2563eb; cursor: pointer; text-align: center; padding: 7px 10px; font-size: 12.5px; border-radius: 8px;">
+            📁 อัปโหลดรูปภาพ
+            <input type="file" id="lobby-arena-bg-input" accept="image/*" style="display:none;">
+          </label>
+          <button type="button" id="btn-lobby-reset-arena-bg" class="btn" style="background: #475569; padding: 7px 12px; font-size: 12.5px; border-radius: 8px;">
+            🔄 รีเซ็ต
+          </button>
+        </div>
+        <p id="lobby-arena-bg-status" style="margin: 6px 0 0 0; font-size: 11px; color: #4ade80; display: none;">✓ กำลังใช้ภาพพื้นหลังกำหนดเอง</p>
+      </div>
+
       <button type="button" class="lb-dialog-close" data-close>ปิด</button>
     </dialog>
 
@@ -171,6 +199,7 @@
           <div class="bof-auth-tabs" role="tablist">
             <button type="button" id="bof-tab-login" class="bof-auth-tab is-active">เข้าสู่ระบบ</button>
             <button type="button" id="bof-tab-register" class="bof-auth-tab">สมัครสมาชิกใหม่</button>
+            <button type="button" id="bof-tab-sync" class="bof-auth-tab">🔑 กู้คืน/ย้ายเครื่อง</button>
           </div>
 
           <form id="bof-auth-form" autocomplete="off">
@@ -194,6 +223,24 @@
 
             <button type="submit" id="bof-auth-submit-btn" class="bof-auth-submit">เข้าสู่ระบบ ▶</button>
           </form>
+
+          <!-- มุมมองพิเศษ: นำเข้ารหัสย้ายเครื่อง / สำรองข้อมูล -->
+          <div id="bof-auth-sync-view" style="display: none; margin-top: 10px;">
+            <p style="font-size:12.5px;color:#cbd5e1;margin-bottom:12px;line-height:1.5;">
+              หากคุณเคยสมัครบัญชีไว้ในเครื่องอื่นหรือมือถือ ให้วาง <b>"รหัสย้ายเครื่อง (Account Key)"</b> หรือเลือกไฟล์สำรอง <code>.bof</code> เพื่อดึงข้อมูลเดิมทั้งหมดมาเล่นต่อได้ทันที!
+            </p>
+            <div class="bof-auth-field">
+              <label for="bof-input-sync-key">📋 วางรหัสย้ายเครื่อง (Account Sync Key)</label>
+              <textarea id="bof-input-sync-key" class="bof-auth-input" style="height:76px;resize:none;font-family:monospace;font-size:11px;" placeholder="วางรหัสที่คัดลอกมาจากเครื่องเดิม..."></textarea>
+            </div>
+            <div style="display:flex;gap:10px;margin-bottom:6px;">
+              <button type="button" id="bof-btn-import-sync" class="bof-auth-submit" style="flex:1;">📥 กู้คืนบัญชีและเข้าสู่ระบบ</button>
+              <label class="bof-auth-submit" style="flex:1;background:#334155;text-align:center;cursor:pointer;line-height:38px;font-size:13px;">
+                📁 เลือกไฟล์ .bof
+                <input type="file" id="bof-file-import-account" accept=".bof,.json" style="display:none;">
+              </label>
+            </div>
+          </div>
         </div>
 
         <!-- มุมมองที่ 2: ข้อมูลโปรไฟล์เมื่อล็อกอินแล้ว -->
@@ -221,8 +268,26 @@
             </div>
           </div>
 
+          <div style="background:#151833;border:1px solid #334155;border-radius:12px;padding:12px;margin:12px 0;">
+            <div style="font-size:13px;font-weight:bold;color:#fde047;margin-bottom:4px;">📦 สำรองข้อมูล & ย้ายไปเล่นเครื่องอื่น</div>
+            <p style="font-size:11.5px;color:#94a3b8;margin:0 0 10px 0;">คัดลอกรหัสนี้ไปกรอกในเครื่องอื่น หรือดาวน์โหลดเก็บไว้ เพื่อเล่นบัญชีเดิมได้ทุกที่</p>
+            <div style="display:flex;gap:8px;">
+              <button type="button" id="bof-btn-copy-sync-key" class="bof-auth-tab is-active" style="flex:1;font-size:12px;padding:6px 10px;">📋 คัดลอกรหัสย้ายเครื่อง</button>
+              <button type="button" id="bof-btn-download-backup" class="bof-auth-tab" style="flex:1;font-size:12px;padding:6px 10px;background:#334155;">💾 บันทึกไฟล์ .bof</button>
+            </div>
+          </div>
+
           <div class="bof-auth-field">
-            <label>🖼️ เปลี่ยนรูปโปรไฟล์ประจำตัว</label>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <label style="margin:0;">🖼️ เปลี่ยนรูปโปรไฟล์ประจำตัว</label>
+              <div style="display:flex;gap:6px;">
+                <label class="bof-quest-claim-btn" style="cursor:pointer;padding:3px 10px;font-size:11px;background:#2563eb;">
+                  📷 อัปโหลดรูปของฉัน
+                  <input type="file" id="bof-upload-custom-avatar" accept="image/*" style="display:none;">
+                </label>
+                <button type="button" id="bof-btn-reset-avatar" class="bof-quest-claim-btn" style="padding:3px 8px;font-size:11px;background:#475569;display:none;">🔄 รีเซ็ต</button>
+              </div>
+            </div>
             <div id="bof-profile-avatar-picker" class="bof-avatar-grid"></div>
           </div>
 
@@ -247,6 +312,11 @@
               <span id="bof-shop-coin-val">2,000</span>
               <span style="font-size:12px;color:#cbd5e1;">Coins</span>
             </div>
+            <div class="bof-shop-balance" style="border-color:#a855f7;">
+              <span>🔮</span>
+              <span id="bof-shop-shard-val">0</span>
+              <span style="font-size:12px;color:#cbd5e1;">Shards</span>
+            </div>
             <div class="bof-shop-code-box">
               <input type="text" id="bof-shop-code-input" class="bof-shop-code-input" placeholder="กรอกโค้ดรับเหรียญ..." autocomplete="off">
               <button type="button" id="bof-shop-code-btn" class="bof-shop-bonus-btn">🎁 ใช้โค้ด</button>
@@ -260,19 +330,20 @@
         <!-- พื้นที่แสดงตัวอย่างฟอยล์ 4 ระดับ + ตัวเลือกแอนิเมชันเปิดซอง 3 แบบ + ตู้ซองทั้ง 6 สายเด็ค -->
         <div id="bof-shop-dynamic-body"></div>
 
-        <!-- ฉากแอนิเมชันเปิดซองสุ่มการ์ด (วงเวทมิติพลังงาน) -->
-        <div id="bof-pack-anim-stage" class="bof-pack-anim-stage"></div>
+      </div>
 
-        <!-- หน้าต่างป๊อปอัปแสดงผลการเปิดซองและพลิกการ์ด 3D (ขึ้นทันทีหลังจบแอนิเมชัน!) -->
-        <div id="bof-reveal-stage" class="bof-reveal-stage">
-          <div class="bof-reveal-box">
-            <strong id="bof-reveal-title" style="color:#fde047;font-size:16px;text-align:center;">✨ ผลการเปิดซองการ์ด</strong>
-            <div id="bof-reveal-summary" class="bof-reveal-summary"></div>
-            <div id="bof-reveal-cards" class="bof-reveal-cards"></div>
-            <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:4px;">
-              <button type="button" id="bof-reveal-flip-all" class="bof-buy-btn" style="width:auto;padding:0 22px;height:40px;font-size:14px;">🔄 พลิกเปิดทั้งหมด</button>
-              <button type="button" id="bof-reveal-hide" class="bof-buy-btn is-multi" style="width:auto;padding:0 22px;height:40px;font-size:14px;background:#475569;color:#fff;">เก็บเข้าคลัง</button>
-            </div>
+      <!-- ฉากแอนิเมชันเปิดซองสุ่มการ์ด (วงเวทมิติพลังงาน - แสดงกลางจอระดับสูงสุด) -->
+      <div id="bof-pack-anim-stage" class="bof-pack-anim-stage"></div>
+
+      <!-- หน้าต่างป๊อปอัปแสดงผลการเปิดซองและพลิกการ์ด 3D (ขึ้นทันทีหลังจบแอนิเมชัน!) -->
+      <div id="bof-reveal-stage" class="bof-reveal-stage">
+        <div class="bof-reveal-box">
+          <strong id="bof-reveal-title" style="color:#fde047;font-size:16px;text-align:center;">✨ ผลการเปิดซองการ์ด</strong>
+          <div id="bof-reveal-summary" class="bof-reveal-summary"></div>
+          <div id="bof-reveal-cards" class="bof-reveal-cards"></div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:4px;">
+            <button type="button" id="bof-reveal-flip-all" class="bof-buy-btn" style="width:auto;padding:0 22px;height:40px;font-size:14px;">🔄 พลิกเปิดทั้งหมด</button>
+            <button type="button" id="bof-reveal-hide" class="bof-buy-btn is-multi" style="width:auto;padding:0 22px;height:40px;font-size:14px;background:#475569;color:#fff;">เก็บเข้าคลัง</button>
           </div>
         </div>
       </div>
@@ -309,45 +380,53 @@
     </div>
   </div>
 
-  <!-- ==================== กระดานเล่นเกมหลัก (GAME CONTAINER) ==================== -->
-  <div class="game-container">
-    <!-- โซนที่ 1 (ส่วนบน): ข้อมูลผู้เล่นฝ่ายตรงข้ามและสนามการ์ด -->
-    <div class="side-zone ai-side-zone">
+  <!-- ==================== กระดานเล่นเกมหลัก (GAME CONTAINER - MAT LAYOUT) ==================== -->
+  <div class="game-container" id="bof-game-arena">
+    <!-- โซนที่ 1 (ส่วนบน): สนามฝั่งคู่แข่ง (AI Half) ตามผังภาพ -->
+    <div class="mat-half ai-mat-half">
       <div class="side-header-bar">
         <span>🤖 <b>ฝ่ายตรงข้าม</b></span>
         <span class="hand-counter-pill">✋ มือ: <b id="ai-hand-count">0</b> ใบ</span>
       </div>
-      <div class="field-row">
-        <div class="info-box leader-box" id="ai-leader-box">
-          <div class="leader-role-tag">👑 AI Leader</div>
-          <img id="ai-leader-img" class="leader-art" src="" alt="AI Leader">
-          <div class="leader-meta">
-            <div id="ai-leader-name" class="leader-name-text">-</div>
-            <div class="hp-badge">❤️ <span id="ai-leader-hp">6</span>/6</div>
+
+      <div class="mat-grid-row">
+        <!-- ฝั่งซ้าย AI: [ดรอปโซน / Grave] บน, [กองการ์ด / Deck] ล่าง -->
+        <div class="mat-col mat-side-col">
+          <div class="info-box grave-box" id="ai-grave-box" title="คลิกดูการ์ดในดรอปโซนของคู่แข่ง">
+            <div class="pile-label">🪦 ดรอปโซน</div>
+            <div class="deck-count-badge grave-badge">DROP <span id="ai-grave-count">0</span></div>
+          </div>
+          <div class="info-box deck-box" id="ai-deck-box" title="กองการ์ดของคู่แข่ง">
+            <div class="pile-label">📚 กองการ์ด</div>
+            <div class="deck-count-badge">DECK <span id="ai-deck-count">20</span></div>
           </div>
         </div>
 
-        <div class="board-slots" id="ai-board">
-          <div class="slot" data-slot="0">ช่อง 1</div>
-          <div class="slot" data-slot="1">ช่อง 2</div>
-          <div class="slot" data-slot="2">ช่อง 3</div>
+        <!-- ตรงกลาง AI: [ช่องตัวละคร 1] ซ้าย, [ลีดเดอร์ บน & ช่อง 2 ล่าง] กลาง, [ช่องตัวละคร 3] ขวา -->
+        <div class="mat-center-field">
+          <div class="board-slots" id="ai-board">
+            <div class="slot" data-slot="0">ช่อง 1</div>
+            <div class="center-leader-stack ai-leader-stack">
+              <div class="leader-card-slot" id="ai-leader-box" title="AI Leader"></div>
+              <div class="slot" data-slot="1">ช่อง 2</div>
+            </div>
+            <div class="slot" data-slot="2">ช่อง 3</div>
+          </div>
         </div>
 
-        <div class="pile-group">
-          <div class="info-box deck-box">
-            <div class="pile-label">📚 กอง</div>
-            <h2 id="ai-deck-count">20</h2>
-          </div>
-          <div class="info-box grave-box">
-            <div class="pile-label">🪦 นรก</div>
-            <h2 id="ai-grave-count">0</h2>
+        <!-- ฝั่งขวา AI: [มิติมืด] -->
+        <div class="mat-col mat-side-col">
+          <div class="info-box dark-box" id="ai-dark-box" title="คลิกดูการ์ดในมิติมืดของคู่แข่ง">
+            <div class="pile-label">🌌 มิติมืด</div>
+            <div class="deck-count-badge dark-badge">DARK <span id="ai-dark-count">0</span></div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- โซนที่ 2 (ส่วนกลาง): สถานะเทิร์น ปุ่มควบคุม และ Battle Log แบบย่อ/ขยายได้ -->
-    <div class="middle-hud-zone">
+    <!-- โซนที่ 2 (เส้นประคั่นกลางกระดาน & แถบควบคุมสถานะ) -->
+    <div class="mat-divider-zone">
+      <div class="mat-divider-line"></div>
       <div class="center-bar">
         <div class="turn-phase-group">
           <strong id="turn-indicator">Turn 1</strong>
@@ -361,59 +440,89 @@
           <button class="btn" id="btn-next-phase" disabled>⚔️ เข้าสู่ Battle Phase</button>
           <button class="btn" id="btn-end-turn" style="background:#dc2626;" disabled>⏭️ จบเทิร์น</button>
           <button class="btn" id="btn-open-deck" style="background:#8b5cf6;">🃏 จัดเด็ค</button>
+          <button class="btn" id="btn-toggle-sound" style="background:#334155; padding: 6px 10px;" title="เปิด/ปิดเสียง">🔊</button>
+          <button class="btn" id="btn-open-combat-log" style="background:#0284c7; padding: 6px 12px;" title="ประวัติการต่อสู้">📜 ประวัติ</button>
         </div>
       </div>
-
-      <!-- Battle Log แบบแถบ 1 บรรทัด (คลิกเพื่อขยายดูประวัติโดยไม่ดันหน้าจอ) -->
-      <div class="action-log-container" id="action-log-container">
-        <div class="action-log-header" id="action-log-toggle" title="แตะเพื่อเปิด/ปิดประวัติย้อนหลัง">
-          <span class="log-latest-icon">📜</span>
-          <span id="action-log" class="action-log-latest-text">🎲 ยินดีต้อนรับ! กรุณาเลือกเปลี่ยนการ์ด Mulligan เพื่อเริ่มเกม</span>
-          <span class="log-expand-btn" id="log-expand-indicator">▲ ประวัติ</span>
-        </div>
-        <div class="action-log-scrollbox" id="action-log-scrollbox">
-          <div class="log-item">🎲 ยินดีต้อนรับ! กรุณาเลือกเปลี่ยนการ์ด Mulligan เพื่อเริ่มเกม</div>
-        </div>
-      </div>
+      <!-- Hidden element to keep setLog functioning safely without displaying on board -->
+      <span id="action-log" style="display:none;"></span>
     </div>
 
-    <!-- โซนที่ 3 (ส่วนล่าง): สนามของผู้เล่น และการ์ดในมือที่เลื่อนแนวนอนได้ -->
-    <div class="side-zone player-side-zone">
-      <div class="field-row">
-        <div class="info-box leader-box" id="player-leader-box">
-          <div class="leader-role-tag">👑 Player Leader</div>
-          <img id="player-leader-img" class="leader-art" src="" alt="Player Leader">
-          <div class="leader-meta">
-            <div id="player-leader-name" class="leader-name-text">-</div>
-            <div class="hp-badge">❤️ <span id="player-leader-hp">6</span>/6</div>
+    <!-- โซนที่ 3 (ส่วนล่าง): สนามฝั่งผู้เล่น (Player Half) กลับด้านแบบสมมาตรตามผังภาพ -->
+    <div class="mat-half player-mat-half">
+      <div class="mat-grid-row">
+        <!-- ฝั่งซ้าย Player: [มิติมืด] -->
+        <div class="mat-col mat-side-col">
+          <div class="info-box dark-box" id="player-dark-box" title="คลิกดูการ์ดในมิติมืดของคุณ">
+            <div class="pile-label">🌌 มิติมืด</div>
+            <div class="deck-count-badge dark-badge">DARK <span id="player-dark-count">0</span></div>
           </div>
         </div>
 
-        <div class="board-slots" id="player-board">
-          <div class="slot" data-slot="0">ช่อง 1</div>
-          <div class="slot" data-slot="1">ช่อง 2</div>
-          <div class="slot" data-slot="2">ช่อง 3</div>
+        <!-- ตรงกลาง Player: [ช่องตัวละคร 1] ซ้าย, [ช่อง 2 บน & ลีดเดอร์ ล่าง] กลาง, [ช่องตัวละคร 3] ขวา -->
+        <div class="mat-center-field">
+          <div class="board-slots" id="player-board">
+            <div class="slot" data-slot="0">ช่อง 1</div>
+            <div class="center-leader-stack player-leader-stack">
+              <div class="slot" data-slot="1">ช่อง 2</div>
+              <div class="leader-card-slot" id="player-leader-box" title="Player Leader"></div>
+            </div>
+            <div class="slot" data-slot="2">ช่อง 3</div>
+          </div>
         </div>
 
-        <div class="pile-group">
-          <div class="info-box deck-box">
-            <div class="pile-label">📚 กอง</div>
-            <h2 id="player-deck-count">20</h2>
+        <!-- ฝั่งขวา Player: [กองการ์ด / Deck] บน, [ดรอปโซน / Grave] ล่าง -->
+        <div class="mat-col mat-side-col">
+          <div class="info-box deck-box" id="player-deck-box" title="กองการ์ดของคุณ">
+            <div class="pile-label">📚 กองการ์ด</div>
+            <div class="deck-count-badge">DECK <span id="player-deck-count">20</span></div>
           </div>
-          <div class="info-box grave-box">
-            <div class="pile-label">🪦 นรก</div>
-            <h2 id="player-grave-count">0</h2>
+          <div class="info-box grave-box" id="player-grave-box" title="คลิกดูการ์ดในดรอปโซนของคุณ">
+            <div class="pile-label">🪦 ดรอปโซน</div>
+            <div class="deck-count-badge grave-badge">DROP <span id="player-grave-count">0</span></div>
           </div>
         </div>
       </div>
 
+      <!-- แถบการ์ดบนมือของผู้เล่น -->
       <div class="hand-dock">
         <div class="hand-dock-label">
           <span>✋ การ์ดบนมือ (เลื่อนซ้าย-ขวาได้):</span>
-          <button type="button" id="btn-shuffle-hand" class="hand-shuffle-btn" title="สับการ์ดบนมือ (เล่นๆ ไม่มีผลต่อเกม)">🔀 สับ</button>
+          <button type="button" id="btn-shuffle-hand" class="hand-shuffle-btn" title="สับการ์ดบนมือ">🔀 สับ</button>
         </div>
         <div class="hand-row" id="player-hand"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- หน้าต่างแอนิเมชันทอยเหรียญตัดสินใครเริ่มก่อน (Coin Toss Modal) -->
+  <div class="modal-overlay" id="coin-toss-modal" style="display: none; z-index: 500;">
+    <div class="modal-box coin-toss-box">
+      <h3 id="coin-toss-header" class="coin-toss-header">🪙 ทอยเหรียญตัดสินใครเริ่มก่อน</h3>
+      <div class="coin-scene">
+        <div class="bof-coin" id="bof-coin-element">
+          <div class="coin-face coin-heads">
+            <div class="coin-inner">
+              <span class="coin-symbol">H</span>
+              <span class="coin-sub">หัว</span>
+            </div>
+          </div>
+          <div class="coin-face coin-tails">
+            <div class="coin-inner">
+              <span class="coin-symbol">T</span>
+              <span class="coin-sub">ก้อย</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="coin-result-banner" class="coin-result-banner" style="display: none;">
+        <h2 id="coin-winner-title">ผู้เล่นเริ่มก่อน</h2>
+        <p id="coin-detail-text">เหรียญออก: หัว (Heads)</p>
+      </div>
+      <p id="coin-instruction-text" class="coin-instruction">กำลังทอยเหรียญ...</p>
+      <button type="button" id="btn-coin-proceed" class="btn btn-coin-start" style="display: none;">
+        สับกองและหยิบมือเริ่มต้น ▶
+      </button>
     </div>
   </div>
 
@@ -449,6 +558,24 @@
       <p style="font-size: 12px; color: #cbd5e1; margin-top: 4px;">ต้องการแต้ม 4 - 6 เพื่อแสดงผลเอฟเฟกต์</p>
       <div class="dice-cube" id="dice-cube">?</div>
       <p id="dice-result-text" style="font-weight: bold; min-height: 22px; color: #fbbf24;">กำลังทอยลูกเต๋า...</p>
+    </div>
+  </div>
+
+  <!-- หน้าต่างประวัติการต่อสู้ (Combat Log Modal) -->
+  <div class="modal-overlay" id="combat-log-modal" style="display: none; z-index: 300;">
+    <div class="modal-box combat-log-box" style="max-width: 600px; width: 95%; max-height: 85vh; display: flex; flex-direction: column;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 10px;">
+        <h2 style="color: #38bdf8; font-size: 18px; margin: 0;">📜 ประวัติการต่อสู้ (Combat History)</h2>
+        <button type="button" id="btn-close-combat-log" class="bof-auth-close-x" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;">✕</button>
+      </div>
+      <div class="combat-log-filters" style="display: flex; gap: 6px; padding: 10px 0; border-bottom: 1px solid #1e293b; overflow-x: auto;">
+        <button class="btn combat-filter-btn is-active" data-filter="ALL" style="padding: 4px 10px; font-size: 12px; background: #3b82f6;">ทั้งหมด</button>
+        <button class="btn combat-filter-btn" data-filter="ATTACK" style="padding: 4px 10px; font-size: 12px; background: #334155;">⚔️ โจมตี</button>
+        <button class="btn combat-filter-btn" data-filter="SPELL" style="padding: 4px 10px; font-size: 12px; background: #334155;">✨ เวท/สกิล</button>
+        <button class="btn combat-filter-btn" data-filter="SUMMON" style="padding: 4px 10px; font-size: 12px; background: #334155;">🃏 อัญเชิญ</button>
+      </div>
+      <div id="combat-log-list" style="flex: 1; overflow-y: auto; padding: 10px 0; display: flex; flex-direction: column; gap: 8px; min-height: 250px; max-height: 55vh;">
+      </div>
     </div>
   </div>
 
@@ -492,6 +619,7 @@
   <script src="js/cards/demon.js"></script>
   <script src="js/cards/oat.js"></script>
   <script src="js/cards/schema.js"></script>
+  <script src="js/audio.js"></script>
   <script src="js/game.js"></script>
   <script src="js/hand-shuffle.js"></script>
   <script src="js/summon-fx.js"></script>
