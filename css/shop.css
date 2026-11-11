@@ -866,13 +866,15 @@
 
   .bof-shop-title-wrap {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
     width: 100%;
   }
 
   .bof-shop-title-wrap h2 {
-    font-size: 18px;
+    font-size: 16.5px;
+    line-height: 1.25;
   }
 
   .bof-shop-title-wrap p {
@@ -1349,4 +1351,64 @@
   background: #14532d;
   color: #4ade80;
   cursor: default;
+}
+
+@media (max-width: 767px) {
+  .bof-shop-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    overflow-x: visible;
+  }
+
+  .bof-shop-tab {
+    padding: 7px 4px;
+    font-size: 11.5px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .bof-shop-tab .bof-tab-sub {
+    display: none;
+  }
+
+  .bof-pity-counter {
+    padding: 4px 6px;
+  }
+
+  .bof-pity-text {
+    font-size: 10px;
+    white-space: nowrap;
+    gap: 4px;
+  }
+
+  .bof-pack-foil {
+    width: 96px;
+    margin: 0 auto 6px;
+  }
+
+  .bof-pack-name {
+    font-size: 13.5px;
+  }
+
+  .bof-pack-sub {
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
+  .bof-craft-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .bof-craft-card img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 750 / 1050;
+  }
 }

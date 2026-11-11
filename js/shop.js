@@ -525,9 +525,9 @@
 
     body.innerHTML = `
       <div class="bof-shop-tabs">
-        <button type="button" class="bof-shop-tab ${activeShopTab === 'packs' ? 'is-active' : ''}" data-tab="packs">📦 สุ่มซองการ์ด (Booster)</button>
-        <button type="button" class="bof-shop-tab ${activeShopTab === 'craft' ? 'is-active' : ''}" data-tab="craft">🔮 ย่อย & หลอมการ์ด (Crafting)</button>
-        <button type="button" class="bof-shop-tab ${activeShopTab === 'quests' ? 'is-active' : ''}" data-tab="quests">🎁 เควสต์ & ของขวัญประจำวัน</button>
+        <button type="button" class="bof-shop-tab ${activeShopTab === 'packs' ? 'is-active' : ''}" data-tab="packs">📦 สุ่มซองการ์ด<span class="bof-tab-sub"> (Booster)</span></button>
+        <button type="button" class="bof-shop-tab ${activeShopTab === 'craft' ? 'is-active' : ''}" data-tab="craft">🔮 ย่อย & หลอม<span class="bof-tab-sub">การ์ด (Crafting)</span></button>
+        <button type="button" class="bof-shop-tab ${activeShopTab === 'quests' ? 'is-active' : ''}" data-tab="quests">🎁 เควสต์รายวัน<span class="bof-tab-sub"> & ของขวัญ</span></button>
       </div>
       <div id="bof-tab-view-container"></div>
     `;
