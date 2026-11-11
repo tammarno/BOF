@@ -1861,3 +1861,24 @@ body {
     height: 68px !important;
   }
 }
+
+
+/* ================= Safari & Samsung Browser Fallback for dvh ================= */
+@supports not (height: 100dvh) {
+  @media (max-width: 767px) {
+    #bof-game-arena {
+      height: 100vh !important;
+      max-height: 100vh !important;
+    }
+    .board-row-grid .slot,
+    .board-row-grid .leader-slot {
+      min-height: clamp(82px, 11.6vh, 96px) !important;
+      height: clamp(82px, 11.6vh, 96px) !important;
+    }
+    .hand-card,
+    .hand-zone .card.hand-card {
+      height: clamp(72px, 10vh, 84px) !important;
+      min-height: clamp(72px, 10vh, 84px) !important;
+    }
+  }
+}

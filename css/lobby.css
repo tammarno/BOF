@@ -159,10 +159,17 @@
 
 /* ================= มือถือ (แนวตั้ง): จัดเลย์เอาต์หัวและแถวอย่างเป็นสัดส่วน ================= */
 @media (max-width: 767px) {
+  html, body {
+    overflow: hidden;
+    overscroll-behavior: none;
+    height: 100%;
+  }
   #lobby-screen {
+    position: fixed;
+    inset: 0;
     width: 100%;
     margin: 0;
-    height: 100vh;
+    height: 100%;
     height: 100dvh;
     max-height: 100dvh;
     box-sizing: border-box;
@@ -172,12 +179,13 @@
     justify-items: center;
     align-items: center;
     padding: calc(8px + env(safe-area-inset-top, 0px)) 14px 0;
-    gap: 8px;
-    overflow-x: hidden;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    gap: 6px;
+    overflow: hidden !important;
+    overflow: clip !important;
+    overscroll-behavior: none;
+    touch-action: manipulation;
   }
-  #lb-wall { width: 200vw; opacity: .22; }
+  #lb-wall { position: fixed; width: 200vw; opacity: .22; }
   .lb-wall-inner { grid-template-columns: repeat(6, 1fr); gap: 2vw; }
   .lb-logo {
     grid-column: 1;
@@ -623,5 +631,37 @@
     font-size: 10.5px;
     white-space: normal;
     line-height: 1.2;
+  }
+}
+
+
+/* ================= Safari & Samsung Browser Fallbacks ================= */
+dialog.bof-dialog-polyfilled[open] {
+  position: fixed;
+  inset: 0;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  display: block;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+@supports not (height: 100dvh) {
+  @media (max-width: 767px) {
+    #lobby-screen {
+      height: 100vh;
+      max-height: 100vh;
+    }
+    .lb-leader-wrap {
+      max-height: min(40vh, 290px);
+    }
+    .lb-deck-picker-panel {
+      max-height: 86vh;
+    }
+    .lb-deck-picker-grid {
+      max-height: 62vh;
+    }
   }
 }

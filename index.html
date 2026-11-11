@@ -16,7 +16,7 @@
   <link rel="stylesheet" href="css/lobby.css">
   <link rel="stylesheet" href="css/auth.css">
   <link rel="stylesheet" href="css/shop.css">
-  <script>document.documentElement.classList.add('lm-pre');setTimeout(function(){document.documentElement.classList.remove('lm-pre')},1500);</script>
+  <script>document.documentElement.classList.add('lm-pre');setTimeout(function(){document.documentElement.classList.remove('lm-pre')},900);window.addEventListener('pageshow',function(){document.documentElement.classList.remove('lm-pre')});</script>
 </head>
 <body>
   <!-- ==================== หน้าล็อบบี้หลัก (MAIN LOBBY) ==================== -->
@@ -609,7 +609,7 @@
     </div>
   </div>
 
-  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="vendor/peerjs.min.js"></script>
   <script src="js/cards/core.js"></script>
   <script src="js/cards/leaders.js"></script>
   <script src="js/cards/jit.js"></script>

@@ -420,7 +420,10 @@
       if ($('#lobby-screen').style.display === 'none') $$('#lobby-screen dialog[open]').forEach(d => d.close());
     }).observe($('#lobby-screen'), { attributes: true, attributeFilter: ['style'] });
     // เปลี่ยนขนาดข้าม 767px (หมุนจอ): สร้างกำแพงใหม่ให้จำนวนช่องตรงกับ layout
-    matchMedia('(max-width: 767px)').addEventListener('change', () => renderWall(selected));
+    const mql = matchMedia('(max-width: 767px)');
+    const onResizeBp = () => renderWall(selected);
+    if (mql.addEventListener) mql.addEventListener('change', onResizeBp);
+    else if (mql.addListener) mql.addListener(onResizeBp);
     // บันทึกในหน้าจัดเด็คแล้ว: แสดงและเลือก "เด็คของฉัน" (หลัง handler ของ game.js เขียน localStorage)
     $('#btn-save-start')?.addEventListener('click', () => setTimeout(() => { refreshMine(); selectDeck('mine'); renderDeck(selected); }, 0));
   }
@@ -438,9 +441,14 @@
   bindDialogs();
   bindJoinForm();
   bindDeckSelection();
-  // ถอดรหัสภาพลีดเดอร์ทุกเด็คไว้ก่อน (PNG ~1MB) — ไม่งั้นถอดรหัสตอนสลับเด็คแล้วเฟรมสะดุด
-  // ทำหลังฉากเปิดจบ (≈1.6 วิ) เพื่อไม่แย่งเฟรมของฉากเปิด
-  setTimeout(() => DECKS.forEach(d => { const i = new Image(); i.src = byId(d.leaderId).image; i.decode().catch(() => {}); }), 1800);
+  // ถอดรหัสภาพลีดเดอร์ล่วงหน้าเฉพาะบน Desktop (บนมือถือ iOS Safari / Samsung Browser การ decode PNG ใหญ่ 6 ใบพร้อมกันอาจทำให้เกิน RAM limit ของแท็บ)
+  if (!small()) {
+    setTimeout(() => DECKS.forEach(d => {
+      const i = new Image();
+      i.src = byId(d.leaderId).image;
+      if (typeof i.decode === 'function') i.decode().catch(() => {});
+    }), 1800);
+  }
   // ลีดเดอร์เอียงตามเมาส์ (holo.js ใส่ --rx/--ry ให้ #lb-leader · มือถือไม่เอียง)
   if (window.HoloTilt) HoloTilt.bind($('.lb-leader-wrap'), 8, '.lb-leader');
 })();

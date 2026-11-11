@@ -7,26 +7,34 @@
 (function () {
   let ctx = null;
   let masterGain = null;
-  let isSoundEnabled = localStorage.getItem('bof_sound_enabled') !== 'false';
-  let currentVolume = parseFloat(localStorage.getItem('bof_sound_volume') || '0.7');
+  let isSoundEnabled = true;
+  let currentVolume = 0.7;
+  try {
+    isSoundEnabled = localStorage.getItem('bof_sound_enabled') !== 'false';
+    currentVolume = parseFloat(localStorage.getItem('bof_sound_volume') || '0.7');
+    if (Number.isNaN(currentVolume)) currentVolume = 0.7;
+  } catch (e) {}
 
   function initAudioContext() {
-    if (!ctx) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) {
-        ctx = new AudioCtx();
-        masterGain = ctx.createGain();
-        masterGain.gain.setValueAtTime(isSoundEnabled ? currentVolume : 0, ctx.currentTime);
-        masterGain.connect(ctx.destination);
+    try {
+      if (!ctx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          ctx = new AudioCtx();
+          masterGain = ctx.createGain();
+          masterGain.gain.setValueAtTime(isSoundEnabled ? currentVolume : 0, ctx.currentTime);
+          masterGain.connect(ctx.destination);
+        }
       }
-    }
-    if (ctx && ctx.state === 'suspended') {
-      ctx.resume();
-    }
+      if (ctx && ctx.state === 'suspended' && typeof ctx.resume === 'function') {
+        const res = ctx.resume();
+        if (res && typeof res.catch === 'function') res.catch(() => {});
+      }
+    } catch (e) {}
   }
 
-  // ปลดล็อก AudioContext เมื่อผู้ใช้แตะหรือคลิกหน้าจอครั้งแรก
-  ['pointerdown', 'keydown', 'click'].forEach(evt => {
+  // ปลดล็อก AudioContext เมื่อผู้ใช้แตะหรือคลิกหน้าจอครั้งแรก (รวม touchstart/touchend สำหรับ iOS Safari)
+  ['pointerdown', 'touchstart', 'touchend', 'keydown', 'click'].forEach(evt => {
     window.addEventListener(evt, initAudioContext, { once: true, passive: true });
   });
 
