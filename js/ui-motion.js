@@ -127,10 +127,9 @@
   let gameShown = false, last = {};
   function boardIntro() {
     if (reduce) return;
-    gsap.fromTo('.ai-side-zone', { y: -40, opacity: 0 }, { y: 0, opacity: 1, duration: .55, ease: 'power3.out', clearProps: 'opacity' });
-    gsap.fromTo('.player-side-zone', { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: .55, delay: .1, ease: 'power3.out', clearProps: 'opacity' });
-    gsap.fromTo('.center-bar', { scaleX: .6, opacity: 0 }, { scaleX: 1, opacity: 1, duration: .45, delay: .3, ease: 'back.out(1.6)', clearProps: 'opacity' });
-    gsap.fromTo('.action-log-container', { opacity: 0 }, { opacity: 1, duration: .4, delay: .55, clearProps: 'opacity' });
+    gsap.fromTo('.ai-mat-half, .ai-side-zone', { y: -40, opacity: 0 }, { y: 0, opacity: 1, duration: .55, ease: 'power3.out', clearProps: 'opacity,transform' });
+    gsap.fromTo('.player-mat-half, .player-side-zone', { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: .55, delay: .1, ease: 'power3.out', clearProps: 'opacity,transform' });
+    gsap.fromTo('.center-bar', { scaleX: .6, opacity: 0 }, { scaleX: 1, opacity: 1, duration: .45, delay: .3, ease: 'back.out(1.6)', clearProps: 'opacity,transform' });
   }
   let banner = null;
   function showTurnBanner(who) {
@@ -149,7 +148,7 @@
       .to(banner, { opacity: 0, duration: .2 }, .6);
   }
   function wrapHearts() {
-    $$('.game-container .hp-badge').forEach(b => {
+    $$('.game-container .hp-badge, .game-container .leader-hp-badge').forEach(b => {
       if (b.querySelector('.um-heart')) return;
       const t = [...b.childNodes].find(n => n.nodeType === 3 && /❤/.test(n.textContent)); if (!t) return;
       const h = document.createElement('span'); h.className = 'um-heart'; h.textContent = '❤️';
@@ -159,6 +158,7 @@
   }
   function hit(boxSel) {
     const box = $(boxSel); if (!box || reduce) return;
+    if (!box.querySelector('.um-hit')) box.insertAdjacentHTML('beforeend', '<i class="um-hit" aria-hidden="true"></i>');
     gsap.fromTo(box, { x: 0 }, { keyframes: { x: [-7, 7, -5, 5, -2, 0] }, duration: .4, ease: 'none' });
     const f = box.querySelector('.um-hit'); if (f) gsap.fromTo(f, { opacity: .9 }, { opacity: 0, duration: .5, ease: 'power2.out' });
   }
@@ -176,15 +176,15 @@
     if (show && !gameShown) { gameShown = true; wrapHearts(); boardIntro(); last = readGame() || {}; last.turn = null; return; }
     if (!show) { gameShown = false; return; }
     const v = readGame(); if (!v) return;
-    const mulligan = visible($('#mulligan-modal'));
-    if (!mulligan && v.turn && v.turn !== last.turn && !v.over) showTurnBanner(v.turn);
+    const preGame = visible($('#mulligan-modal')) || visible($('#coin-toss-modal')) || v.phase === 'Mulligan';
+    if (!preGame && v.turn && v.turn !== last.turn && !v.over) showTurnBanner(v.turn);
     if (last.aiHp != null && v.aiHp < last.aiHp) hit('#ai-leader-box');
     if (last.plHp != null && v.plHp < last.plHp) hit('#player-leader-box');
     BUMP_IDS.forEach(id => { if (last[id] != null && v[id] != null && v[id] !== last[id]) bump(document.getElementById(id)); });
     const pb = $('#player-board'); if (pb) pb.classList.toggle('lm-placing', v.sel != null && v.turn === 'player');
     const phaseBtn = $('#btn-pass-turn-inline');
     if (phaseBtn) phaseBtn.classList.toggle('lm-breathe', v.turn === 'player' && !phaseBtn.disabled && !v.over);
-    if (mulligan) v.turn = null; // ป้ายเทิร์นแรกแสดงหลังเลือก Mulligan เสร็จ
+    if (preGame) v.turn = null; // ป้ายเทิร์นแรกแสดงหลังทอยเหรียญและเลือก Mulligan เสร็จ
     last = v;
   }
 

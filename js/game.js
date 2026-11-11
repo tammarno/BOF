@@ -5691,7 +5691,7 @@ function handlePlayerSurrender() {
             window.BOF_AUDIO.playDefeat();
           }
           setTimeout(() => {
-            showEndMatchModal('💀 คุณยอมแพ้การประลอง!', 'คุณได้กดยืนยันยอมแพ้ในแมตช์นี้');
+            showEndMatchModal('💀 คุณพ่ายแพ้ (ยอมแพ้การประลอง)!', 'คุณได้กดยืนยันยอมแพ้ในแมตช์นี้');
           }, 300);
         }
       },
@@ -7001,7 +7001,8 @@ function renderDeckBuilder() {
     if (countInDeck > 0) cardEl.style.outline = '2px solid #22c55e';
 
     cardEl.addEventListener('click', () => {
-      if (countInDeck < maxAllowed) {
+      const limit = cardEl.dataset.allowedMax !== undefined ? Number(cardEl.dataset.allowedMax) : maxAllowed;
+      if (countInDeck < limit) {
         if (currentDeckConfig.mainDeck.length >= 20) {
           alert('การ์ดใน Main Deck ครบ 20 ใบแล้ว! กรุณาคลิกเอาใบอื่นออกก่อน');
           return;

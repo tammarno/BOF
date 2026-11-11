@@ -92,6 +92,7 @@
       username: profile.username,
       passwordHash: profile.passwordHash,
       avatarId: profile.avatarId || 'L01',
+      starterDeckId: profile.starterDeckId || profile.avatarId || 'L01',
       customAvatar: profile.customAvatar || null,
       coins: typeof profile.coins === 'number' ? profile.coins : 2000,
       shards: typeof profile.shards === 'number' ? profile.shards : 150,
@@ -102,6 +103,7 @@
       matches: Number(profile.matches || 0),
       savedDeck: profile.savedDeck || null,
       pity: profile.pity || {},
+      lastDailyClaimDate: profile.lastDailyClaimDate || '',
       dailyProgress: profile.dailyProgress || null,
       claimedQuests: profile.claimedQuests || {},
       exportedAt: Date.now()
@@ -614,7 +616,7 @@
       const origHandlePvp = window.handleIncomingPvpData;
       window.handleIncomingPvpData = function (data) {
         if (data && data.type === 'PLAYER_PROFILE' && data.username) {
-          const aiHeader = document.querySelector('.ai-side-zone .side-header-bar span b');
+          const aiHeader = document.querySelector('.ai-mat-half .side-header-bar span b, .ai-side-zone .side-header-bar span b');
           if (aiHeader) aiHeader.textContent = data.username;
           const aiRole = document.querySelector('#ai-leader-box .leader-role-tag');
           if (aiRole) aiRole.textContent = `👑 ${data.username}`;
@@ -826,6 +828,7 @@
       currentUser.ownedCards = eco.ownedCards;
       currentUser.packsOpened = eco.packsOpened;
       currentUser.lastDailyClaimDate = eco.lastDailyClaimDate;
+      currentUser.dailyProgress = eco.dailyProgress;
       currentUser.claimedQuests = eco.claimedQuests;
       persistCurrentUserProfile();
     }

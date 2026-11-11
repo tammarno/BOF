@@ -374,7 +374,11 @@
 
     economy.coins -= totalCost;
     economy.packsOpened += packCount;
-    if (!economy.dailyProgress) economy.dailyProgress = { date: new Date().toISOString().split('T')[0], packsOpened: 0, craftsDone: 0, duelsCompleted: 0 };
+    const todayKey = getThaiQuestDayKey();
+    if (!economy.dailyProgress || economy.dailyProgress.date !== todayKey) {
+      economy.dailyProgress = { date: todayKey, packsOpened: 0, craftsDone: 0, duelsCompleted: 0 };
+      economy.claimedQuests = {};
+    }
     economy.dailyProgress.packsOpened = (economy.dailyProgress.packsOpened || 0) + packCount;
 
     // ติดตามระบบ Pity (การันตี SSR ในทุกๆ 15 ซอง)
@@ -713,7 +717,11 @@
           }
         });
         economy.shards = (economy.shards || 0) + totalShardsGained;
-        if (!economy.dailyProgress) economy.dailyProgress = { date: new Date().toISOString().split('T')[0], packsOpened: 0, craftsDone: 0, duelsCompleted: 0 };
+        const todayKey = getThaiQuestDayKey();
+        if (!economy.dailyProgress || economy.dailyProgress.date !== todayKey) {
+          economy.dailyProgress = { date: todayKey, packsOpened: 0, craftsDone: 0, duelsCompleted: 0 };
+          economy.claimedQuests = {};
+        }
         economy.dailyProgress.craftsDone = (economy.dailyProgress.craftsDone || 0) + 1;
         saveEconomy();
         if (window.BOF_AUDIO) window.BOF_AUDIO.playSpell();
@@ -749,7 +757,11 @@
         }
         economy.shards -= cost;
         grantCardToCollection(target);
-        if (!economy.dailyProgress) economy.dailyProgress = { date: new Date().toISOString().split('T')[0], packsOpened: 0, craftsDone: 0, duelsCompleted: 0 };
+        const todayKey = getThaiQuestDayKey();
+        if (!economy.dailyProgress || economy.dailyProgress.date !== todayKey) {
+          economy.dailyProgress = { date: todayKey, packsOpened: 0, craftsDone: 0, duelsCompleted: 0 };
+          economy.claimedQuests = {};
+        }
         economy.dailyProgress.craftsDone = (economy.dailyProgress.craftsDone || 0) + 1;
         saveEconomy();
         if (window.BOF_AUDIO) window.BOF_AUDIO.playSsr();
@@ -983,19 +995,7 @@
 
           const cardEl = item.querySelector('.card');
           if (cardEl) {
-            cardEl.addEventListener('click', e => {
-              e.stopImmediatePropagation();
-              if (countInDeck < allowedMax) {
-                if (currentDeckConfig.mainDeck.length >= 20) {
-                  alert('การ์ดใน Main Deck ครบ 20 ใบแล้ว! กรุณาคลิกเอาใบอื่นออกก่อน');
-                  return;
-                }
-                currentDeckConfig.mainDeck.push(card.id);
-              } else {
-                currentDeckConfig.mainDeck = currentDeckConfig.mainDeck.filter(id => id !== card.id);
-              }
-              window.renderDeckBuilder();
-            }, true);
+            cardEl.dataset.allowedMax = String(allowedMax);
           }
         });
 
@@ -1092,7 +1092,11 @@
         const reward = isWin ? 300 : 100;
         economy = loadEconomy();
         economy.coins = (economy.coins || 0) + reward;
-        if (!economy.dailyProgress) economy.dailyProgress = { date: new Date().toISOString().split('T')[0], packsOpened: 0, craftsDone: 0, duelsCompleted: 0 };
+        const todayKey = getThaiQuestDayKey();
+        if (!economy.dailyProgress || economy.dailyProgress.date !== todayKey) {
+          economy.dailyProgress = { date: todayKey, packsOpened: 0, craftsDone: 0, duelsCompleted: 0 };
+          economy.claimedQuests = {};
+        }
         economy.dailyProgress.duelsCompleted = (economy.dailyProgress.duelsCompleted || 0) + 1;
         saveEconomy();
         const extraDesc = `${desc || ''} (ได้รับรางวัลแมตช์ +${reward} 🪙 Coins!)`;

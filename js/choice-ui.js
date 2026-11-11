@@ -152,7 +152,7 @@
     const glyph = em ? em[1] : '';
     const text = em ? title.slice(em[0].length) : title;
     const victory = /ชนะ/.test(title) && !/ยืนยัน/.test(title);
-    const defeat = /พ่ายแพ้/.test(title) && !/ยืนยัน/.test(title);
+    const defeat = /พ่ายแพ้|ยอมแพ้/.test(title) && !/ยืนยัน/.test(title);
     themeButtons(modal);
 
     if (victory || defeat) {
