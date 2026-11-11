@@ -547,6 +547,43 @@ function createContestant(name, isFirstPlayer, prefix, leaderId = 'L01', deckLis
   };
 }
 
+function findCardMentionedInLog(message) {
+  if (typeof CARD_DATABASE === 'undefined' || !Array.isArray(CARD_DATABASE) || !message) return null;
+  const quoted = message.match(/"([^"]+)"/);
+  if (quoted && quoted[1]) {
+    const foundQuoted = CARD_DATABASE.find(c => c.name === quoted[1].trim());
+    if (foundQuoted) return foundQuoted;
+  }
+  const bracketed = message.match(/\[(?:AI\s+|ออโต้\s*-\s*|คู่หู\s*-\s*)?([^\]]+)\]/);
+  if (bracketed && bracketed[1]) {
+    const clean = bracketed[1].replace(/^AI\s+/i, '').trim();
+    const foundBracket = CARD_DATABASE.find(c => c.name === clean || clean.includes(c.name));
+    if (foundBracket) return foundBracket;
+  }
+  return null;
+}
+
+function updateLastPlayedCardWidget(info) {
+  const btn = document.getElementById('btn-last-card-pill');
+  if (!btn) return;
+  if (!info || !info.card) {
+    btn.style.display = 'none';
+    return;
+  }
+  const c = info.card;
+  const thumb = btn.querySelector('.last-card-pill-img');
+  const nameEl = btn.querySelector('.last-card-pill-name');
+  const sideEl = btn.querySelector('.last-card-pill-side');
+  if (thumb) thumb.src = c.image || '';
+  if (nameEl) nameEl.textContent = c.name || 'การ์ดล่าสุด';
+  if (sideEl) {
+    sideEl.textContent = info.isAI ? '🤖 คู่แข่งใช้' : '👤 เราใช้';
+    sideEl.style.color = info.isAI ? '#fca5a5' : '#86efac';
+  }
+  btn.style.borderColor = info.isAI ? '#ef4444' : '#22c55e';
+  btn.style.display = 'inline-flex';
+}
+
 function setLog(message) {
   const singleLog = document.getElementById('action-log');
   if (singleLog) singleLog.textContent = message;
@@ -569,13 +606,48 @@ function setLog(message) {
   else if (/เวท|สกิล|✨|⚡|🔮|🏰|🌌/i.test(message)) logCategory = 'SPELL';
   else if (/อัญเชิญ|ลงสนาม|คอล|🦖|👑/i.test(message)) logCategory = 'SUMMON';
 
-  gameState.matchLogHistory.push({
+  const isAI = message.includes('🤖') || message.includes('AI') || message.includes('ฝ่ายตรงข้าม') || message.includes('[เพื่อน]');
+  let matchedCard = null;
+  let actionSubText = '';
+  let actorTitle = '';
+
+  if (gameState._pendingBannerCard && (Date.now() - (gameState._pendingBannerCard.ts || 0) < 1800)) {
+    matchedCard = gameState._pendingBannerCard.card;
+    actionSubText = gameState._pendingBannerCard.actionSubText || '';
+    actorTitle = gameState._pendingBannerCard.actorName || '';
+    gameState._pendingBannerCard = null;
+  } else {
+    matchedCard = findCardMentionedInLog(message);
+  }
+
+  const entry = {
+    id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     turn: gameState.turnCount,
     category: logCategory,
     message,
-    isAI: message.includes('🤖') || message.includes('AI'),
+    isAI,
+    cardId: matchedCard ? matchedCard.id : null,
+    actorTitle: actorTitle || (isAI ? '🤖 ฝ่ายตรงข้าม' : '👤 ฝั่งเรา'),
+    actionSubText: actionSubText || message,
     time: new Date().toLocaleTimeString('th-TH', { hour12: false })
-  });
+  };
+
+  gameState.matchLogHistory.push(entry);
+
+  if (matchedCard) {
+    gameState.lastPlayedCardInfo = {
+      card: matchedCard,
+      actorName: entry.actorTitle,
+      actionSubText: entry.actionSubText,
+      message: entry.message,
+      turn: entry.turn,
+      isAI: entry.isAI,
+      category: entry.category,
+      time: entry.time
+    };
+    updateLastPlayedCardWidget(gameState.lastPlayedCardInfo);
+    updateCardDetailPanel(matchedCard);
+  }
 }
 
 function checkGameOver() {
@@ -4529,6 +4601,27 @@ function ensureVisualEffectsStyles() {
 let cutinTimeoutId = null;
 function showCardShowcaseBanner(card, actorName, actionSubText, borderColor = '#fbbf24', duration = 1050) {
   if (!card) return;
+  const isAIActor = String(actorName || '').includes('AI') || String(actorName || '').includes('ฝ่ายตรงข้าม');
+  gameState._pendingBannerCard = {
+    card,
+    actorName,
+    actionSubText,
+    isAI: isAIActor,
+    ts: Date.now()
+  };
+  gameState.lastPlayedCardInfo = {
+    card,
+    actorName: actorName || (isAIActor ? '🤖 ฝ่ายตรงข้าม' : '👤 ฝั่งเรา'),
+    actionSubText: actionSubText || '',
+    message: `${actorName}: ${actionSubText}`,
+    turn: gameState.turnCount || 1,
+    isAI: isAIActor,
+    category: 'SPELL',
+    time: new Date().toLocaleTimeString('th-TH', { hour12: false })
+  };
+  updateLastPlayedCardWidget(gameState.lastPlayedCardInfo);
+  updateCardDetailPanel(card);
+
   ensureVisualEffectsStyles();
   const banner = document.getElementById('fx-card-cutin-banner');
   if (!banner) return;
@@ -4677,14 +4770,16 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
   const os03Idx = attacker.hand.findIndex(c => c && c.id === 'OS03');
   if (attackingMonster.id === 'OM02' && os03Idx !== -1 && attacker.spellQuota.reactionUsed < 1 && targetType === 'leader') {
     if (attacker !== gameState.player) {
-      const spell = attacker.hand.splice(os03Idx, 1)[0];
-      attacker.spellQuota.reactionUsed += 1;
-      resetCardStateForZoneChange(spell);
-      attacker.graveyard.push(spell);
-      showCardShowcaseBanner(spell, 'AI ใช้เวทรีแอค เร็วขึ้นอีก!!!!!!', '⚔️ การโจมตีของ "ไอแบงค์บ้าเกม" ไม่สามารถนำยูนิทมาป้องกันได้!', '#38bdf8', 1100);
-      setLog('⚡ [AI - เร็วขึ้นอีก!!!!!!] เมื่อ "ไอแบงค์บ้าเกม" โจมตี ฝ่ายตรงข้ามไม่สามารถนำยูนิทมาป้องกันการโจมตีนี้ได้!');
-      proceedWithAttackExecution(true);
-      return;
+      if (aiConfig.difficulty !== 'EASY') {
+        const spell = attacker.hand.splice(os03Idx, 1)[0];
+        attacker.spellQuota.reactionUsed += 1;
+        resetCardStateForZoneChange(spell);
+        attacker.graveyard.push(spell);
+        showCardShowcaseBanner(spell, 'AI ใช้เวทรีแอค เร็วขึ้นอีก!!!!!!', '⚔️ การโจมตีของ "ไอแบงค์บ้าเกม" ไม่สามารถนำยูนิทมาป้องกันได้!', '#38bdf8', 1100);
+        setLog('⚡ [AI - เร็วขึ้นอีก!!!!!!] เมื่อ "ไอแบงค์บ้าเกม" โจมตี ฝ่ายตรงข้ามไม่สามารถนำยูนิทมาป้องกันการโจมตีนี้ได้!');
+        proceedWithAttackExecution(true);
+        return;
+      }
     } else {
       showChoiceModal(
         '⚡ สั่งใช้งานเวทรีแอค: เร็วขึ้นอีก!!!!!!',
@@ -4763,8 +4858,12 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
     && (demonCountOnDefenderBoard >= 1)
     && (defender.spellQuota.reactionUsed < 1);
 
-  // 🤖 กรณีฝ่ายตั้งรับเป็น AI: ให้ AI ตัดสินใจใช้สกิลเองพร้อมโชว์แบนเนอร์ให้ผู้เล่นเห็นชัดๆ
+  // 🤖 กรณีฝ่ายตั้งรับเป็น AI: ให้ AI ตัดสินใจใช้สกิลเองพร้อมโชว์แบนเนอร์ให้ผู้เล่นเห็นชัดๆ (ระดับ EASY จะไม่ใช้เวทรีแอคซับซ้อน)
   if (!isLocalDefender) {
+    if (aiConfig.difficulty === 'EASY') {
+      continueNormalAttackFlow();
+      return;
+    }
     if (canUseForbiddenWarning && (targetType === 'leader' || defender.leader.hp <= 4)) {
       const spellCard = defender.hand.splice(dms02InHandIdx, 1)[0];
       defender.spellQuota.reactionUsed += 1;
@@ -5497,17 +5596,53 @@ document.getElementById('btn-skip-intercept').addEventListener('click', () => {
 /* ============================================================================
    หมวดที่ 8: ระบบตั้งค่า AI และระบบคิวการเล่นทีละจังหวะของ AI (Step-by-Step Pacing)
    ============================================================================ */
-const aiConfig = {
-  deckChoice: 'RANDOM', // 'RANDOM' | 'L01' | 'L02' | 'L03' | 'L04'
-  difficulty: 'HARD',   // 'EASY' | 'NORMAL' | 'HARD'
-  stepDelayMs: 1200     // หน่วงเวลา 1.2 วินาทีต่อ 1 แอ็กชันของ AI เพื่อให้ผู้เล่นมองตามทัน
-};
+const AI_CONFIG_STORAGE_KEY = 'bof_ai_config_v1';
+
+const aiConfig = (function () {
+  const defaults = {
+    deckChoice: 'RANDOM', // 'RANDOM' | 'L01' | 'L02' | 'L03' | 'L04' | 'L05' | 'L06'
+    difficulty: 'NORMAL', // 'EASY' | 'NORMAL' | 'HARD'
+    stepDelayMs: 1150
+  };
+  try {
+    const saved = JSON.parse(localStorage.getItem(AI_CONFIG_STORAGE_KEY));
+    if (saved) {
+      if (['RANDOM', 'L01', 'L02', 'L03', 'L04', 'L05', 'L06'].includes(saved.deckChoice)) {
+        defaults.deckChoice = saved.deckChoice;
+      }
+      if (['EASY', 'NORMAL', 'HARD'].includes(saved.difficulty)) {
+        defaults.difficulty = saved.difficulty;
+      }
+    }
+  } catch (e) {}
+  defaults.stepDelayMs = defaults.difficulty === 'EASY' ? 1300 : (defaults.difficulty === 'HARD' ? 1050 : 1150);
+  return defaults;
+})();
+
+function saveAIConfigToStorage() {
+  aiConfig.stepDelayMs = aiConfig.difficulty === 'EASY' ? 1300 : (aiConfig.difficulty === 'HARD' ? 1050 : 1150);
+  try {
+    localStorage.setItem(AI_CONFIG_STORAGE_KEY, JSON.stringify({
+      deckChoice: aiConfig.deckChoice,
+      difficulty: aiConfig.difficulty
+    }));
+  } catch (e) {}
+}
 
 function getAIDifficultyLabel(diff) {
-  if (diff === 'EASY') return '🟢 ง่าย (Easy)';
-  if (diff === 'NORMAL') return '🟡 ปานกลาง (Normal)';
-  return '🔴 ยาก (Hard)';
+  if (diff === 'EASY') return '🟢 ง่าย (ฝึกหัด)';
+  if (diff === 'NORMAL') return '🟡 ปกติ (มาตรฐาน)';
+  return '🔴 โหด (จัดเต็ม)';
 }
+
+const AI_DECK_CATALOG = [
+  { id: 'L01', name: 'เด็คจิต (ฮีโร่)', leader: 'มายฮีโร่ เดจิต', desc: 'บัฟพลังฮีโร่แล้วบุกทะลวงในเทิร์นเดียว', color: '#3ee08f', img: 'images/เด็คจิต/1.png' },
+  { id: 'L02', name: 'เด็คเหนือ (สยาม)', leader: 'ขุนเหนือ', desc: 'ส่งทัพไพร่-ทหารลงสนามและชุบจากนรก', color: '#f0a347', img: 'images/เด็คเหนือ/1.png' },
+  { id: 'L03', name: 'เด็ควันสิ้นโลก', leader: 'วันสิ้นโลก', desc: 'คู่หูประสานพลังและวิวัฒน์สู่ร่างอนาคต', color: '#5fd0ff', img: 'images/วันสิ้นโลก/1.png' },
+  { id: 'L04', name: 'เด็คไดโน', leader: 'ศูนย์วิจัยไดโน', desc: 'สะสมเผ่าไดโนและผสานร่างไฮบริดสุดแกร่ง', color: '#a3e635', img: 'images/ไดโน/1.png' },
+  { id: 'L05', name: 'เด็คปีศาจ', leader: 'ปีศาจ', desc: 'สะสมมิติมืดและใช้พลังบาปทั้ง 7 พิชิตชัย', color: '#c084fc', img: 'images/เด็คปีศาจ/1.png' },
+  { id: 'L06', name: 'เด็คโอ็ต', leader: 'ไอโอ๊ตบ้าทุกสิ่ง', desc: 'เปิดท็อปกองคอลพรรคพวกสายบ้าลงสนาม', color: '#fb923c', img: 'images/เด็คโอ๊ต/1.png' }
+];
 
 function openAISetupModal() {
   let modal = document.getElementById('ai-setup-modal');
@@ -5518,37 +5653,68 @@ function openAISetupModal() {
     modal.style.display = 'none';
     modal.style.zIndex = '240';
     modal.innerHTML = `
-      <div class="modal-box" style="max-width: 520px; text-align: left;">
-        <h2 style="color: #38bdf8; text-align: center; margin-bottom: 6px;">🤖 ตั้งค่าการดวลกับบอท (AI Settings)</h2>
-        <p style="color: #94a3b8; font-size: 13px; text-align: center; margin-bottom: 16px;">
-          เลือกระดับความยากและเด็คของ AI ที่ต้องการฝึกซ้อม
-        </p>
+      <div class="modal-box ai-setup-box">
+        <div class="ai-setup-header">
+          <div>
+            <h2>🤖 ตั้งค่าคู่ซ้อม AI (AI Battle Setup)</h2>
+            <p>เลือกระดับความยากและเด็คของบอทที่ต้องการฝึกซ้อมแก้ทาง</p>
+          </div>
+          <button type="button" id="btn-close-ai-setup-x" class="bof-auth-close-x" aria-label="ปิด">✕</button>
+        </div>
 
-        <div style="margin-bottom: 16px;">
-          <div style="font-weight: bold; color: #fbbf24; margin-bottom: 8px; font-size: 14px;">⚙️ 1. เลือกระดับความยากของ AI:</div>
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;" id="ai-diff-buttons">
-            <button class="btn ai-diff-btn" data-diff="EASY" style="padding: 10px 6px; font-size: 13px;">🟢 ง่าย<br><span style="font-size:10px; font-weight:normal;">ไม่ใช้คอมโบ</span></button>
-            <button class="btn ai-diff-btn" data-diff="NORMAL" style="padding: 10px 6px; font-size: 13px;">🟡 ปานกลาง<br><span style="font-size:10px; font-weight:normal;">ใช้สกิลพื้นฐาน</span></button>
-            <button class="btn ai-diff-btn" data-diff="HARD" style="padding: 10px 6px; font-size: 13px;">🔴 ยาก<br><span style="font-size:10px; font-weight:normal;">จัดเต็มทุกคอมโบ</span></button>
+        <div class="ai-setup-section">
+          <div class="ai-setup-sec-title">🧠 1. เลือกระดับความยากของ AI:</div>
+          <div class="ai-diff-grid" id="ai-diff-buttons">
+            <button type="button" class="ai-diff-card ai-diff-btn" data-diff="EASY">
+              <div class="ai-diff-top">
+                <span class="ai-diff-badge is-easy">🟢 ง่าย</span>
+                <span class="ai-diff-reward">ชนะ +250 🪙</span>
+              </div>
+              <div class="ai-diff-desc">ลงยูนิตและโจมตีพื้นฐาน ไม่ใช้คอมโบหรือเวทสวนกลับ เหมาะสำหรับหัดเล่นเด็คใหม่</div>
+            </button>
+            <button type="button" class="ai-diff-card ai-diff-btn" data-diff="NORMAL">
+              <div class="ai-diff-top">
+                <span class="ai-diff-badge is-normal">🟡 ปกติ</span>
+                <span class="ai-diff-reward">ชนะ +300 🪙</span>
+              </div>
+              <div class="ai-diff-desc">ใช้สกิลยูนิต สกิลลีดเดอร์ และเวทมนตร์ตามจังหวะมาตรฐาน เหมาะซ้อมมือทั่วไป</div>
+            </button>
+            <button type="button" class="ai-diff-card ai-diff-btn" data-diff="HARD">
+              <div class="ai-diff-top">
+                <span class="ai-diff-badge is-hard">🔴 โหด</span>
+                <span class="ai-diff-reward">ชนะ +400 🪙</span>
+              </div>
+              <div class="ai-diff-desc">จัดเต็มทุกคอมโบ (จุติ/ไฮบริด/อนาคต/มิติมืด) เล็งเป้าคุ้มสุดและกางเวทสวนกลับ</div>
+            </button>
           </div>
         </div>
 
-        <div style="margin-bottom: 20px;">
-          <div style="font-weight: bold; color: #38bdf8; margin-bottom: 8px; font-size: 14px;">🃏 2. เลือกเด็คของ AI:</div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;" id="ai-deck-buttons">
-            <button class="btn ai-deck-btn" data-deck="RANDOM" style="padding: 10px; font-size: 13px; grid-column: span 2;">🎲 สุ่มเด็ค (Random)</button>
-            <button class="btn ai-deck-btn" data-deck="L01" style="padding: 10px; font-size: 13px;">🔥 เด็คจิต (ฮีโร่)</button>
-            <button class="btn ai-deck-btn" data-deck="L02" style="padding: 10px; font-size: 13px;">🐘 เด็คเหนือ (ไทย)</button>
-            <button class="btn ai-deck-btn" data-deck="L03" style="padding: 10px; font-size: 13px;">⏳ เด็ควันสิ้นโลก</button>
-            <button class="btn ai-deck-btn" data-deck="L04" style="padding: 10px; font-size: 13px;">🦖 เด็คไดโน (ศูนย์วิจัยไดโน)</button>
-            <button class="btn ai-deck-btn" data-deck="L05" style="padding: 10px; font-size: 13px;">😈 เด็คปีศาจ</button>
-            <button class="btn ai-deck-btn" data-deck="L06" style="padding: 10px; font-size: 13px;">🤪 เด็คโอ็ต</button>
+        <div class="ai-setup-section">
+          <div class="ai-setup-sec-title">🃏 2. เลือกเด็คให้ AI (ซ้อมมือแก้ทางเด็คเฉพาะ):</div>
+          <div class="ai-deck-grid" id="ai-deck-buttons">
+            <button type="button" class="ai-deck-card ai-deck-btn is-random-card" data-deck="RANDOM">
+              <div class="ai-deck-random-ico">🎲</div>
+              <div class="ai-deck-meta">
+                <strong>สุ่มเด็คอัตโนมัติ (Random Deck)</strong>
+                <span>สุ่มเจอลีดเดอร์จากทั้ง 6 สายเด็คหลัก (L01–L06)</span>
+              </div>
+            </button>
+            ${AI_DECK_CATALOG.map(d => `
+              <button type="button" class="ai-deck-card ai-deck-btn" data-deck="${d.id}" style="--ai-deck-accent:${d.color};">
+                <img class="ai-deck-thumb" src="${d.img}" alt="${d.name}">
+                <div class="ai-deck-meta">
+                  <strong>${d.name}</strong>
+                  <small>👑 ${d.leader}</small>
+                  <span>${d.desc}</span>
+                </div>
+              </button>
+            `).join('')}
           </div>
         </div>
 
-        <div style="display: flex; gap: 10px;">
-          <button class="btn" id="btn-start-ai-match" style="flex: 2; background: #16a34a; padding: 12px; font-size: 15px;">⚔️ เริ่มเกมเลย!</button>
-          <button class="btn" id="btn-cancel-ai-setup" style="flex: 1; background: #475569; padding: 12px;">ยกเลิก</button>
+        <div class="ai-setup-footer">
+          <button type="button" class="btn ai-start-btn" id="btn-start-ai-match">⚔️ เริ่มดวลกับ AI เลย!</button>
+          <button type="button" class="btn ai-cancel-btn" id="btn-cancel-ai-setup">ยกเลิก</button>
         </div>
       </div>
     `;
@@ -5557,6 +5723,7 @@ function openAISetupModal() {
     modal.querySelectorAll('.ai-diff-btn').forEach(btn => {
       btn.onclick = () => {
         aiConfig.difficulty = btn.getAttribute('data-diff');
+        saveAIConfigToStorage();
         refreshAISetupModalUI();
       };
     });
@@ -5564,15 +5731,20 @@ function openAISetupModal() {
     modal.querySelectorAll('.ai-deck-btn').forEach(btn => {
       btn.onclick = () => {
         aiConfig.deckChoice = btn.getAttribute('data-deck');
+        saveAIConfigToStorage();
         refreshAISetupModalUI();
       };
     });
 
-    document.getElementById('btn-cancel-ai-setup').onclick = () => {
-      modal.style.display = 'none';
-    };
+    const closeSetup = () => { modal.style.display = 'none'; };
+    document.getElementById('btn-cancel-ai-setup').onclick = closeSetup;
+    document.getElementById('btn-close-ai-setup-x').onclick = closeSetup;
+    modal.addEventListener('click', e => {
+      if (e.target === modal) closeSetup();
+    });
 
     document.getElementById('btn-start-ai-match').onclick = () => {
+      saveAIConfigToStorage();
       modal.style.display = 'none';
       pvpState.isMultiplayer = false;
       pvpState.waitingForDefense = false;
@@ -5592,25 +5764,50 @@ function refreshAISetupModalUI() {
 
   modal.querySelectorAll('.ai-diff-btn').forEach(btn => {
     const isSelected = btn.getAttribute('data-diff') === aiConfig.difficulty;
-    btn.style.background = isSelected ? '#dc2626' : '#1e293b';
-    btn.style.border = isSelected ? '2px solid #fbbf24' : '1px solid #475569';
+    btn.classList.toggle('is-selected', isSelected);
   });
 
   modal.querySelectorAll('.ai-deck-btn').forEach(btn => {
     const isSelected = btn.getAttribute('data-deck') === aiConfig.deckChoice;
-    btn.style.background = isSelected ? '#2563eb' : '#1e293b';
-    btn.style.border = isSelected ? '2px solid #38bdf8' : '1px solid #475569';
+    btn.classList.toggle('is-selected', isSelected);
   });
 }
 
 function setupInGameControlBar() {
-  ['btn-next-phase', 'btn-end-turn', 'btn-open-deck', 'btn-back-lobby'].forEach(btnId => {
+  ['btn-next-phase', 'btn-end-turn', 'btn-open-deck', 'btn-back-lobby', 'btn-open-combat-log'].forEach(btnId => {
     const el = document.getElementById(btnId);
     if (el) el.style.display = 'none';
   });
 
   const parentGroup = document.getElementById('btn-open-deck')?.parentElement;
   if (!parentGroup) return;
+
+  if (!document.getElementById('btn-last-card-pill')) {
+    const lastCardBtn = document.createElement('button');
+    lastCardBtn.type = 'button';
+    lastCardBtn.id = 'btn-last-card-pill';
+    lastCardBtn.className = 'btn last-card-pill-btn';
+    lastCardBtn.title = 'คลิกดูการ์ดและสกิลใบล่าสุดที่เพิ่งทำงาน';
+    lastCardBtn.style.display = 'none';
+    lastCardBtn.innerHTML = `
+      <img class="last-card-pill-img" src="" alt="">
+      <span class="last-card-pill-meta">
+        <small class="last-card-pill-side">⚡ ล่าสุด</small>
+        <b class="last-card-pill-name">-</b>
+      </span>
+    `;
+    lastCardBtn.onclick = () => {
+      const logModal = document.getElementById('combat-log-modal');
+      if (logModal) {
+        if (gameState.lastPlayedCardInfo && gameState.lastPlayedCardInfo.card) {
+          selectedLogSpotlight = gameState.lastPlayedCardInfo;
+        }
+        renderCombatLogModal();
+        logModal.style.display = 'flex';
+      }
+    };
+    parentGroup.appendChild(lastCardBtn);
+  }
 
   if (!document.getElementById('btn-surrender-match')) {
     const nextPhaseBtn = document.createElement('button');
@@ -6936,39 +7133,564 @@ document.getElementById('btn-shuffle-hand')?.addEventListener('click', () => {
 
 
 /* ============================================================================
-   หมวดที่ 10: ระบบหน้าต่างจัดเด็ค และการสร้างเกมพร้อมสุ่มเด็ค AI
+   หมวดที่ 10: ระบบหน้าต่างจัดเด็ค (5 สล็อต + แชร์ Deck Code) และการสร้างเกม
    ============================================================================ */
+const DECK_SLOTS_STORAGE_KEY = 'bof_deck_slots_v1';
+const TOTAL_DECK_SLOTS = 5;
+
+function createDefaultDeckSlotsState() {
+  let firstSlot = { name: 'เด็คจัดเอง #1', leaderId: 'L01', mainDeck: [...DEFAULT_DECK_LIST] };
+  try {
+    const legacy = JSON.parse(localStorage.getItem('my_card_game_deck'));
+    if (legacy && legacy.leaderId && Array.isArray(legacy.mainDeck) && legacy.mainDeck.length === 20) {
+      firstSlot = {
+        name: legacy.name || 'เด็คจัดเอง #1',
+        leaderId: legacy.leaderId,
+        mainDeck: [...legacy.mainDeck]
+      };
+    }
+  } catch (e) {}
+
+  const presets = [
+    firstSlot,
+    { name: 'เด็คจัดเอง #2', leaderId: 'L02', mainDeck: [...DEFAULT_NUEA_DECK_LIST] },
+    { name: 'เด็คจัดเอง #3', leaderId: 'L03', mainDeck: [...DEFAULT_DOOMSDAY_DECK_LIST] },
+    { name: 'เด็คจัดเอง #4', leaderId: 'L04', mainDeck: [...DEFAULT_DINO_DECK_LIST] },
+    { name: 'เด็คจัดเอง #5', leaderId: 'L05', mainDeck: [...DEFAULT_DEMON_DECK_LIST] }
+  ];
+  return { activeSlot: 0, slots: presets };
+}
+
+function loadDeckSlotsState() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(DECK_SLOTS_STORAGE_KEY));
+    if (raw && Array.isArray(raw.slots) && raw.slots.length === TOTAL_DECK_SLOTS) {
+      const idx = Math.max(0, Math.min(TOTAL_DECK_SLOTS - 1, Number(raw.activeSlot || 0)));
+      return {
+        activeSlot: idx,
+        slots: raw.slots.map((s, i) => ({
+          name: String((s && s.name) || `เด็คจัดเอง #${i + 1}`).slice(0, 24),
+          leaderId: (s && s.leaderId) || 'L01',
+          mainDeck: Array.isArray(s && s.mainDeck) ? [...s.mainDeck] : [...DEFAULT_DECK_LIST]
+        }))
+      };
+    }
+  } catch (e) {}
+  return createDefaultDeckSlotsState();
+}
+
+let deckSlotsState = loadDeckSlotsState();
+
+function persistDeckSlotsState() {
+  try {
+    localStorage.setItem(DECK_SLOTS_STORAGE_KEY, JSON.stringify(deckSlotsState));
+    const active = deckSlotsState.slots[deckSlotsState.activeSlot];
+    if (active && active.leaderId && Array.isArray(active.mainDeck) && active.mainDeck.length === 20) {
+      localStorage.setItem('my_card_game_deck', JSON.stringify(active));
+    }
+  } catch (e) {}
+}
+
+function encodeDeckCode(cfg) {
+  if (!cfg || !cfg.leaderId || !Array.isArray(cfg.mainDeck)) return '';
+  const counts = {};
+  cfg.mainDeck.forEach(id => {
+    counts[id] = (counts[id] || 0) + 1;
+  });
+  const body = Object.entries(counts).map(([id, n]) => `${id}.${n}`).join('_');
+  return `BOF1-${cfg.leaderId}-${body}`;
+}
+
+function decodeDeckCode(rawCode) {
+  const code = String(rawCode || '').trim();
+  if (!code) throw new Error('กรุณาวางรหัสเด็ค (Deck Code) ก่อนกดนำเข้า');
+
+  let leaderId = '';
+  let mainDeck = [];
+  let customName = '';
+
+  if (/^BOF1-/i.test(code)) {
+    const parts = code.split('-');
+    if (parts.length < 3) throw new Error('รูปแบบรหัสเด็คไม่ถูกต้อง (ต้องขึ้นต้นด้วย BOF1-...)');
+    leaderId = parts[1].trim().toUpperCase();
+    const pairs = parts.slice(2).join('-').split('_').filter(Boolean);
+    pairs.forEach(p => {
+      const [cidRaw, cntRaw] = p.split('.');
+      const cid = String(cidRaw || '').trim().toUpperCase();
+      const cnt = Math.max(1, Math.min(4, Number(cntRaw || 1)));
+      for (let i = 0; i < cnt; i++) mainDeck.push(cid);
+    });
+  } else {
+    try {
+      const parsed = JSON.parse(decodeURIComponent(atob(code)));
+      leaderId = parsed.leaderId;
+      mainDeck = Array.isArray(parsed.mainDeck) ? parsed.mainDeck : [];
+      customName = parsed.name || '';
+    } catch (e) {
+      throw new Error('รหัสเด็คไม่ถูกต้อง! ตัวอย่างรหัสที่รองรับ: BOF1-L01-M01.2_M02.2...');
+    }
+  }
+
+  const leaderCard = CARD_DATABASE.find(c => c.id === leaderId && c.type === 'Leader');
+  if (!leaderCard) throw new Error(`ไม่พบการ์ด Leader รหัส "${leaderId}"`);
+
+  if (mainDeck.length !== 20) {
+    throw new Error(`รหัสเด็คนี้มีการ์ด ${mainDeck.length} ใบ (กติกาต้องครบ 20 ใบพอดี)`);
+  }
+
+  const copyCheck = {};
+  for (const cid of mainDeck) {
+    const card = CARD_DATABASE.find(c => c.id === cid && c.type !== 'Leader');
+    if (!card) throw new Error(`ไม่พบการ์ดรหัส "${cid}" ในฐานข้อมูล`);
+    copyCheck[cid] = (copyCheck[cid] || 0) + 1;
+    const maxAllowed = getCardMaxCopies(card);
+    if (copyCheck[cid] > maxAllowed) {
+      throw new Error(`การ์ด "${card.name}" ใส่เกินจำนวนสูงสุดที่กำหนด (${maxAllowed} ใบ)`);
+    }
+  }
+
+  // ตรวจสอบจำนวนการ์ดในคลังหากผู้เล่นล็อกอินอยู่
+  if (window.BOFAuth && typeof window.BOFAuth.currentUser === 'function' && window.BOFAuth.currentUser() && window.BOFShop && typeof window.BOFShop.getEconomy === 'function') {
+    const eco = window.BOFShop.getEconomy();
+    const owned = (eco && eco.ownedCards) || {};
+    if ((owned[leaderId] || 0) < 1) {
+      throw new Error(`คุณยังไม่มี Leader "${leaderCard.name}" ในคลังการ์ด`);
+    }
+    for (const [cid, need] of Object.entries(copyCheck)) {
+      const have = Number(owned[cid] || 0);
+      if (have < need) {
+        const cObj = CARD_DATABASE.find(c => c.id === cid);
+        throw new Error(`การ์ด "${cObj ? cObj.name : cid}" ในคลังมี ${have}/${need} ใบ (สุ่มซองหรือหลอมการ์ดเพิ่มก่อน)`);
+      }
+    }
+  }
+
+  return { leaderId, mainDeck, name: customName };
+}
+
 let currentDeckConfig = loadSavedDeck();
 
 function loadSavedDeck() {
   try {
+    deckSlotsState = loadDeckSlotsState();
+    const active = deckSlotsState.slots[deckSlotsState.activeSlot];
+    if (active && active.leaderId && Array.isArray(active.mainDeck) && active.mainDeck.length === 20) {
+      return {
+        name: active.name || `เด็คจัดเอง #${deckSlotsState.activeSlot + 1}`,
+        leaderId: active.leaderId,
+        mainDeck: [...active.mainDeck]
+      };
+    }
     const saved = localStorage.getItem('my_card_game_deck');
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed.leaderId && Array.isArray(parsed.mainDeck) && parsed.mainDeck.length === 20) {
-        return parsed;
+        return {
+          name: parsed.name || 'เด็คของฉัน',
+          leaderId: parsed.leaderId,
+          mainDeck: [...parsed.mainDeck]
+        };
       }
     }
   } catch (e) {
     console.warn('โหลดเด็คไม่สำเร็จ ใช้เด็คมาตรฐานแทน');
   }
-  return { leaderId: 'L01', mainDeck: [...DEFAULT_DECK_LIST] };
+  return { name: 'เด็คจัดเอง #1', leaderId: 'L01', mainDeck: [...DEFAULT_DECK_LIST] };
+}
+
+window.BOFDeckSlots = {
+  getState: () => deckSlotsState,
+  getActiveSlotIndex: () => deckSlotsState.activeSlot,
+  getActiveDeck: () => {
+    const s = deckSlotsState.slots[deckSlotsState.activeSlot];
+    return s ? { ...s, mainDeck: [...s.mainDeck] } : loadSavedDeck();
+  },
+  selectSlot: (idx) => {
+    const validIdx = Math.max(0, Math.min(TOTAL_DECK_SLOTS - 1, Number(idx || 0)));
+    deckSlotsState.activeSlot = validIdx;
+    const slot = deckSlotsState.slots[validIdx];
+    currentDeckConfig = {
+      name: slot.name || `เด็คจัดเอง #${validIdx + 1}`,
+      leaderId: slot.leaderId,
+      mainDeck: [...slot.mainDeck]
+    };
+    persistDeckSlotsState();
+    if (window.LobbyView && typeof window.LobbyView.refreshMine === 'function') {
+      window.LobbyView.refreshMine();
+    }
+    return currentDeckConfig;
+  },
+  encodeDeckCode,
+  decodeDeckCode,
+  exportState: () => JSON.parse(JSON.stringify(deckSlotsState)),
+  importState: (state) => {
+    if (!state || !Array.isArray(state.slots)) return;
+    deckSlotsState = {
+      activeSlot: Math.max(0, Math.min(TOTAL_DECK_SLOTS - 1, Number(state.activeSlot || 0))),
+      slots: state.slots.slice(0, TOTAL_DECK_SLOTS).map((s, i) => ({
+        name: String((s && s.name) || `เด็คจัดเอง #${i + 1}`).slice(0, 24),
+        leaderId: (s && s.leaderId) || 'L01',
+        mainDeck: Array.isArray(s && s.mainDeck) ? [...s.mainDeck] : [...DEFAULT_DECK_LIST]
+      }))
+    };
+    persistDeckSlotsState();
+  }
+};
+
+function showDeckBuilderFeedback(msg, isError = false) {
+  const fb = document.getElementById('deck-code-feedback');
+  if (!fb) return;
+  fb.textContent = msg;
+  fb.className = 'deck-code-feedback ' + (isError ? 'is-error' : 'is-ok');
+  fb.style.display = 'block';
+  if (window._deckFbTimer) clearTimeout(window._deckFbTimer);
+  window._deckFbTimer = setTimeout(() => {
+    if (fb) fb.style.display = 'none';
+  }, 4000);
+}
+
+function autoBuildDeckForLeader(leaderId) {
+  const targetLeaderId = leaderId || currentDeckConfig.leaderId || 'L01';
+  const presetList = typeof getDefaultDeckForLeader === 'function'
+    ? [...getDefaultDeckForLeader(targetLeaderId)]
+    : [...DEFAULT_DECK_LIST];
+
+  const isLogged = window.BOFAuth && typeof window.BOFAuth.currentUser === 'function' && !!window.BOFAuth.currentUser();
+  if (!isLogged || !window.BOFShop || typeof window.BOFShop.getEconomy !== 'function') {
+    return presetList;
+  }
+
+  const eco = window.BOFShop.getEconomy();
+  const owned = (eco && eco.ownedCards) || {};
+  const result = [];
+  const usedCounts = {};
+
+  // 1. ใส่การ์ดจากชุดมาตรฐานของ Leader นั้นตามจำนวนที่มีจริงในคลังก่อน
+  for (const cid of presetList) {
+    const cardObj = CARD_DATABASE.find(c => c.id === cid && c.type !== 'Leader');
+    if (!cardObj) continue;
+    const ruleMax = getCardMaxCopies(cardObj);
+    const have = Number(owned[cid] || 0);
+    const allowed = Math.min(ruleMax, have);
+    const curr = usedCounts[cid] || 0;
+    if (curr < allowed && result.length < 20) {
+      result.push(cid);
+      usedCounts[cid] = curr + 1;
+    }
+  }
+
+  // 2. หากการ์ดในคลังของสายนั้นยังไม่ครบ 20 ใบ ให้เติมการ์ดใบอื่นที่มีในคลังให้อัตโนมัติจนครบ 20 ใบ
+  if (result.length < 20) {
+    const leaderCard = CARD_DATABASE.find(c => c.id === targetLeaderId);
+    const preferredTribe = leaderCard && leaderCard.tribe ? leaderCard.tribe : null;
+    const allMain = CARD_DATABASE.filter(c => c.type !== 'Leader' && Number(owned[c.id] || 0) > 0);
+    allMain.sort((a, b) => {
+      const aMatch = preferredTribe && hasCardTribe(a, preferredTribe) ? 1 : 0;
+      const bMatch = preferredTribe && hasCardTribe(b, preferredTribe) ? 1 : 0;
+      if (aMatch !== bMatch) return bMatch - aMatch;
+      return (b.power || 0) - (a.power || 0);
+    });
+    for (const cardObj of allMain) {
+      if (result.length >= 20) break;
+      const ruleMax = getCardMaxCopies(cardObj);
+      const have = Number(owned[cardObj.id] || 0);
+      const allowed = Math.min(ruleMax, have);
+      while ((usedCounts[cardObj.id] || 0) < allowed && result.length < 20) {
+        result.push(cardObj.id);
+        usedCounts[cardObj.id] = (usedCounts[cardObj.id] || 0) + 1;
+      }
+    }
+  }
+
+  return result;
+}
+
+function ensureDeckSlotsToolbar() {
+  const modalBox = document.querySelector('#deck-builder-modal .deck-builder-box');
+  const header = document.querySelector('#deck-builder-modal .deck-builder-header');
+  if (!modalBox || !header) return;
+
+  // เพิ่มปุ่มปิดหน้าต่างจัดเด็คถ้ายังไม่มี
+  const headerBtnRow = header.querySelector('div:last-child');
+  if (headerBtnRow && !document.getElementById('btn-close-deck-builder')) {
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.id = 'btn-close-deck-builder';
+    closeBtn.className = 'btn';
+    closeBtn.style.background = '#334155';
+    closeBtn.textContent = '✕ ปิด';
+    closeBtn.onclick = () => {
+      document.getElementById('deck-builder-modal').style.display = 'none';
+    };
+    headerBtnRow.appendChild(closeBtn);
+  }
+
+  let toolbar = document.getElementById('bof-deck-slots-toolbar');
+  if (!toolbar) {
+    toolbar = document.createElement('div');
+    toolbar.id = 'bof-deck-slots-toolbar';
+    toolbar.className = 'deck-slots-toolbar';
+    header.insertAdjacentElement('afterend', toolbar);
+  }
+
+  const activeIdx = deckSlotsState.activeSlot;
+  const activeSlot = deckSlotsState.slots[activeIdx] || {};
+  const deckNameVal = currentDeckConfig.name || activeSlot.name || `เด็คจัดเอง #${activeIdx + 1}`;
+  const currentCode = encodeDeckCode(currentDeckConfig);
+
+  toolbar.innerHTML = `
+    <div class="deck-code-actions-row">
+      <div class="deck-slot-choice-group">
+        <label for="select-builder-deck-slot">🗂️ สล็อตที่กำลังแก้ไข:</label>
+        <select id="select-builder-deck-slot" class="deck-slot-choice-select">
+          ${deckSlotsState.slots.map((slot, idx) => {
+            const lId = idx === activeIdx ? currentDeckConfig.leaderId : slot.leaderId;
+            const leader = CARD_DATABASE.find(c => c.id === lId);
+            const count = idx === activeIdx ? currentDeckConfig.mainDeck.length : (slot.mainDeck ? slot.mainDeck.length : 0);
+            const name = idx === activeIdx ? deckNameVal : (slot.name || `เด็คจัดเอง #${idx + 1}`);
+            return `<option value="${idx}" ${idx === activeIdx ? 'selected' : ''}>สล็อต #${idx + 1}: ${name} (👑 ${leader ? leader.name : lId} · ${count}/20 ใบ)</option>`;
+          }).join('')}
+        </select>
+        <button type="button" class="btn deck-slot-switch-modal-btn" id="btn-reopen-slot-picker" title="กลับไปหน้าเลือกสล็อตทั้งหมด">🔄 เปลี่ยนสล็อต</button>
+      </div>
+
+      <div class="deck-name-edit-group">
+        <label for="input-deck-slot-name">✏️ ชื่อเด็ค:</label>
+        <input type="text" id="input-deck-slot-name" maxlength="22" value="${deckNameVal.replace(/"/g, '&quot;')}" placeholder="ตั้งชื่อเด็คของคุณ...">
+      </div>
+
+      <div class="deck-code-share-group">
+        <input type="text" id="input-deck-share-code" value="${currentCode}" placeholder="วางรหัสเด็ค (Deck Code) เช่น BOF1-L01-...">
+        <button type="button" class="btn deck-code-btn is-copy" id="btn-copy-deck-code" title="คัดลอกรหัสเด็คส่งให้เพื่อน">📋 คัดลอกโค้ด</button>
+        <button type="button" class="btn deck-code-btn is-import" id="btn-import-deck-code" title="นำเข้าเด็คจากรหัสที่วาง">📥 นำเข้าโค้ด</button>
+      </div>
+    </div>
+    <p id="deck-code-feedback" class="deck-code-feedback" style="display:none;"></p>
+  `;
+
+  const slotSelect = document.getElementById('select-builder-deck-slot');
+  if (slotSelect) {
+    slotSelect.onchange = () => {
+      const targetIdx = Number(slotSelect.value || 0);
+      if (targetIdx === deckSlotsState.activeSlot) return;
+      deckSlotsState.slots[deckSlotsState.activeSlot] = {
+        name: currentDeckConfig.name || `เด็คจัดเอง #${deckSlotsState.activeSlot + 1}`,
+        leaderId: currentDeckConfig.leaderId,
+        mainDeck: [...currentDeckConfig.mainDeck]
+      };
+      deckSlotsState.activeSlot = targetIdx;
+      const nextSlot = deckSlotsState.slots[targetIdx];
+      currentDeckConfig = {
+        name: nextSlot.name || `เด็คจัดเอง #${targetIdx + 1}`,
+        leaderId: nextSlot.leaderId,
+        mainDeck: [...nextSlot.mainDeck]
+      };
+      persistDeckSlotsState();
+      window.renderDeckBuilder();
+      showDeckBuilderFeedback(`🗂️ สลับมาแก้ไข "สล็อต #${targetIdx + 1}: ${currentDeckConfig.name}" แล้ว`);
+    };
+  }
+
+  const reopenBtn = document.getElementById('btn-reopen-slot-picker');
+  if (reopenBtn) {
+    reopenBtn.onclick = () => {
+      deckSlotsState.slots[deckSlotsState.activeSlot] = {
+        name: currentDeckConfig.name || `เด็คจัดเอง #${deckSlotsState.activeSlot + 1}`,
+        leaderId: currentDeckConfig.leaderId,
+        mainDeck: [...currentDeckConfig.mainDeck]
+      };
+      persistDeckSlotsState();
+      document.getElementById('deck-builder-modal').style.display = 'none';
+      openDeckSlotPickerModal();
+    };
+  }
+
+  const nameInput = document.getElementById('input-deck-slot-name');
+  if (nameInput) {
+    nameInput.oninput = () => {
+      const val = nameInput.value.trim() || `เด็คจัดเอง #${deckSlotsState.activeSlot + 1}`;
+      currentDeckConfig.name = val;
+      deckSlotsState.slots[deckSlotsState.activeSlot].name = val;
+      if (slotSelect && slotSelect.options[deckSlotsState.activeSlot]) {
+        const leader = CARD_DATABASE.find(c => c.id === currentDeckConfig.leaderId);
+        slotSelect.options[deckSlotsState.activeSlot].textContent =
+          `สล็อต #${deckSlotsState.activeSlot + 1}: ${val} (👑 ${leader ? leader.name : currentDeckConfig.leaderId} · ${currentDeckConfig.mainDeck.length}/20 ใบ)`;
+      }
+    };
+  }
+
+  const copyBtn = document.getElementById('btn-copy-deck-code');
+  if (copyBtn) {
+    copyBtn.onclick = () => {
+      const codeStr = encodeDeckCode(currentDeckConfig);
+      const codeInput = document.getElementById('input-deck-share-code');
+      if (codeInput) codeInput.value = codeStr;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(codeStr).then(() => {
+          showDeckBuilderFeedback(`✅ คัดลอก Deck Code "${codeStr}" แล้ว! ส่งให้เพื่อนวางในช่องนำเข้าได้เลย`);
+        }).catch(() => {
+          if (codeInput) { codeInput.select(); document.execCommand('copy'); }
+          showDeckBuilderFeedback(`✅ คัดลอก Deck Code แล้ว!`);
+        });
+      } else {
+        if (codeInput) { codeInput.select(); document.execCommand('copy'); }
+        showDeckBuilderFeedback(`✅ คัดลอก Deck Code แล้ว!`);
+      }
+    };
+  }
+
+  const importBtn = document.getElementById('btn-import-deck-code');
+  if (importBtn) {
+    importBtn.onclick = () => {
+      const codeInput = document.getElementById('input-deck-share-code');
+      const raw = codeInput ? codeInput.value.trim() : '';
+      try {
+        const decoded = decodeDeckCode(raw);
+        currentDeckConfig.leaderId = decoded.leaderId;
+        currentDeckConfig.mainDeck = [...decoded.mainDeck];
+        if (decoded.name) currentDeckConfig.name = decoded.name;
+        deckSlotsState.slots[deckSlotsState.activeSlot] = {
+          name: currentDeckConfig.name || `เด็คจัดเอง #${deckSlotsState.activeSlot + 1}`,
+          leaderId: currentDeckConfig.leaderId,
+          mainDeck: [...currentDeckConfig.mainDeck]
+        };
+        persistDeckSlotsState();
+        window.renderDeckBuilder();
+        showDeckBuilderFeedback('🎉 นำเข้า Deck Code สำเร็จ! โหลดการ์ดทั้ง 21 ใบเข้าสู่สล็อตนี้แล้ว');
+      } catch (err) {
+        showDeckBuilderFeedback(`❌ ${err.message || 'รหัสเด็คไม่ถูกต้อง'}`, true);
+      }
+    };
+  }
+}
+
+function openDeckBuilderEditorForSlot(slotIdx) {
+  deckSlotsState = loadDeckSlotsState();
+  const validIdx = Math.max(0, Math.min(TOTAL_DECK_SLOTS - 1, Number(slotIdx ?? deckSlotsState.activeSlot ?? 0)));
+  deckSlotsState.activeSlot = validIdx;
+  const active = deckSlotsState.slots[validIdx];
+  if (active) {
+    currentDeckConfig = {
+      name: active.name || `เด็คจัดเอง #${validIdx + 1}`,
+      leaderId: active.leaderId,
+      mainDeck: [...active.mainDeck]
+    };
+  }
+  persistDeckSlotsState();
+  document.getElementById('mulligan-modal').style.display = 'none';
+  const pickerModal = document.getElementById('deck-slot-picker-modal');
+  if (pickerModal) pickerModal.style.display = 'none';
+  document.getElementById('deck-builder-modal').style.display = 'flex';
+  window.renderDeckBuilder();
+}
+
+function openDeckSlotPickerModal() {
+  deckSlotsState = loadDeckSlotsState();
+  let modal = document.getElementById('deck-slot-picker-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'deck-slot-picker-modal';
+    modal.className = 'modal-overlay';
+    modal.style.display = 'none';
+    modal.style.zIndex = '260';
+    document.body.appendChild(modal);
+  }
+
+  const activeIdx = deckSlotsState.activeSlot || 0;
+  modal.innerHTML = `
+    <div class="modal-box deck-slot-picker-box">
+      <div class="ai-setup-header">
+        <div>
+          <h2>🗂️ เลือกสล็อตเด็คที่ต้องการแก้ไข</h2>
+          <p>เลือกสล็อตเด็ค (1–5) ที่ต้องการจัดหรือปรับแต่งการ์ด</p>
+        </div>
+        <button type="button" id="btn-close-slot-picker-x" class="bof-auth-close-x" aria-label="ปิด">✕</button>
+      </div>
+
+      <div class="slot-picker-dropdown-bar">
+        <label for="slot-picker-choice-select">📋 เลือกจากช้อยส์ดรอปดาวน์:</label>
+        <div class="slot-picker-dropdown-row">
+          <select id="slot-picker-choice-select" class="deck-slot-choice-select">
+            ${deckSlotsState.slots.map((s, idx) => {
+              const l = CARD_DATABASE.find(c => c.id === s.leaderId);
+              const lName = l ? l.name : s.leaderId;
+              const sName = s.name || `เด็คจัดเอง #${idx + 1}`;
+              const cnt = Array.isArray(s.mainDeck) ? s.mainDeck.length : 0;
+              return `<option value="${idx}" ${idx === activeIdx ? 'selected' : ''}>สล็อต #${idx + 1}: ${sName} — 👑 ${lName} (${cnt}/20 ใบ)</option>`;
+            }).join('')}
+          </select>
+          <button type="button" class="btn slot-picker-go-btn" id="btn-slot-picker-go">🛠️ แก้ไขสล็อตนี้ ▶</button>
+        </div>
+      </div>
+
+      <div class="slot-picker-cards-grid">
+        ${deckSlotsState.slots.map((s, idx) => {
+          const l = CARD_DATABASE.find(c => c.id === s.leaderId);
+          const lName = l ? l.name : s.leaderId;
+          const lImg = l ? l.image : 'images/เด็คจิต/1.png';
+          const sName = s.name || `เด็คจัดเอง #${idx + 1}`;
+          const cnt = Array.isArray(s.mainDeck) ? s.mainDeck.length : 0;
+          const isCurr = idx === activeIdx;
+          return `
+            <button type="button" class="slot-picker-card ${isCurr ? 'is-active' : ''}" data-edit-slot="${idx}">
+              <img class="slot-picker-card-img" src="${lImg}" alt="${lName}">
+              <div class="slot-picker-card-meta">
+                <div class="slot-picker-card-top">
+                  <span class="slot-picker-num">สล็อต #${idx + 1}</span>
+                  ${isCurr ? '<span class="slot-picker-curr-badge">กำลังใช้งาน</span>' : ''}
+                </div>
+                <strong class="slot-picker-name">${sName}</strong>
+                <span class="slot-picker-leader">👑 ลีดเดอร์: ${lName}</span>
+                <span class="slot-picker-count">🃏 การ์ดในเด็ค: ${cnt}/20 ใบ</span>
+              </div>
+              <span class="slot-picker-edit-cta">🛠️ แก้ไข ▶</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+
+      <div class="ai-setup-footer" style="margin-top:12px;">
+        <button type="button" class="btn ai-cancel-btn" id="btn-cancel-slot-picker" style="width:100%;">ปิดหน้าต่าง</button>
+      </div>
+    </div>
+  `;
+
+  const closePicker = () => { modal.style.display = 'none'; };
+  modal.querySelector('#btn-close-slot-picker-x').onclick = closePicker;
+  modal.querySelector('#btn-cancel-slot-picker').onclick = closePicker;
+  modal.onclick = (e) => { if (e.target === modal) closePicker(); };
+
+  const sel = modal.querySelector('#slot-picker-choice-select');
+  const goBtn = modal.querySelector('#btn-slot-picker-go');
+  if (goBtn && sel) {
+    goBtn.onclick = () => {
+      openDeckBuilderEditorForSlot(Number(sel.value || 0));
+    };
+  }
+
+  modal.querySelectorAll('[data-edit-slot]').forEach(btn => {
+    btn.onclick = () => {
+      const idx = Number(btn.getAttribute('data-edit-slot') || 0);
+      openDeckBuilderEditorForSlot(idx);
+    };
+  });
+
+  modal.style.display = 'flex';
 }
 
 function openDeckBuilder() {
-  document.getElementById('mulligan-modal').style.display = 'none';
-  document.getElementById('deck-builder-modal').style.display = 'flex';
-  renderDeckBuilder();
+  openDeckSlotPickerModal();
 }
 
 function renderDeckBuilder() {
+  ensureDeckSlotsToolbar();
   const leaderContainer = document.getElementById('leader-pool-list');
   const mainContainer = document.getElementById('main-pool-list');
   leaderContainer.innerHTML = '';
   mainContainer.innerHTML = '';
 
   const saveBtn = document.getElementById('btn-save-start');
-  if (saveBtn) saveBtn.textContent = '✅ บันทึกเด็ค';
+  if (saveBtn) saveBtn.textContent = `✅ บันทึกสล็อต ${deckSlotsState.activeSlot + 1}`;
 
   CARD_DATABASE.filter(c => c.type === 'Leader').forEach(leader => {
     const item = document.createElement('div');
@@ -7036,73 +7758,29 @@ document.getElementById('btn-reset-deck')?.addEventListener('click', () => {
 });
 
 document.getElementById('btn-default-deck')?.addEventListener('click', () => {
-  showChoiceModal(
-    '🃏 เลือกเด็คมาตรฐาน',
-    'คุณต้องการโหลดเด็คมาตรฐานชุดใดเข้าสู่กระดานจัดเด็ค?',
-    [
-      {
-        label: '🔥 โหลด "เด็คจิต" (Leader: มายฮีโร่ เดจิต + 20 ใบ [เผ่าฮีโร่])',
-        color: '#0284c7',
-        onSelect: () => {
-          currentDeckConfig.leaderId = 'L01';
-          currentDeckConfig.mainDeck = [...DEFAULT_DECK_LIST];
-          renderDeckBuilder();
-        }
-      },
-      {
-        label: '🐘 โหลด "เด็คเหนือ" (Leader: ขุนเหนือ + 20 ใบ [เผ่าไทย])',
-        color: '#16a34a',
-        onSelect: () => {
-          currentDeckConfig.leaderId = 'L02';
-          currentDeckConfig.mainDeck = [...DEFAULT_NUEA_DECK_LIST];
-          renderDeckBuilder();
-        }
-      },
-      {
-        label: '⏳ โหลด "เด็ควันสิ้นโลก" (Leader: วันสิ้นโลก + 20 ใบ [เผ่าวันสิ้นโลก])',
-        color: '#7c3aed',
-        onSelect: () => {
-          currentDeckConfig.leaderId = 'L03';
-          currentDeckConfig.mainDeck = [...DEFAULT_DOOMSDAY_DECK_LIST];
-          renderDeckBuilder();
-        }
-      },
-      {
-        label: '🦖 โหลด "เด็คไดโน" (Leader: ศูนย์วิจัยไดโน + 20 ใบ [เผ่าไดโน])',
-        color: '#d97706',
-        onSelect: () => {
-          currentDeckConfig.leaderId = 'L04';
-          currentDeckConfig.mainDeck = [...DEFAULT_DINO_DECK_LIST];
-          renderDeckBuilder();
-        }
-      },
-      {
-        label: '😈 โหลด "เด็คปีศาจ" (Leader: ปีศาจ + 20 ใบ [เผ่าปีศาจ])',
-        color: '#9333ea',
-        onSelect: () => {
-          currentDeckConfig.leaderId = 'L05';
-          currentDeckConfig.mainDeck = [...DEFAULT_DEMON_DECK_LIST];
-          renderDeckBuilder();
-        }
-      },
-      {
-        label: '🤪 โหลด "เด็คโอ็ต" (Leader: ไอโอ๊ตบ้าทุกสิ่ง + 20 ใบ [เผ่าบ้า])',
-        color: '#ea580c',
-        onSelect: () => {
-          currentDeckConfig.leaderId = 'L06';
-          currentDeckConfig.mainDeck = [...DEFAULT_OAT_DECK_LIST];
-          renderDeckBuilder();
-        }
-      }
-    ]
-  );
+  const chosenLeaderId = currentDeckConfig.leaderId || 'L01';
+  const leaderCard = CARD_DATABASE.find(c => c.id === chosenLeaderId);
+  const autoList = autoBuildDeckForLeader(chosenLeaderId);
+  currentDeckConfig.leaderId = chosenLeaderId;
+  currentDeckConfig.mainDeck = [...autoList];
+  renderDeckBuilder();
+  showDeckBuilderFeedback(`⚡ จัดเด็คอัตโนมัติตามลีดเดอร์ "${leaderCard ? leaderCard.name : chosenLeaderId}" (${autoList.length}/20 ใบ) เรียบร้อยแล้ว!`);
 });
 
 document.getElementById('btn-save-start')?.addEventListener('click', () => {
   if (currentDeckConfig.mainDeck.length !== 20) return;
-  localStorage.setItem('my_card_game_deck', JSON.stringify(currentDeckConfig));
+  const activeIdx = deckSlotsState.activeSlot;
+  const nameInput = document.getElementById('input-deck-slot-name');
+  const slotName = (nameInput && nameInput.value.trim()) || currentDeckConfig.name || `เด็คจัดเอง #${activeIdx + 1}`;
+  currentDeckConfig.name = slotName;
+  deckSlotsState.slots[activeIdx] = {
+    name: slotName,
+    leaderId: currentDeckConfig.leaderId,
+    mainDeck: [...currentDeckConfig.mainDeck]
+  };
+  persistDeckSlotsState();
   document.getElementById('deck-builder-modal').style.display = 'none';
-  setLog('✅ บันทึกเด็คเรียบร้อยแล้ว!');
+  setLog(`✅ บันทึกเด็ค "${slotName}" (สล็อต ${activeIdx + 1}) เรียบร้อยแล้ว!`);
 });
 
 function initGame() {
@@ -7117,6 +7795,10 @@ function initGame() {
   gameState.isRollingDice = false;
   gameState.isWaitingForChoice = false;
   gameState.gameOver = false;
+  gameState.matchLogHistory = [];
+  gameState.lastPlayedCardInfo = null;
+  gameState._pendingBannerCard = null;
+  updateLastPlayedCardWidget(null);
 
   previousBoardUids = {
     player: [null, null, null],
@@ -7135,9 +7817,18 @@ function initGame() {
   gameState.player = createContestant('Player', true, 'P1', currentDeckConfig.leaderId, currentDeckConfig.mainDeck);
   gameState.ai = createContestant('AI', false, 'AI', chosenAiLeaderId, chosenAiDeckList);
 
+  const aiHeaderTitle = document.querySelector('.ai-mat-half .side-header-bar > span:first-child');
+  if (aiHeaderTitle && gameState.ai && gameState.ai.leader) {
+    const diffShort = aiConfig.difficulty === 'EASY' ? '🟢ง่าย' : (aiConfig.difficulty === 'HARD' ? '🔴โหด' : '🟡ปกติ');
+    aiHeaderTitle.innerHTML = `🤖 <b>${gameState.ai.leader.name}</b> <span class="ai-header-diff-pill is-${aiConfig.difficulty.toLowerCase()}">${diffShort}</span>`;
+  }
+
   ensureZoneUIAndViewers();
   setupInGameControlBar();
   initArenaCustomBackground();
+  if (window.BOFShop && typeof window.BOFShop.applyEquippedCosmetics === 'function') {
+    window.BOFShop.applyEquippedCosmetics();
+  }
   renderGame();
 
   const mulliganModal = document.getElementById('mulligan-modal');
@@ -7525,11 +8216,81 @@ setupLobbyEvents();
    COMBAT LOG DRAWER & SOUND CONTROLS BINDING
    ============================================================================ */
 let activeCombatLogFilter = 'ALL';
+let selectedLogSpotlight = null;
+
+function ensureCombatLogSpotlightContainer() {
+  const modalBox = document.querySelector('#combat-log-modal .combat-log-box');
+  const filterRow = document.querySelector('#combat-log-modal .combat-log-filters');
+  if (!modalBox || !filterRow) return null;
+  let spot = document.getElementById('combat-log-spotlight');
+  if (!spot) {
+    spot = document.createElement('div');
+    spot.id = 'combat-log-spotlight';
+    spot.className = 'combat-log-spotlight';
+    modalBox.insertBefore(spot, filterRow);
+  }
+  return spot;
+}
+
+function renderCombatLogSpotlight(spotEl) {
+  if (!spotEl) return;
+  const info = selectedLogSpotlight || gameState.lastPlayedCardInfo;
+  if (!info || !info.card) {
+    spotEl.innerHTML = `
+      <div class="combat-spot-empty">
+        <span>🃏 ยังไม่มีการ์ดที่เพิ่งทำงานในแมตช์นี้ — เมื่อมีการร่ายเวท ใช้สกิล หรืออัญเชิญการ์ด ข้อมูลสกิลจะไฮไลต์ตรงนี้ทันที!</span>
+      </div>
+    `;
+    return;
+  }
+
+  const c = info.card;
+  const desc = c.desc || (typeof getCardDescription === 'function' ? getCardDescription(c) : 'ไม่มีความสามารถ');
+  const sideText = info.isAI ? '🤖 ฝ่ายตรงข้ามใช้' : '👤 ฝั่งเราใช้';
+  const sideCls = info.isAI ? 'is-ai' : 'is-player';
+  const statText = c.type === 'Monster'
+    ? `⚔️ Power ${c.power}${c.tribe ? ` · เผ่า${c.tribe}` : ''}`
+    : (c.type === 'Leader' ? `👑 Leader · HP ${c.maxHp}` : `✨ ${c.type}`);
+
+  spotEl.innerHTML = `
+    <div class="combat-spot-card ${sideCls}">
+      <div class="combat-spot-art-wrap" id="combat-spot-art-trigger" title="คลิกเพื่อดูการ์ดใบใหญ่ 3D">
+        <img src="${c.image || ''}" alt="${c.name}">
+        <span class="combat-spot-zoom-hint">🔍 ซูม</span>
+      </div>
+      <div class="combat-spot-body">
+        <div class="combat-spot-head">
+          <span class="combat-spot-badge ${sideCls}">${sideText} · เทิร์น ${info.turn || 1}</span>
+          <span class="combat-spot-stat">${statText}</span>
+        </div>
+        <div class="combat-spot-title-row">
+          <strong class="combat-spot-name">${c.name}</strong>
+          <span class="combat-spot-rarity rarity-${c.rarity || 'N'}">${c.rarity || 'N'}</span>
+        </div>
+        <div class="combat-spot-action-summary">⚡ ${info.actionSubText || info.message || ''}</div>
+        <div class="combat-spot-skill-highlight">
+          <div class="combat-spot-skill-label">📜 ไฮไลต์ความสามารถของการ์ดใบนี้:</div>
+          <div class="combat-spot-skill-text">${desc}</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const artTrigger = spotEl.querySelector('#combat-spot-art-trigger');
+  if (artTrigger && typeof window.openCardDetailModal === 'function') {
+    artTrigger.onclick = () => {
+      window.openCardDetailModal(c, null, artTrigger);
+    };
+  }
+}
 
 function renderCombatLogModal() {
   const listEl = document.getElementById('combat-log-list');
   if (!listEl) return;
   listEl.innerHTML = '';
+
+  const spotEl = ensureCombatLogSpotlightContainer();
+  renderCombatLogSpotlight(spotEl);
 
   const history = Array.isArray(gameState.matchLogHistory) ? gameState.matchLogHistory : [];
   const filtered = activeCombatLogFilter === 'ALL'
@@ -7541,90 +8302,88 @@ function renderCombatLogModal() {
     return;
   }
 
+  // แสดงรายการล่าสุดไว้ด้านบนสุดเพื่อให้อ่านย้อนหลังบนมือถือได้ง่ายทันที หรือเรียงตามลำดับพร้อมเลื่อนลงล่างสุด
   filtered.forEach(item => {
+    const cardObj = item.cardId && typeof CARD_DATABASE !== 'undefined'
+      ? CARD_DATABASE.find(c => c.id === item.cardId)
+      : null;
+
     const row = document.createElement('div');
-    row.style.display = 'flex';
-    row.style.gap = '6px';
-    row.style.alignItems = 'center';
-    row.style.padding = '8px 10px';
-    row.style.borderRadius = '8px';
-    row.style.fontSize = '13px';
-    row.style.lineHeight = '1.4';
-    row.style.background = item.isAI ? 'rgba(30, 27, 75, 0.7)' : 'rgba(15, 23, 42, 0.75)';
-    row.style.borderLeft = item.isAI ? '4px solid #ef4444' : '4px solid #10b981';
-    row.style.marginBottom = '6px';
+    row.className = `combat-log-row ${item.isAI ? 'is-ai' : 'is-player'} ${cardObj ? 'has-card' : ''}`;
+
+    if (cardObj) {
+      const thumb = document.createElement('img');
+      thumb.className = 'combat-log-thumb';
+      thumb.src = cardObj.image || '';
+      thumb.alt = cardObj.name;
+      row.appendChild(thumb);
+    }
+
+    const contentWrap = document.createElement('div');
+    contentWrap.className = 'combat-log-row-main';
+
+    const topMeta = document.createElement('div');
+    topMeta.className = 'combat-log-row-badges';
 
     // 1. ชิปบอกเลขเทิร์น
     const turnBadge = document.createElement('span');
-    turnBadge.style.fontSize = '10.5px';
-    turnBadge.style.fontWeight = 'bold';
-    turnBadge.style.padding = '2px 8px';
-    turnBadge.style.borderRadius = '999px';
-    turnBadge.style.whiteSpace = 'nowrap';
-    turnBadge.style.background = '#1e293b';
-    turnBadge.style.border = '1px solid #475569';
-    turnBadge.style.color = '#e2e8f0';
+    turnBadge.className = 'combat-chip is-turn';
     turnBadge.textContent = `เทิร์น ${item.turn}`;
 
     // 2. ชิปบอกฝั่ง (เรา vs คู่แข่ง)
     const sideBadge = document.createElement('span');
-    sideBadge.style.fontSize = '10.5px';
-    sideBadge.style.fontWeight = 'bold';
-    sideBadge.style.padding = '2px 8px';
-    sideBadge.style.borderRadius = '999px';
-    sideBadge.style.whiteSpace = 'nowrap';
-    if (item.isAI) {
-      sideBadge.style.background = '#991b1b';
-      sideBadge.style.color = '#fecaca';
-      sideBadge.textContent = '🤖 คู่แข่ง';
-    } else {
-      sideBadge.style.background = '#065f46';
-      sideBadge.style.color = '#a7f3d0';
-      sideBadge.textContent = '👤 ฝั่งเรา';
-    }
+    sideBadge.className = `combat-chip ${item.isAI ? 'is-side-ai' : 'is-side-player'}`;
+    sideBadge.textContent = item.isAI ? '🤖 คู่แข่ง' : '👤 ฝั่งเรา';
 
     // 3. ชิปประเภทการกระทำ (โจมตี / เวท / อัญเชิญ / ระบบ)
     const catBadge = document.createElement('span');
-    catBadge.style.fontSize = '10px';
-    catBadge.style.fontWeight = 'bold';
-    catBadge.style.padding = '2px 7px';
-    catBadge.style.borderRadius = '999px';
-    catBadge.style.whiteSpace = 'nowrap';
+    catBadge.className = `combat-chip is-cat-${(item.category || 'OTHER').toLowerCase()}`;
     if (item.category === 'ATTACK') {
-      catBadge.style.background = '#b91c1c';
-      catBadge.style.color = '#fee2e2';
       catBadge.textContent = '⚔️ โจมตี';
     } else if (item.category === 'SPELL') {
-      catBadge.style.background = '#7e22ce';
-      catBadge.style.color = '#f3e8ff';
-      catBadge.textContent = '✨ เวท';
+      catBadge.textContent = '✨ เวท/สกิล';
     } else if (item.category === 'SUMMON') {
-      catBadge.style.background = '#0f766e';
-      catBadge.style.color = '#ccfbf1';
       catBadge.textContent = '🃏 อัญเชิญ';
     } else {
-      catBadge.style.background = '#334155';
-      catBadge.style.color = '#e2e8f0';
       catBadge.textContent = '📢 ระบบ';
     }
 
-    const textSpan = document.createElement('span');
-    textSpan.style.color = item.isAI ? '#e0e7ff' : '#f8fafc';
-    textSpan.style.flex = '1';
-    textSpan.style.margin = '0 4px';
-    textSpan.textContent = item.message;
-
     const timeSpan = document.createElement('span');
-    timeSpan.style.fontSize = '10px';
-    timeSpan.style.color = '#64748b';
-    timeSpan.style.whiteSpace = 'nowrap';
+    timeSpan.className = 'combat-log-time';
     timeSpan.textContent = item.time;
 
-    row.appendChild(turnBadge);
-    row.appendChild(sideBadge);
-    row.appendChild(catBadge);
-    row.appendChild(textSpan);
-    row.appendChild(timeSpan);
+    topMeta.append(turnBadge, sideBadge, catBadge);
+    if (cardObj) {
+      const inspectHint = document.createElement('span');
+      inspectHint.className = 'combat-chip is-inspect-hint';
+      inspectHint.textContent = `🔍 แตะดูสกิล "${cardObj.name}"`;
+      topMeta.appendChild(inspectHint);
+    }
+    topMeta.appendChild(timeSpan);
+
+    const textSpan = document.createElement('div');
+    textSpan.className = 'combat-log-msg';
+    textSpan.textContent = item.message;
+
+    contentWrap.append(topMeta, textSpan);
+    row.appendChild(contentWrap);
+
+    if (cardObj) {
+      row.onclick = () => {
+        selectedLogSpotlight = {
+          card: cardObj,
+          actorName: item.actorTitle,
+          actionSubText: item.actionSubText || item.message,
+          message: item.message,
+          turn: item.turn,
+          isAI: item.isAI,
+          category: item.category,
+          time: item.time
+        };
+        renderCombatLogSpotlight(spotEl);
+      };
+    }
+
     listEl.appendChild(row);
   });
 

@@ -102,10 +102,13 @@
       losses: Number(profile.losses || 0),
       matches: Number(profile.matches || 0),
       savedDeck: profile.savedDeck || null,
+      deckSlots: profile.deckSlots || null,
       pity: profile.pity || {},
       lastDailyClaimDate: profile.lastDailyClaimDate || '',
       dailyProgress: profile.dailyProgress || null,
       claimedQuests: profile.claimedQuests || {},
+      ownedCosmetics: profile.ownedCosmetics || null,
+      equippedCosmetics: profile.equippedCosmetics || null,
       exportedAt: Date.now()
     };
     return btoa(encodeURIComponent(JSON.stringify(payload)));
@@ -160,14 +163,18 @@
   }
 
   function applyProfileDeckToGame(profile) {
-    if (!profile || !profile.savedDeck) return;
+    if (!profile) return;
+    if (profile.deckSlots && window.BOFDeckSlots && typeof window.BOFDeckSlots.importState === 'function') {
+      window.BOFDeckSlots.importState(profile.deckSlots);
+    }
+    if (!profile.savedDeck) return;
     const d = profile.savedDeck;
     if (d && d.leaderId && Array.isArray(d.mainDeck) && d.mainDeck.length === 20) {
       try {
         localStorage.setItem(DECK_STORAGE_KEY, JSON.stringify(d));
       } catch (e) {}
       if (typeof currentDeckConfig !== 'undefined') {
-        currentDeckConfig = { leaderId: d.leaderId, mainDeck: [...d.mainDeck] };
+        currentDeckConfig = { leaderId: d.leaderId, mainDeck: [...d.mainDeck], name: d.name || '' };
       }
       if (window.LobbyView && typeof window.LobbyView.refreshMine === 'function') {
         window.LobbyView.refreshMine();
@@ -581,8 +588,11 @@
         const savedDeck = readCurrentDeckFromStorage();
         if (savedDeck) {
           currentUser.savedDeck = savedDeck;
-          persistCurrentUserProfile();
         }
+        if (window.BOFDeckSlots && typeof window.BOFDeckSlots.exportState === 'function') {
+          currentUser.deckSlots = window.BOFDeckSlots.exportState();
+        }
+        persistCurrentUserProfile();
       }, 50);
     });
 
@@ -830,6 +840,8 @@
       currentUser.lastDailyClaimDate = eco.lastDailyClaimDate;
       currentUser.dailyProgress = eco.dailyProgress;
       currentUser.claimedQuests = eco.claimedQuests;
+      currentUser.ownedCosmetics = eco.ownedCosmetics;
+      currentUser.equippedCosmetics = eco.equippedCosmetics;
       persistCurrentUserProfile();
     }
   };

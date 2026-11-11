@@ -134,6 +134,486 @@
     return `${String(h).padStart(2, '0')} ชม. ${String(m).padStart(2, '0')} นาที ${String(s).padStart(2, '0')} วินาที`;
   }
 
+  const DEFAULT_OWNED_COSMETICS = {
+    cb_default: true,
+    pf_default: true,
+    tt_default: true,
+    mt_default: true
+  };
+
+  const DEFAULT_EQUIPPED_COSMETICS = {
+    card_back: 'cb_default',
+    frame: 'pf_default',
+    title: 'tt_default',
+    arena_theme: 'mt_default'
+  };
+
+  // สร้างลวดลายหลังการ์ดแบบ SVG ความละเอียดสูงสำหรับแต่ละธีมธาตุ
+  function makeCardBackSvgDataUri(opts) {
+    const {
+      bg1 = '#0f172a',
+      bg2 = '#1e1b4b',
+      border = '#facc15',
+      accent = '#38bdf8',
+      glow = '#f59e0b',
+      symbol = '⚔️',
+      title = 'BOF',
+      pattern = 'circle'
+    } = opts || {};
+
+    let patternShapes = '';
+    if (pattern === 'dragon') {
+      patternShapes = `
+        <polygon points="150,36 244,120 210,210 150,165 90,210 56,120" fill="none" stroke="${accent}" stroke-width="3" opacity="0.55"/>
+        <polygon points="150,384 244,300 210,210 150,255 90,210 56,300" fill="none" stroke="${accent}" stroke-width="3" opacity="0.55"/>
+        <circle cx="150" cy="210" r="88" fill="none" stroke="${border}" stroke-width="3" stroke-dasharray="10 6"/>
+      `;
+    } else if (pattern === 'siam') {
+      patternShapes = `
+        <rect x="52" y="68" width="196" height="284" rx="14" fill="none" stroke="${border}" stroke-width="2.5" stroke-dasharray="6 4" opacity="0.7"/>
+        <polygon points="150,55 235,210 150,365 65,210" fill="none" stroke="${accent}" stroke-width="3.5"/>
+        <polygon points="150,90 208,210 150,330 92,210" fill="none" stroke="${border}" stroke-width="2"/>
+      `;
+    } else if (pattern === 'cyber') {
+      patternShapes = `
+        <path d="M40,90 L110,90 L135,125 L165,125 L190,90 L260,90" fill="none" stroke="${accent}" stroke-width="3" opacity="0.75"/>
+        <path d="M40,330 L110,330 L135,295 L165,295 L190,330 L260,330" fill="none" stroke="${accent}" stroke-width="3" opacity="0.75"/>
+        <polygon points="150,110 236,160 236,260 150,310 64,260 64,160" fill="none" stroke="${border}" stroke-width="3"/>
+        <polygon points="150,132 216,170 216,250 150,288 84,250 84,170" fill="none" stroke="${accent}" stroke-width="2" stroke-dasharray="8 4"/>
+      `;
+    } else if (pattern === 'abyss') {
+      patternShapes = `
+        <circle cx="150" cy="210" r="98" fill="none" stroke="${accent}" stroke-width="2.5" stroke-dasharray="4 6"/>
+        <polygon points="150,104 178,182 260,182 194,230 218,308 150,260 82,308 106,230 40,182 122,182" fill="none" stroke="${border}" stroke-width="2.5" opacity="0.7"/>
+        <circle cx="150" cy="210" r="64" fill="#090314" stroke="${border}" stroke-width="3"/>
+      `;
+    } else if (pattern === 'sakura') {
+      patternShapes = `
+        <circle cx="150" cy="175" r="78" fill="${glow}" opacity="0.28"/>
+        <circle cx="150" cy="210" r="92" fill="none" stroke="${border}" stroke-width="2.5"/>
+        <path d="M60,320 Q150,250 240,320" fill="none" stroke="${accent}" stroke-width="3" opacity="0.7"/>
+        <circle cx="85" cy="115" r="6" fill="${accent}" opacity="0.8"/>
+        <circle cx="220" cy="135" r="5" fill="${border}" opacity="0.8"/>
+        <circle cx="95" cy="295" r="5" fill="${border}" opacity="0.8"/>
+        <circle cx="210" cy="280" r="7" fill="${accent}" opacity="0.8"/>
+      `;
+    } else if (pattern === 'prism') {
+      patternShapes = `
+        <polygon points="150,48 252,210 150,372 48,210" fill="none" stroke="#38bdf8" stroke-width="3"/>
+        <polygon points="150,78 232,210 150,342 68,210" fill="none" stroke="#f472b6" stroke-width="2.5"/>
+        <polygon points="62,122 238,122 150,346" fill="none" stroke="#fde047" stroke-width="2" opacity="0.75"/>
+        <polygon points="62,298 238,298 150,74" fill="none" stroke="#4ade80" stroke-width="2" opacity="0.75"/>
+      `;
+    } else {
+      patternShapes = `
+        <circle cx="150" cy="210" r="96" fill="none" stroke="${accent}" stroke-width="2.5" stroke-dasharray="12 6"/>
+        <circle cx="150" cy="210" r="76" fill="none" stroke="${border}" stroke-width="2"/>
+        <polygon points="150,92 222,210 150,328 78,210" fill="none" stroke="${border}" stroke-width="2.5" opacity="0.75"/>
+      `;
+    }
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 420" width="300" height="420">
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="${bg1}"/>
+          <stop offset="55%" stop-color="${bg2}"/>
+          <stop offset="100%" stop-color="${bg1}"/>
+        </linearGradient>
+        <radialGradient id="core" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="${glow}" stop-opacity="0.55"/>
+          <stop offset="65%" stop-color="${accent}" stop-opacity="0.18"/>
+          <stop offset="100%" stop-color="${bg1}" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <rect width="300" height="420" rx="22" fill="url(#bg)"/>
+      <rect x="12" y="12" width="276" height="396" rx="16" fill="none" stroke="${border}" stroke-width="5"/>
+      <rect x="22" y="22" width="256" height="376" rx="12" fill="none" stroke="${accent}" stroke-width="1.8" opacity="0.7"/>
+      <circle cx="150" cy="210" r="128" fill="url(#core)"/>
+      <circle cx="38" cy="38" r="8" fill="${border}"/>
+      <circle cx="262" cy="38" r="8" fill="${border}"/>
+      <circle cx="38" cy="382" r="8" fill="${border}"/>
+      <circle cx="262" cy="382" r="8" fill="${border}"/>
+      ${patternShapes}
+      <circle cx="150" cy="210" r="46" fill="${bg1}" stroke="${border}" stroke-width="3.5"/>
+      <text x="150" y="224" text-anchor="middle" font-size="40">${symbol}</text>
+      <rect x="78" y="344" width="144" height="28" rx="14" fill="${bg1}" stroke="${border}" stroke-width="2"/>
+      <text x="150" y="363" text-anchor="middle" fill="${border}" font-family="Kanit, sans-serif" font-weight="800" font-size="14" letter-spacing="2">${title}</text>
+    </svg>`;
+    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  }
+
+  const COSMETIC_ITEMS = [
+    // 1. ลายหลังการ์ด (Card Backs — มีให้เลือกครบ 10 ลายที่ไม่ซ้ำกัน)
+    {
+      id: 'cb_default',
+      category: 'card_back',
+      name: 'ลายมาตรฐาน BOF',
+      desc: 'หลังการ์ดดั้งเดิมประจำสมรภูมิ Battle of Friends',
+      currency: 'free',
+      price: 0,
+      rarity: 'N',
+      image: 'images/card-back.png',
+      styleId: 'default'
+    },
+    {
+      id: 'cb_gold_edition',
+      category: 'card_back',
+      name: 'ลายตราเกียรติยศ BOF',
+      desc: 'หลังการ์ดลิมิเต็ดอิดิชัน ตรา Battle of Friends ขอบทองคำ',
+      currency: 'coins',
+      price: 800,
+      rarity: 'SR',
+      image: 'images/ด้านหลังการ์ด/การ์ดเกม Battle of Friends.png',
+      styleId: 'gold'
+    },
+    {
+      id: 'cb_crimson_hero',
+      category: 'card_back',
+      name: 'ลายมังกรเพลิงราชันย์',
+      desc: 'วงเวทอัคคีสีแดงชาดและตราดาบเพลิงแห่งฮีโร่',
+      currency: 'coins',
+      price: 900,
+      rarity: 'R',
+      image: makeCardBackSvgDataUri({
+        bg1: '#2a060b', bg2: '#7f1d1d', border: '#fbbf24', accent: '#f97316', glow: '#ef4444',
+        symbol: '🔥', title: 'CRIMSON HERO', pattern: 'dragon'
+      }),
+      styleId: 'crimson'
+    },
+    {
+      id: 'cb_siam_royal',
+      category: 'card_back',
+      name: 'ลายกนกทองคำสยาม',
+      desc: 'ลวดลายไทยประยุกต์สีทองอร่ามประจำกองทัพขุนเหนือ',
+      currency: 'coins',
+      price: 900,
+      rarity: 'R',
+      image: makeCardBackSvgDataUri({
+        bg1: '#0c192c', bg2: '#1e3a5f', border: '#facc15', accent: '#fb923c', glow: '#f59e0b',
+        symbol: '🐘', title: 'SIAM WARLORD', pattern: 'siam'
+      }),
+      styleId: 'gold'
+    },
+    {
+      id: 'cb_emerald_dino',
+      category: 'card_back',
+      name: 'ลายมรกตดึกดำบรรพ์',
+      desc: 'คริสตัลพลังงานชีวมวลสีเขียวมรกตแห่งศูนย์วิจัยไดโน',
+      currency: 'coins',
+      price: 1000,
+      rarity: 'R',
+      image: makeCardBackSvgDataUri({
+        bg1: '#032215', bg2: '#065f46', border: '#a3e635', accent: '#34d399', glow: '#10b981',
+        symbol: '🦖', title: 'JURASSIC CORE', pattern: 'circle'
+      }),
+      styleId: 'emerald'
+    },
+    {
+      id: 'cb_cosmic_doom',
+      category: 'card_back',
+      name: 'ลายจักรวาลวันสิ้นโลก',
+      desc: 'เข็มทิศดาราและเนบิวลากาลเวลาแห่งโลกอนาคต',
+      currency: 'coins',
+      price: 1200,
+      rarity: 'SR',
+      image: makeCardBackSvgDataUri({
+        bg1: '#070b24', bg2: '#1e1b4b', border: '#38bdf8', accent: '#818cf8', glow: '#0ea5e9',
+        symbol: '⏳', title: 'CHRONO DOOM', pattern: 'circle'
+      }),
+      styleId: 'cosmic'
+    },
+    {
+      id: 'cb_abyss_demon',
+      category: 'card_back',
+      name: 'ลายเนตรมิติมืดจอมมาร',
+      desc: 'วงแหวนสุริยุปราคาสีม่วงทมิฬและตราบาปทั้งเจ็ด',
+      currency: 'shards',
+      price: 250,
+      rarity: 'SR',
+      image: makeCardBackSvgDataUri({
+        bg1: '#090314', bg2: '#3b0764', border: '#c084fc', accent: '#f43f5e', glow: '#9333ea',
+        symbol: '😈', title: 'ABYSS DEMON', pattern: 'abyss'
+      }),
+      styleId: 'abyss'
+    },
+    {
+      id: 'cb_cyber_matrix',
+      category: 'card_back',
+      name: 'ลายไซเบอร์นีออน',
+      desc: 'แผงวงจรนีออนโอเวอร์ไดรฟ์สีฟ้า-ชมพูสุดล้ำ',
+      currency: 'coins',
+      price: 1200,
+      rarity: 'SR',
+      image: makeCardBackSvgDataUri({
+        bg1: '#031326', bg2: '#0f2942', border: '#22d3ee', accent: '#f472b6', glow: '#06b6d4',
+        symbol: '⚡', title: 'CYBER MATRIX', pattern: 'cyber'
+      }),
+      styleId: 'cosmic'
+    },
+    {
+      id: 'cb_sakura_moon',
+      category: 'card_back',
+      name: 'ลายจันทราซากุระสีชาด',
+      desc: 'พระจันทร์สีเลือดและกลีบซากุระต้องมนตร์ยามรัตติกาล',
+      currency: 'shards',
+      price: 300,
+      rarity: 'SSR',
+      image: makeCardBackSvgDataUri({
+        bg1: '#1a0618', bg2: '#4a0e2e', border: '#fda4af', accent: '#fb7185', glow: '#e11d48',
+        symbol: '🌸', title: 'BLOOD SAKURA', pattern: 'sakura'
+      }),
+      styleId: 'crimson'
+    },
+    {
+      id: 'cb_prismatic_holo',
+      category: 'card_back',
+      name: 'ลายปริซึมราชันย์ไร้พ่าย',
+      desc: 'คริสตัลสายรุ้งโฮโลแกรม 7 สี ระดับตำนานสูงสุดแห่ง BOF',
+      currency: 'coins',
+      price: 2000,
+      rarity: 'SSR',
+      image: makeCardBackSvgDataUri({
+        bg1: '#0f172a', bg2: '#311042', border: '#fde047', accent: '#38bdf8', glow: '#ec4899',
+        symbol: '👑', title: 'PRISMATIC SSR', pattern: 'prism'
+      }),
+      styleId: 'gold'
+    },
+
+    // 2. กรอบโปรไฟล์ (Profile Frames)
+    {
+      id: 'pf_default',
+      category: 'frame',
+      name: 'กรอบมาตรฐาน',
+      desc: 'กรอบโปรไฟล์และลีดเดอร์แบบคลาสสิก',
+      currency: 'free',
+      price: 0,
+      rarity: 'N',
+      styleId: 'default'
+    },
+    {
+      id: 'pf_gold',
+      category: 'frame',
+      name: 'กรอบทองคำราชันย์',
+      desc: 'กรอบทองคำแท้ส่องประกายรอบรูปโปรไฟล์และลีดเดอร์',
+      currency: 'coins',
+      price: 600,
+      rarity: 'R',
+      styleId: 'gold'
+    },
+    {
+      id: 'pf_crimson',
+      category: 'frame',
+      name: 'กรอบเพลิงโลกันตร์',
+      desc: 'กรอบเปลวไฟสีแดงส้มลุกโชนทรงพลัง',
+      currency: 'coins',
+      price: 800,
+      rarity: 'SR',
+      styleId: 'crimson'
+    },
+    {
+      id: 'pf_neon',
+      category: 'frame',
+      name: 'กรอบนีออนไซเบอร์',
+      desc: 'กรอบแสงนีออนสีฟ้า-ชมพูแห่งโลกอนาคต',
+      currency: 'coins',
+      price: 800,
+      rarity: 'SR',
+      styleId: 'neon'
+    },
+    {
+      id: 'pf_abyss',
+      category: 'frame',
+      name: 'กรอบเนตรมิติมืด',
+      desc: 'กรอบพลังงานมืดสีม่วงเข้มของจอมปีศาจ',
+      currency: 'shards',
+      price: 200,
+      rarity: 'SR',
+      styleId: 'abyss'
+    },
+    {
+      id: 'pf_holo',
+      category: 'frame',
+      name: 'กรอบสายรุ้งโฮโลแกรม',
+      desc: 'กรอบปริซึมเจ็ดสีหมุนวนระดับสูงสุด',
+      currency: 'coins',
+      price: 1500,
+      rarity: 'SSR',
+      styleId: 'holo'
+    },
+
+    // 3. ฉายาผู้เล่น (Player Titles)
+    {
+      id: 'tt_default',
+      category: 'title',
+      name: 'นักดวลหน้าใหม่',
+      badgeText: '⚔️ นักดวลหน้าใหม่',
+      desc: 'ฉายาเริ่มต้นของนักดวลทุกคน',
+      currency: 'free',
+      price: 0,
+      rarity: 'N',
+      color: '#94a3b8'
+    },
+    {
+      id: 'tt_hero',
+      category: 'title',
+      name: 'จ้าวแห่งฮีโร่',
+      badgeText: '🔥 จ้าวแห่งฮีโร่',
+      desc: 'ฉายาผู้สืบทอดเจตจำนงแห่งเดจิต',
+      currency: 'coins',
+      price: 500,
+      rarity: 'R',
+      color: '#4ade80'
+    },
+    {
+      id: 'tt_warlord',
+      category: 'title',
+      name: 'แม่ทัพขุนศึกสยาม',
+      badgeText: '🐘 แม่ทัพขุนศึกสยาม',
+      desc: 'ฉายาจอมทัพผู้เกรียงไกรแห่งขุนเหนือ',
+      currency: 'coins',
+      price: 500,
+      rarity: 'R',
+      color: '#fbbf24'
+    },
+    {
+      id: 'tt_survivor',
+      category: 'title',
+      name: 'ผู้พิชิตวันสิ้นโลก',
+      badgeText: '⏳ ผู้พิชิตวันสิ้นโลก',
+      desc: 'ฉายาผู้ก้าวข้ามกาลเวลาและหายนะ',
+      currency: 'coins',
+      price: 500,
+      rarity: 'R',
+      color: '#38bdf8'
+    },
+    {
+      id: 'tt_dino',
+      category: 'title',
+      name: 'นักวิจัยไดโนเสาร์เอก',
+      badgeText: '🦖 นักวิจัยไดโนเสาร์เอก',
+      desc: 'ฉายาผู้สร้างสุดยอดสายพันธุ์ไฮบริด',
+      currency: 'coins',
+      price: 500,
+      rarity: 'R',
+      color: '#a3e635'
+    },
+    {
+      id: 'tt_demon',
+      category: 'title',
+      name: 'จอมมารบาปทั้งเจ็ด',
+      badgeText: '😈 จอมมารบาปทั้งเจ็ด',
+      desc: 'ฉายาผู้ปกครองดินแดนแห่งมิติมืด',
+      currency: 'shards',
+      price: 180,
+      rarity: 'SR',
+      color: '#c084fc'
+    },
+    {
+      id: 'tt_lunatic',
+      category: 'title',
+      name: 'ราชันย์สายปั่นท็อปเด็ค',
+      badgeText: '🤪 ราชันย์สายปั่นท็อปเด็ค',
+      desc: 'ฉายาผู้ฝากชะตาไว้กับใบบนสุดของกอง',
+      currency: 'coins',
+      price: 700,
+      rarity: 'SR',
+      color: '#fb923c'
+    },
+    {
+      id: 'tt_tycoon',
+      category: 'title',
+      name: 'มหาเศรษฐีนักเปิดซอง',
+      badgeText: '💎 มหาเศรษฐีนักเปิดซอง',
+      desc: 'ฉายาเกียรติยศของสุลต่านแห่งร้านค้า BOF',
+      currency: 'coins',
+      price: 1500,
+      rarity: 'SSR',
+      color: '#fde047'
+    },
+
+    // 4. สีพื้นสนามประลอง (Arena Mat Themes)
+    {
+      id: 'mt_default',
+      category: 'arena_theme',
+      name: 'สนามมาตรฐาน (Midnight)',
+      desc: 'พื้นสนามประลองสีน้ำเงินเข้มคลาสสิก',
+      currency: 'free',
+      price: 0,
+      rarity: 'N',
+      styleId: 'default',
+      previewBg: 'linear-gradient(135deg, #0f172a, #1e293b)'
+    },
+    {
+      id: 'mt_crimson',
+      category: 'arena_theme',
+      name: 'สนามเพลิงราชันย์ (Volcano)',
+      desc: 'พื้นสนามประลองโทนสีแดงเพลิงและลาวาทองคำ',
+      currency: 'coins',
+      price: 900,
+      rarity: 'R',
+      styleId: 'crimson',
+      previewBg: 'linear-gradient(135deg, #2a0a10, #450a0a, #7f1d1d)'
+    },
+    {
+      id: 'mt_abyss',
+      category: 'arena_theme',
+      name: 'สนามมิติมืดนิรันดร์ (Abyss)',
+      desc: 'พื้นสนามประลองโทนม่วงรัตติกาลแห่งดินแดนปีศาจ',
+      currency: 'coins',
+      price: 1000,
+      rarity: 'SR',
+      styleId: 'abyss',
+      previewBg: 'linear-gradient(135deg, #13072e, #2e1065, #3b0764)'
+    },
+    {
+      id: 'mt_jungle',
+      category: 'arena_theme',
+      name: 'สนามดึกดำบรรพ์ (Jurassic)',
+      desc: 'พื้นสนามประลองโทนเขียวมรกตศูนย์วิจัยไดโน',
+      currency: 'coins',
+      price: 900,
+      rarity: 'R',
+      styleId: 'jungle',
+      previewBg: 'linear-gradient(135deg, #052e16, #064e3b, #14532d)'
+    },
+    {
+      id: 'mt_sanctuary',
+      category: 'arena_theme',
+      name: 'สนามวิหารทองคำ (Sanctuary)',
+      desc: 'พื้นสนามประลองโทนทองคำ-น้ำเงินหลวงสุดหรูหรา',
+      currency: 'coins',
+      price: 1200,
+      rarity: 'SR',
+      styleId: 'sanctuary',
+      previewBg: 'linear-gradient(135deg, #1c1917, #422006, #713f12)'
+    },
+    {
+      id: 'mt_cyber',
+      category: 'arena_theme',
+      name: 'สนามไซเบอร์นีออน (Cyber)',
+      desc: 'พื้นสนามประลองโทนฟ้านีออนไซเบอร์พังก์',
+      currency: 'shards',
+      price: 250,
+      rarity: 'SSR',
+      styleId: 'cyber',
+      previewBg: 'linear-gradient(135deg, #021024, #082f49, #0c4a6e)'
+    }
+  ];
+
+  let shopToastTimer = null;
+  function showShopToast(text) {
+    const el = document.getElementById('bof-shop-toast');
+    if (!el) return;
+    const isErr = String(text).startsWith('⚠️') || String(text).startsWith('❌');
+    el.textContent = text;
+    el.className = 'bof-auth-msg ' + (isErr ? 'is-error' : 'is-ok');
+    el.style.display = 'block';
+    if (shopToastTimer) clearTimeout(shopToastTimer);
+    shopToastTimer = setTimeout(() => {
+      el.style.display = 'none';
+    }, 3500);
+  }
+
   let economy = loadEconomy();
 
   function loadEconomy() {
@@ -157,7 +637,9 @@
         pity: user.pity && typeof user.pity === 'object' ? { ...user.pity } : {},
         lastDailyClaimDate: user.lastDailyClaimDate || '',
         dailyProgress: uProgress,
-        claimedQuests: uClaimed
+        claimedQuests: uClaimed,
+        ownedCosmetics: { ...DEFAULT_OWNED_COSMETICS, ...(user.ownedCosmetics || {}) },
+        equippedCosmetics: { ...DEFAULT_EQUIPPED_COSMETICS, ...(user.equippedCosmetics || {}) }
       };
     }
 
@@ -168,6 +650,8 @@
     let guestDaily = '';
     let guestQuests = {};
     let guestDailyProgress = { date: todayStr, packsOpened: 0, craftsDone: 0, duelsCompleted: 0 };
+    let guestOwnedCosmetics = { ...DEFAULT_OWNED_COSMETICS };
+    let guestEquippedCosmetics = { ...DEFAULT_EQUIPPED_COSMETICS };
     try {
       const savedGuest = JSON.parse(localStorage.getItem(GUEST_ECONOMY_KEY));
       if (savedGuest && typeof savedGuest.coins === 'number') {
@@ -180,6 +664,12 @@
           guestDailyProgress = savedGuest.dailyProgress;
           guestQuests = savedGuest.claimedQuests || {};
         }
+        if (savedGuest.ownedCosmetics) {
+          guestOwnedCosmetics = { ...DEFAULT_OWNED_COSMETICS, ...savedGuest.ownedCosmetics };
+        }
+        if (savedGuest.equippedCosmetics) {
+          guestEquippedCosmetics = { ...DEFAULT_EQUIPPED_COSMETICS, ...savedGuest.equippedCosmetics };
+        }
       }
     } catch (e) {}
 
@@ -191,7 +681,9 @@
       pity: guestPity,
       lastDailyClaimDate: guestDaily,
       dailyProgress: guestDailyProgress,
-      claimedQuests: guestQuests
+      claimedQuests: guestQuests,
+      ownedCosmetics: guestOwnedCosmetics,
+      equippedCosmetics: guestEquippedCosmetics
     };
   }
 
@@ -209,11 +701,14 @@
           pity: economy.pity,
           lastDailyClaimDate: economy.lastDailyClaimDate,
           dailyProgress: economy.dailyProgress,
-          claimedQuests: economy.claimedQuests
+          claimedQuests: economy.claimedQuests,
+          ownedCosmetics: economy.ownedCosmetics,
+          equippedCosmetics: economy.equippedCosmetics
         }));
       } catch (e) {}
     }
     updateCoinDisplays();
+    applyEquippedCosmetics();
   }
 
   function updateCoinDisplays() {
@@ -508,10 +1003,11 @@
     stage.scrollTop = 0;
   }
 
-  /* ---------------- ระบบร้านค้า แท็บสุ่มซอง, หลอมการ์ด และเควสต์ประจำวัน ---------------- */
-  let activeShopTab = 'packs'; // 'packs' | 'craft' | 'quests'
+  /* ---------------- ระบบร้านค้า แท็บสุ่มซอง, หลอมการ์ด, เควสต์ประจำวัน และของตกแต่ง ---------------- */
+  let activeShopTab = 'packs'; // 'packs' | 'craft' | 'quests' | 'cosmetics'
   let craftFilterTribe = 'ALL';
   let craftFilterRarity = 'ALL';
+  let cosmeticFilterCat = 'ALL'; // 'ALL' | 'card_back' | 'frame' | 'title' | 'arena_theme'
 
   // มูลค่าย่อยการ์ดส่วนเกิน -> Soul Shards (🔮)
   const DISENCHANT_VALUES = { N: 10, R: 30, SR: 100, SSR: 300 };
@@ -528,6 +1024,7 @@
         <button type="button" class="bof-shop-tab ${activeShopTab === 'packs' ? 'is-active' : ''}" data-tab="packs">📦 สุ่มซองการ์ด<span class="bof-tab-sub"> (Booster)</span></button>
         <button type="button" class="bof-shop-tab ${activeShopTab === 'craft' ? 'is-active' : ''}" data-tab="craft">🔮 ย่อย & หลอม<span class="bof-tab-sub">การ์ด (Crafting)</span></button>
         <button type="button" class="bof-shop-tab ${activeShopTab === 'quests' ? 'is-active' : ''}" data-tab="quests">🎁 เควสต์รายวัน<span class="bof-tab-sub"> & ของขวัญ</span></button>
+        <button type="button" class="bof-shop-tab ${activeShopTab === 'cosmetics' ? 'is-active' : ''}" data-tab="cosmetics">🎨 ของตกแต่ง<span class="bof-tab-sub"> (Cosmetics)</span></button>
       </div>
       <div id="bof-tab-view-container"></div>
     `;
@@ -549,6 +1046,8 @@
       renderCraftingView(viewContainer);
     } else if (activeShopTab === 'quests') {
       renderQuestsView(viewContainer);
+    } else if (activeShopTab === 'cosmetics') {
+      renderCosmeticsView(viewContainer);
     }
   }
 
@@ -916,6 +1415,281 @@
     });
   }
 
+  // --- มุมมองที่ 4: ร้านแลกของตกแต่ง (Cosmetics Shop) ---
+  function getCosmeticItemById(id) {
+    return COSMETIC_ITEMS.find(it => it.id === id) || null;
+  }
+
+  function applyEquippedCosmetics() {
+    if (!economy) return;
+    if (!economy.ownedCosmetics) economy.ownedCosmetics = { ...DEFAULT_OWNED_COSMETICS };
+    if (!economy.equippedCosmetics) economy.equippedCosmetics = { ...DEFAULT_EQUIPPED_COSMETICS };
+
+    const eq = economy.equippedCosmetics;
+
+    // 1. ลายหลังการ์ด (Card Back)
+    const cbItem = getCosmeticItemById(eq.card_back) || getCosmeticItemById('cb_default');
+    if (cbItem) {
+      document.documentElement.dataset.cardBack = cbItem.styleId || 'default';
+      const rawImg = cbItem.image || 'images/card-back.png';
+      const cssUrl = rawImg.startsWith('data:') ? `url("${rawImg}")` : `url('${encodeURI(rawImg)}')`;
+      document.documentElement.style.setProperty('--bof-card-back-url', cssUrl);
+    }
+
+    // 2. กรอบโปรไฟล์ (Profile Frame)
+    const frameItem = getCosmeticItemById(eq.frame) || getCosmeticItemById('pf_default');
+    const frameStyle = frameItem ? (frameItem.styleId || 'default') : 'default';
+    document.documentElement.dataset.profileFrame = frameStyle;
+    const lobbyAvatar = document.querySelector('#lb-auth-bar .lb-auth-avatar');
+    if (lobbyAvatar) lobbyAvatar.dataset.frame = frameStyle;
+    const profileAvatar = document.getElementById('bof-profile-avatar');
+    if (profileAvatar) profileAvatar.dataset.frame = frameStyle;
+    const playerLeaderBox = document.getElementById('player-leader-box');
+    if (playerLeaderBox) playerLeaderBox.dataset.frame = frameStyle;
+
+    // 3. ฉายาผู้เล่น (Player Title)
+    const titleItem = getCosmeticItemById(eq.title) || getCosmeticItemById('tt_default');
+    if (titleItem) {
+      const authMeta = document.querySelector('#lb-auth-bar .lb-auth-meta');
+      if (authMeta) {
+        let pill = document.getElementById('lb-cosmetic-title-pill');
+        if (!pill) {
+          pill = document.createElement('span');
+          pill.id = 'lb-cosmetic-title-pill';
+          pill.className = 'bof-user-title-pill';
+          authMeta.insertBefore(pill, authMeta.firstChild);
+        }
+        pill.textContent = titleItem.badgeText || titleItem.name;
+        pill.style.setProperty('--title-color', titleItem.color || '#94a3b8');
+      }
+
+      const profInfo = document.querySelector('#bof-auth-profile-view .bof-profile-info');
+      if (profInfo) {
+        let pPill = document.getElementById('bof-profile-title-pill');
+        if (!pPill) {
+          pPill = document.createElement('span');
+          pPill.id = 'bof-profile-title-pill';
+          pPill.className = 'bof-user-title-pill';
+          profInfo.insertBefore(pPill, profInfo.firstChild);
+        }
+        pPill.textContent = titleItem.badgeText || titleItem.name;
+        pPill.style.setProperty('--title-color', titleItem.color || '#94a3b8');
+      }
+    }
+
+    // 4. ธีมสีพื้นสนามประลอง (Arena Mat Theme)
+    const themeItem = getCosmeticItemById(eq.arena_theme) || getCosmeticItemById('mt_default');
+    const arenaEl = document.getElementById('bof-game-arena');
+    if (arenaEl && themeItem) {
+      arenaEl.dataset.arenaTheme = themeItem.styleId || 'default';
+    }
+  }
+
+  function renderCosmeticsView(container) {
+    if (!economy.ownedCosmetics) economy.ownedCosmetics = { ...DEFAULT_OWNED_COSMETICS };
+    if (!economy.equippedCosmetics) economy.equippedCosmetics = { ...DEFAULT_EQUIPPED_COSMETICS };
+
+    const countByCat = (cat) => cat === 'ALL'
+      ? COSMETIC_ITEMS.length
+      : COSMETIC_ITEMS.filter(it => it.category === cat).length;
+
+    const catLabels = {
+      ALL: `✨ ทั้งหมด (${countByCat('ALL')})`,
+      card_back: `🎴 ลายหลังการ์ด (${countByCat('card_back')})`,
+      frame: `🖼️ กรอบโปรไฟล์ (${countByCat('frame')})`,
+      title: `👑 ฉายาผู้เล่น (${countByCat('title')})`,
+      arena_theme: `🏟️ สีสนามประลอง (${countByCat('arena_theme')})`
+    };
+
+    const filteredItems = COSMETIC_ITEMS.filter(it => cosmeticFilterCat === 'ALL' || it.category === cosmeticFilterCat);
+
+    const eqBack = getCosmeticItemById(economy.equippedCosmetics.card_back) || COSMETIC_ITEMS[0];
+    const eqFrame = getCosmeticItemById(economy.equippedCosmetics.frame) || getCosmeticItemById('pf_default');
+    const eqTitle = getCosmeticItemById(economy.equippedCosmetics.title) || getCosmeticItemById('tt_default');
+    const eqTheme = getCosmeticItemById(economy.equippedCosmetics.arena_theme) || getCosmeticItemById('mt_default');
+    const currentAvatarSrc = (window.BOFAuth && window.BOFAuth.currentUser && window.BOFAuth.currentUser() && window.BOFAuth.currentUser().customAvatar)
+      ? window.BOFAuth.currentUser().customAvatar
+      : 'images/เด็คจิต/1.png';
+
+    container.innerHTML = `
+      <div class="bof-cosmetics-panel">
+        <div class="bof-cosmetics-equipped-bar">
+          <div class="bof-cos-eq-head">✨ ชุดของตกแต่งที่กำลังสวมใส่ประจำตัว</div>
+          <div class="bof-cos-eq-pills">
+            <div class="bof-cos-eq-pill" data-cos-jump="card_back">
+              <img class="bof-cos-eq-mini-cb" src="${eqBack ? eqBack.image : 'images/card-back.png'}" alt="">
+              <div class="bof-cos-eq-meta">
+                <span>🎴 ลายหลังการ์ด</span>
+                <b>${eqBack ? eqBack.name : '-'}</b>
+              </div>
+            </div>
+            <div class="bof-cos-eq-pill" data-cos-jump="frame">
+              <img class="bof-cos-eq-mini-avatar" data-frame="${eqFrame ? eqFrame.styleId : 'default'}" src="${currentAvatarSrc}" alt="">
+              <div class="bof-cos-eq-meta">
+                <span>🖼️ กรอบโปรไฟล์</span>
+                <b>${eqFrame ? eqFrame.name : '-'}</b>
+              </div>
+            </div>
+            <div class="bof-cos-eq-pill" data-cos-jump="title">
+              <div class="bof-cos-eq-meta">
+                <span>👑 ฉายาผู้เล่น</span>
+                <b style="color:${eqTitle ? eqTitle.color : '#fde047'};">${eqTitle ? eqTitle.badgeText : '-'}</b>
+              </div>
+            </div>
+            <div class="bof-cos-eq-pill" data-cos-jump="arena_theme">
+              <span class="bof-cos-eq-mini-swatch" style="background:${eqTheme ? eqTheme.previewBg : '#1e293b'};"></span>
+              <div class="bof-cos-eq-meta">
+                <span>🏟️ สีสนามประลอง</span>
+                <b>${eqTheme ? eqTheme.name : '-'}</b>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bof-craft-filter-row bof-cosmetics-cat-row">
+          ${Object.entries(catLabels).map(([key, label]) => `
+            <button type="button" class="bof-craft-filter-btn ${cosmeticFilterCat === key ? 'is-active' : ''}" data-cos-cat="${key}">${label}</button>
+          `).join('')}
+        </div>
+
+        <div class="bof-cosmetics-grid">
+          ${filteredItems.map(item => {
+            const isOwned = !!economy.ownedCosmetics[item.id] || item.currency === 'free';
+            const isEquipped = economy.equippedCosmetics[item.category] === item.id;
+            const canAfford = item.currency === 'coins'
+              ? (economy.coins || 0) >= item.price
+              : (item.currency === 'shards' ? (economy.shards || 0) >= item.price : true);
+            const rarity = item.rarity || 'R';
+
+            let previewHTML = '';
+            if (item.category === 'card_back') {
+              previewHTML = `
+                <div class="bof-cos-preview-cardback" data-cb-style="${item.styleId}">
+                  <img src="${item.image}" alt="${item.name}">
+                  <span class="bof-cos-cb-shine"></span>
+                </div>
+              `;
+            } else if (item.category === 'frame') {
+              previewHTML = `
+                <div class="bof-cos-preview-frame-wrap">
+                  <img class="bof-cos-avatar-sample" data-frame="${item.styleId}" src="${currentAvatarSrc}" alt="${item.name}">
+                </div>
+              `;
+            } else if (item.category === 'title') {
+              previewHTML = `
+                <div class="bof-cos-preview-title-wrap">
+                  <span class="bof-user-title-pill is-large" style="--title-color:${item.color};border-color:${item.color};color:${item.color};">${item.badgeText}</span>
+                </div>
+              `;
+            } else if (item.category === 'arena_theme') {
+              previewHTML = `
+                <div class="bof-cos-preview-arena" style="background:${item.previewBg};" data-arena-style="${item.styleId}">
+                  <div class="bof-cos-arena-grid-lines">
+                    <span></span><span></span><span></span>
+                  </div>
+                  <div class="bof-cos-arena-divider"></div>
+                  <div class="bof-cos-arena-grid-lines">
+                    <span></span><span></span><span></span>
+                  </div>
+                </div>
+              `;
+            }
+
+            let btnHTML = '';
+            if (isEquipped) {
+              btnHTML = `<button type="button" class="bof-cos-action-btn is-equipped" disabled>✓ กำลังสวมใส่</button>`;
+            } else if (isOwned) {
+              btnHTML = `<button type="button" class="bof-cos-action-btn is-equip" data-equip-id="${item.id}">✨ กดสวมใส่</button>`;
+            } else {
+              const priceLabel = item.currency === 'coins'
+                ? `🪙 ${item.price.toLocaleString('th-TH')} Coins`
+                : `🔮 ${item.price.toLocaleString('th-TH')} Shards`;
+              btnHTML = `<button type="button" class="bof-cos-action-btn is-buy ${canAfford ? '' : 'is-disabled'}" data-buy-id="${item.id}" ${canAfford ? '' : 'disabled'}>🛒 แลกซื้อ · ${priceLabel}</button>`;
+            }
+
+            const catBadgeMap = {
+              card_back: '🎴 หลังการ์ด',
+              frame: '🖼️ กรอบโปรไฟล์',
+              title: '👑 ฉายา',
+              arena_theme: '🏟️ สีสนาม'
+            };
+
+            const statusBadgeHTML = isEquipped
+              ? `<span class="bof-cosmetic-status-tag is-eq">✓ สวมใส่อยู่</span>`
+              : (isOwned ? `<span class="bof-cosmetic-status-tag is-own">มีในคลัง</span>` : `<span class="bof-cosmetic-rarity-tag is-${rarity}">${rarity}</span>`);
+
+            return `
+              <div class="bof-cosmetic-card rarity-border-${rarity} ${isEquipped ? 'is-equipped-card' : ''} ${isOwned ? 'is-owned-card' : ''}">
+                <div class="bof-cosmetic-badge-row">
+                  <span class="bof-cos-cat-tag">${catBadgeMap[item.category] || ''}</span>
+                  ${statusBadgeHTML}
+                </div>
+                <div class="bof-cos-preview-box">${previewHTML}</div>
+                <h5 class="bof-cos-name">${item.name}</h5>
+                <p class="bof-cos-desc">${item.desc}</p>
+                ${btnHTML}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+
+    container.querySelectorAll('.bof-cos-eq-pill[data-cos-jump]').forEach(pill => {
+      pill.onclick = () => {
+        cosmeticFilterCat = pill.getAttribute('data-cos-jump') || 'ALL';
+        renderCosmeticsView(container);
+      };
+    });
+
+    container.querySelectorAll('.bof-craft-filter-btn[data-cos-cat]').forEach(btn => {
+      btn.onclick = () => {
+        cosmeticFilterCat = btn.dataset.cosCat;
+        renderCosmeticsView(container);
+      };
+    });
+
+    container.querySelectorAll('.bof-cos-action-btn[data-equip-id]').forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.dataset.equipId;
+        const item = getCosmeticItemById(id);
+        if (!item) return;
+        economy.equippedCosmetics[item.category] = item.id;
+        saveEconomy();
+        if (window.BOF_AUDIO) window.BOF_AUDIO.playSpell();
+        showShopToast(`✨ สวมใส่ "${item.name}" เรียบร้อยแล้ว!`);
+        renderCosmeticsView(container);
+      };
+    });
+
+    container.querySelectorAll('.bof-cos-action-btn[data-buy-id]').forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.dataset.buyId;
+        const item = getCosmeticItemById(id);
+        if (!item) return;
+        if (item.currency === 'coins') {
+          if ((economy.coins || 0) < item.price) {
+            showShopToast('⚠️ เหรียญ Coins ไม่พอสำหรับแลกของตกแต่งชิ้นนี้!');
+            return;
+          }
+          economy.coins -= item.price;
+        } else if (item.currency === 'shards') {
+          if ((economy.shards || 0) < item.price) {
+            showShopToast('⚠️ เศษวิญญาณ Soul Shards ไม่พอสำหรับแลกของตกแต่งชิ้นนี้!');
+            return;
+          }
+          economy.shards -= item.price;
+        }
+        economy.ownedCosmetics[item.id] = true;
+        economy.equippedCosmetics[item.category] = item.id;
+        saveEconomy();
+        if (window.BOF_AUDIO) window.BOF_AUDIO.playSsr();
+        showShopToast(`🎉 แลกซื้อและสวมใส่ "${item.name}" สำเร็จ!`);
+        renderCosmeticsView(container);
+      };
+    });
+  }
+
   /* ---------------- กรองคลังการ์ด & จัดเด็คตามการ์ดที่มีจริง (เฉพาะตอนล็อกอิน) ---------------- */
   function syncLobbyDecksForOwnership() {
     if (typeof CARD_DATABASE === 'undefined') return;
@@ -994,20 +1768,6 @@
         return res;
       };
     }
-
-    const btnDefaultDeck = document.getElementById('btn-default-deck');
-    if (btnDefaultDeck) {
-      btnDefaultDeck.addEventListener('click', e => {
-        if (!isLoggedInUser()) return;
-        e.stopImmediatePropagation();
-        const user = window.BOFAuth.currentUser();
-        const starterLeaderId = (user && user.starterDeckId) || (user && user.avatarId) || 'L01';
-        const list = typeof getDefaultDeckForLeader === 'function' ? getDefaultDeckForLeader(starterLeaderId) : [];
-        currentDeckConfig.leaderId = starterLeaderId;
-        currentDeckConfig.mainDeck = [...list];
-        window.renderDeckBuilder();
-      }, true);
-    }
   }
 
   function bindShopEvents() {
@@ -1076,12 +1836,20 @@
       if (e.target.id === 'bof-reveal-stage') hideRevealStage();
     });
 
-    // แจกเหรียญ Coins อัตโนมัติหลังจบเกม (ชนะ +300 🪙, แพ้ +100 🪙)
+    // แจกเหรียญ Coins อัตโนมัติหลังจบเกม (ชนะรับตามระดับความยาก AI: ง่าย +250, ปกติ +300, โหด +400 | แพ้ +100 🪙)
     if (typeof window.showEndMatchModal === 'function') {
       const origEnd = window.showEndMatchModal;
       window.showEndMatchModal = function (title, desc) {
         const isWin = String(title).includes('ชนะ');
-        const reward = isWin ? 300 : 100;
+        let reward = 100;
+        if (isWin) {
+          const diff = (typeof aiConfig !== 'undefined' && aiConfig && aiConfig.difficulty) ? aiConfig.difficulty : 'NORMAL';
+          const isPvP = typeof pvpState !== 'undefined' && pvpState && pvpState.isMultiplayer;
+          if (isPvP) reward = 350;
+          else if (diff === 'HARD') reward = 400;
+          else if (diff === 'EASY') reward = 250;
+          else reward = 300;
+        }
         economy = loadEconomy();
         economy.coins = (economy.coins || 0) + reward;
         const todayKey = getThaiQuestDayKey();
@@ -1099,10 +1867,12 @@
 
   window.BOFShop = {
     getEconomy: () => economy,
+    applyEquippedCosmetics,
     reloadFromProfile: () => {
       economy = loadEconomy();
       updateCoinDisplays();
       syncLobbyDecksForOwnership();
+      applyEquippedCosmetics();
     }
   };
 
@@ -1110,4 +1880,5 @@
   hookCollectionAndDeckBuilder();
   updateCoinDisplays();
   syncLobbyDecksForOwnership();
+  applyEquippedCosmetics();
 })();
