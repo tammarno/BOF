@@ -1412,3 +1412,283 @@
     aspect-ratio: 750 / 1050;
   }
 }
+
+
+/* ================= ปรับหน้าเควสต์รายวันให้อ่านง่าย ชัดเจน (Desktop & Mobile) ================= */
+.bof-quests-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: none;
+  overflow-y: visible;
+  padding-bottom: 6px;
+}
+
+.bof-daily-login-card {
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.16), rgba(161, 98, 7, 0.28));
+  border: 1.5px solid rgba(250, 204, 21, 0.65);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.bof-daily-login-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.bof-daily-login-title {
+  margin: 0 0 6px 0;
+  color: #fde047;
+  font-size: 15.5px;
+  line-height: 1.3;
+}
+
+.bof-daily-login-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  line-height: 1.4;
+}
+
+.bof-quest-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 2px 0;
+}
+
+.bof-quest-section-title {
+  margin: 0;
+  color: #38bdf8;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.bof-quest-reset-pill {
+  font-size: 12px;
+  color: #cbd5e1;
+  background: #1e293b;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid #334155;
+  line-height: 1.3;
+}
+
+.bof-quest-reset-pill b {
+  color: #fde047;
+}
+
+.bof-quest-row {
+  background: linear-gradient(180deg, #161b2e 0%, #101424 100%);
+  border: 1px solid #26324d;
+  border-left: 4px solid #38bdf8;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+.bof-quest-row.is-completed {
+  border-color: rgba(34, 197, 94, 0.45);
+  border-left: 4px solid #22c55e;
+}
+
+.bof-quest-meta {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bof-quest-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.bof-quest-title {
+  margin: 0 !important;
+  font-size: 15px !important;
+  font-weight: 700;
+  color: #f8fafc !important;
+  line-height: 1.35;
+  flex: 1;
+  min-width: 0;
+}
+
+.bof-quest-progress-badge {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  font-size: 12px;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.bof-quest-progress-badge.is-done {
+  background: rgba(20, 83, 45, 0.65);
+  border-color: rgba(74, 222, 128, 0.5);
+  color: #4ade80;
+}
+
+.bof-quest-desc {
+  margin: 0 !important;
+  font-size: 13px !important;
+  color: #cbd5e1 !important;
+  line-height: 1.45;
+}
+
+.bof-quest-bar-track {
+  width: 100%;
+  height: 8px;
+  background: #1e293b;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+.bof-quest-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0284c7, #38bdf8);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.bof-quest-bar-fill.is-done {
+  background: linear-gradient(90deg, #16a34a, #4ade80);
+}
+
+.bof-quest-reward {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(51, 65, 85, 0.55);
+}
+
+.bof-quest-reward-items {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bof-quest-reward-label {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-right: 2px;
+}
+
+.bof-reward-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.bof-reward-pill.is-coin {
+  background: rgba(234, 179, 8, 0.16);
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  color: #fde047;
+}
+
+.bof-reward-pill.is-shard {
+  background: rgba(168, 85, 247, 0.16);
+  border: 1px solid rgba(192, 132, 252, 0.45);
+  color: #d8b4fe;
+}
+
+.bof-quest-claim-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+}
+
+.bof-quest-claim-btn.is-ready {
+  background: linear-gradient(135deg, #eab308, #ca8a04);
+  color: #0f172a;
+  box-shadow: 0 0 14px rgba(234, 179, 8, 0.45);
+}
+
+@media (max-width: 767px) {
+  .bof-daily-login-card {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  .bof-daily-claim-btn {
+    width: 100%;
+    padding: 9px 14px;
+    font-size: 13px;
+  }
+
+  .bof-quest-section-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .bof-quest-reset-pill {
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    font-size: 11.5px;
+    padding: 5px 10px;
+  }
+
+  .bof-quest-row {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  .bof-quest-title {
+    font-size: 14.5px !important;
+  }
+
+  .bof-quest-desc {
+    font-size: 12.5px !important;
+  }
+
+  .bof-quest-reward-label {
+    display: none;
+  }
+
+  .bof-quest-reward-items {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  .bof-reward-pill {
+    padding: 3px 8px;
+    font-size: 11.5px;
+  }
+}

@@ -135,10 +135,140 @@
     renderWall(key);
   }
 
+  function deckDisplayName(key) {
+    if (key === 'mine') {
+      const lid = leaderIdOf('mine');
+      const d = DECKS.find(item => item.leaderId === lid);
+      return d ? `เด็คของฉัน (${d.name})` : 'เด็คของฉัน';
+    }
+    const found = DECKS.find(d => d.leaderId === key);
+    return found ? found.name : key;
+  }
+
+  function updateDeckPickerButton() {
+    const pickerBtn = $('#lb-deck-picker-btn');
+    if (!pickerBtn) return;
+    const keys = [...STANDARD, ...(hasSavedDeck() ? ['mine'] : [])];
+    const leaderId = leaderIdOf(selected);
+    const leader = byId(leaderId);
+    const deck = DECKS.find(d => d.leaderId === leaderId);
+    const thumb = pickerBtn.querySelector('.lb-deck-picker-thumb');
+    if (thumb && leader) setThumb(thumb, leader);
+    const nameEl = pickerBtn.querySelector('.lb-deck-picker-name');
+    if (nameEl) nameEl.textContent = selected === 'mine' ? 'เด็คของฉัน' : (deck ? deck.name : selected);
+    const countEl = pickerBtn.querySelector('.lb-deck-picker-sub');
+    if (countEl) countEl.textContent = `มีให้เลือกครบ ${keys.length} เด็ค`;
+  }
+
+  function ensureDeckPickerDialog() {
+    let dlg = $('#lb-deck-picker-dialog');
+    if (dlg) return dlg;
+    const lobby = $('#lobby-screen');
+    if (!lobby) return null;
+    dlg = document.createElement('dialog');
+    dlg.id = 'lb-deck-picker-dialog';
+    dlg.className = 'lb-dialog lb-dialog-dark';
+    dlg.setAttribute('aria-labelledby', 'lb-deck-picker-title');
+    dlg.innerHTML = `
+      <div class="lb-dialog-panel lb-deck-picker-panel">
+        <div class="lb-deck-picker-head">
+          <div>
+            <h2 id="lb-deck-picker-title">🃏 เลือกเด็คสำหรับดวล</h2>
+            <p class="lb-deck-picker-desc">แตะเลือกเด็คที่ต้องการใช้เล่น (แสดงครบทุกเด็ค)</p>
+          </div>
+          <button type="button" class="lb-deck-picker-x" data-close aria-label="ปิด">✕</button>
+        </div>
+        <div id="lb-deck-picker-grid" class="lb-deck-picker-grid" role="listbox" aria-label="เลือกเด็ค"></div>
+        <div class="lb-deck-picker-footer">
+          <button type="button" class="lb-deck-picker-builder-btn" id="lb-deck-picker-builder">🛠️ ไปหน้าจัดเด็คของฉัน</button>
+          <button type="button" class="lb-dialog-close" data-close>ปิดหน้าต่าง</button>
+        </div>
+      </div>
+    `;
+    lobby.appendChild(dlg);
+    dlg.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => dlg.close()));
+    dlg.addEventListener('click', e => {
+      if (e.target === dlg) dlg.close();
+    });
+    dlg.querySelector('#lb-deck-picker-builder')?.addEventListener('click', () => {
+      dlg.close();
+      $('#nav-deck')?.click();
+    });
+    dlg.querySelector('#lb-deck-picker-grid')?.addEventListener('click', e => {
+      const cardBtn = e.target.closest('.lb-picker-item');
+      if (!cardBtn) return;
+      const key = cardBtn.dataset.deck;
+      dlg.close();
+      if (key) {
+        selectDeck(key);
+        renderDeck(selected);
+      }
+    });
+    return dlg;
+  }
+
+  function renderDeckPickerGrid() {
+    const dlg = ensureDeckPickerDialog();
+    if (!dlg) return;
+    const grid = dlg.querySelector('#lb-deck-picker-grid');
+    if (!grid) return;
+    const keys = [...STANDARD, ...(hasSavedDeck() ? ['mine'] : [])];
+    grid.replaceChildren(...keys.map(key => {
+      const leaderId = leaderIdOf(key);
+      const leader = byId(leaderId);
+      const deck = DECKS.find(d => d.leaderId === leaderId);
+      const isSelected = key === selected;
+      const accent = DECK_COLOURS[leaderId] || '#f3c969';
+
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = `lb-picker-item${isSelected ? ' is-selected' : ''}`;
+      item.dataset.deck = key;
+      item.style.setProperty('--item-accent', accent);
+      item.setAttribute('role', 'option');
+      item.setAttribute('aria-selected', String(isSelected));
+
+      const artWrap = document.createElement('div');
+      artWrap.className = 'lb-picker-art';
+      artWrap.appendChild(thumbImg(leader));
+      if (key === 'mine') {
+        const mineTag = document.createElement('span');
+        mineTag.className = 'lb-picker-tag lb-picker-tag-mine';
+        mineTag.textContent = 'จัดเอง';
+        artWrap.appendChild(mineTag);
+      }
+      if (isSelected) {
+        const activeTag = document.createElement('span');
+        activeTag.className = 'lb-picker-tag lb-picker-tag-active';
+        activeTag.textContent = '✓ เลือกอยู่';
+        artWrap.appendChild(activeTag);
+      }
+
+      const meta = document.createElement('div');
+      meta.className = 'lb-picker-meta';
+      const title = document.createElement('strong');
+      title.className = 'lb-picker-name';
+      title.textContent = key === 'mine' ? 'เด็คของฉัน' : (deck ? deck.name : key);
+      const sub = document.createElement('span');
+      sub.className = 'lb-picker-leader';
+      sub.textContent = key === 'mine' ? `ลีดเดอร์: ${leader.name}` : leader.name;
+      meta.append(title, sub);
+
+      item.append(artWrap, meta);
+      return item;
+    }));
+  }
+
+  function openDeckPickerModal() {
+    renderDeckPickerGrid();
+    const dlg = ensureDeckPickerDialog();
+    if (dlg && !dlg.open) dlg.showModal();
+  }
+
   function renderDeckButtons() {
     const box = $('#lb-decks'); if (!box) return;
     const keys = [...STANDARD, ...(hasSavedDeck() ? ['mine'] : [])];
-    box.replaceChildren(...keys.map(key => {
+    const thumbBtns = keys.map(key => {
       const btn = document.createElement('button');
       btn.type = 'button'; btn.className = 'lb-deck'; btn.dataset.deck = key;
       btn.setAttribute('aria-pressed', 'false');
@@ -149,7 +279,28 @@
         btn.appendChild(tag);
       }
       return btn;
-    }));
+    });
+
+    const pickerBtn = document.createElement('button');
+    pickerBtn.type = 'button';
+    pickerBtn.id = 'lb-deck-picker-btn';
+    pickerBtn.className = 'lb-deck-picker-btn';
+    pickerBtn.setAttribute('aria-haspopup', 'dialog');
+    pickerBtn.innerHTML = `
+      <img class="lb-deck-picker-thumb" src="" alt="">
+      <span class="lb-deck-picker-info">
+        <small class="lb-deck-picker-sub">มีให้เลือกครบ ${keys.length} เด็ค</small>
+        <b class="lb-deck-picker-name">เด็คจิต</b>
+      </span>
+      <span class="lb-deck-picker-cta">🃏 กดเลือกเด็ค ▾</span>
+    `;
+    pickerBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      openDeckPickerModal();
+    });
+
+    box.replaceChildren(...thumbBtns, pickerBtn);
+    updateDeckPickerButton();
   }
 
   function renderCounts() {
@@ -224,6 +375,7 @@
 
   function markPressed() {
     $$('.lb-deck').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.deck === selected)));
+    updateDeckPickerButton();
   }
 
   function selectDeck(key) {

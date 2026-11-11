@@ -825,41 +825,44 @@
     container.innerHTML = `
       <div class="bof-quests-panel">
         <div class="bof-daily-login-card">
-          <div>
-            <h4 style="margin:0 0 4px 0;color:#fde047;font-size:16px;">🎁 รางวัลเช็คอินประจำวัน (Daily Login)</h4>
-            <p style="margin:0;font-size:13px;color:#f8fafc;">เข้าเกมรับทันที: <b style="color:#fde047;">+300 🪙 Coins</b> และ <b style="color:#c084fc;">+50 🔮 Soul Shards</b></p>
+          <div class="bof-daily-login-info">
+            <h4 class="bof-daily-login-title">🎁 รางวัลเช็คอินประจำวัน (Daily Login)</h4>
+            <p class="bof-daily-login-desc">เข้าเกมรับทันที: <span class="bof-reward-pill is-coin">🪙 +300 Coins</span> <span class="bof-reward-pill is-shard">🔮 +50 Shards</span></p>
           </div>
-          <button type="button" class="bof-quest-claim-btn ${isDailyClaimed ? 'is-claimed' : ''}" id="btn-claim-daily" ${isDailyClaimed ? 'disabled' : ''}>
+          <button type="button" class="bof-quest-claim-btn bof-daily-claim-btn ${isDailyClaimed ? 'is-claimed' : ''}" id="btn-claim-daily" ${isDailyClaimed ? 'disabled' : ''}>
             ${isDailyClaimed ? '✓ รับแล้ววันนี้' : '🎁 รับของขวัญทันที'}
           </button>
         </div>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 10px 0;flex-wrap:wrap;gap:8px;">
-          <h4 style="margin:0;color:#38bdf8;font-size:15px;">📜 ภารกิจประจำวัน (Daily Missions)</h4>
-          <div style="font-size:12px;color:#94a3b8;background:#1e293b;padding:4px 12px;border-radius:999px;border:1px solid #334155;">
-            ⏳ รีเซ็ตภารกิจในอีก: <b id="quest-countdown-timer" style="color:#fde047;">${formatCountdown()}</b> (ทุก 06:00 น. เวลาไทย)
+        <div class="bof-quest-section-head">
+          <h4 class="bof-quest-section-title">📜 ภารกิจประจำวัน (Daily Missions)</h4>
+          <div class="bof-quest-reset-pill">
+            ⏳ รีเซ็ตใน: <b id="quest-countdown-timer">${formatCountdown()}</b> (ทุก 06:00 น.)
           </div>
         </div>
         
         ${quests.map(q => {
           const pct = Math.min(100, (q.current / q.max) * 100);
           return `
-            <div class="bof-quest-row">
-              <div class="bof-quest-meta" style="flex:1;">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                  <h5 style="margin:0;font-size:14px;color:#f8fafc;">${q.title}</h5>
-                  <span style="font-size:12px;font-weight:bold;color:${q.isCompleted ? '#4ade80' : '#94a3b8'};">
+            <div class="bof-quest-row ${q.isCompleted ? 'is-completed' : ''}">
+              <div class="bof-quest-meta">
+                <div class="bof-quest-title-row">
+                  <h5 class="bof-quest-title">${q.title}</h5>
+                  <span class="bof-quest-progress-badge ${q.isCompleted ? 'is-done' : ''}">
                     ${q.current} / ${q.max} ${q.isCompleted ? '✓ สำเร็จ' : ''}
                   </span>
                 </div>
-                <p style="margin:4px 0 8px 0;font-size:12px;color:#cbd5e1;">${q.desc}</p>
-                <div style="width:100%;height:6px;background:#334155;border-radius:3px;overflow:hidden;">
-                  <div style="width:${pct}%;height:100%;background:${q.isCompleted ? '#22c55e' : '#38bdf8'};transition:width 0.3s;"></div>
+                <p class="bof-quest-desc">${q.desc}</p>
+                <div class="bof-quest-bar-track">
+                  <div class="bof-quest-bar-fill ${q.isCompleted ? 'is-done' : ''}" style="width:${pct}%;"></div>
                 </div>
               </div>
               <div class="bof-quest-reward">
-                <span style="font-size:12px;color:#fde047;font-weight:bold;">🪙 +${q.rewardCoins}</span>
-                <span style="font-size:12px;color:#c084fc;font-weight:bold;">🔮 +${q.rewardShards}</span>
+                <div class="bof-quest-reward-items">
+                  <span class="bof-quest-reward-label">รางวัล:</span>
+                  <span class="bof-reward-pill is-coin">🪙 +${q.rewardCoins}</span>
+                  <span class="bof-reward-pill is-shard">🔮 +${q.rewardShards}</span>
+                </div>
                 <button type="button" class="bof-quest-claim-btn ${q.isClaimed ? 'is-claimed' : (q.isCompleted ? 'is-ready' : '')}" data-claim-quest="${q.id}" ${q.isClaimed || !q.isCompleted ? 'disabled' : ''}>
                   ${q.isClaimed ? '✓ รับแล้ว' : (q.isCompleted ? '✨ กดรับรางวัล' : 'กำลังดำเนินการ')}
                 </button>
@@ -916,20 +919,9 @@
   /* ---------------- กรองคลังการ์ด & จัดเด็คตามการ์ดที่มีจริง (เฉพาะตอนล็อกอิน) ---------------- */
   function syncLobbyDecksForOwnership() {
     if (typeof CARD_DATABASE === 'undefined') return;
-    const loggedIn = isLoggedInUser();
     const deckBtns = document.querySelectorAll('#lb-decks .lb-deck');
     deckBtns.forEach(btn => {
-      const key = btn.getAttribute('data-deck');
-      if (!loggedIn || key === 'mine') {
-        btn.style.display = '';
-        return;
-      }
-      const needLeader = Number(economy.ownedCards[key] || 0) >= 1;
-      const list = typeof getDefaultDeckForLeader === 'function' ? getDefaultDeckForLeader(key) : [];
-      const reqCounts = {};
-      list.forEach(cid => { reqCounts[cid] = (reqCounts[cid] || 0) + 1; });
-      const hasAllMain = Object.entries(reqCounts).every(([cid, cnt]) => Number(economy.ownedCards[cid] || 0) >= cnt);
-      btn.style.display = (needLeader && hasAllMain) ? '' : 'none';
+      btn.style.display = '';
     });
   }
 
