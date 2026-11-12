@@ -730,7 +730,7 @@ function disableControls() {
   if (passBtn) passBtn.disabled = true;
 }
 
-function showChoiceModal(title, description, options) {
+function showChoiceModal(title, description, options, extra = null) {
   let modal = document.getElementById('custom-choice-modal');
   if (!modal) {
     modal = document.createElement('div');
@@ -741,7 +741,8 @@ function showChoiceModal(title, description, options) {
     modal.innerHTML = `
       <div class="modal-box" style="max-width: 620px; max-height: 85vh; overflow-y: auto;">
         <h2 id="choice-modal-title" style="color: #38bdf8;">เลือกการทำงาน</h2>
-        <p id="choice-modal-desc" style="color: #cbd5e1; margin: 10px 0 18px 0; white-space: pre-line;"></p>
+        <p id="choice-modal-desc" style="color: #cbd5e1; margin: 10px 0 14px 0; white-space: pre-line;"></p>
+        <div id="choice-modal-preview" style="display: none; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 14px;"></div>
         <div id="choice-modal-buttons" style="display: flex; flex-direction: column; gap: 10px;"></div>
       </div>
     `;
@@ -750,6 +751,27 @@ function showChoiceModal(title, description, options) {
 
   document.getElementById('choice-modal-title').textContent = title;
   document.getElementById('choice-modal-desc').textContent = description;
+
+  let previewEl = document.getElementById('choice-modal-preview');
+  if (!previewEl) {
+    previewEl = document.createElement('div');
+    previewEl.id = 'choice-modal-preview';
+    previewEl.style.cssText = 'display: none; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 14px;';
+    const descEl = document.getElementById('choice-modal-desc');
+    if (descEl) descEl.insertAdjacentElement('afterend', previewEl);
+  }
+  previewEl.innerHTML = '';
+  if (extra && Array.isArray(extra.previewCards) && extra.previewCards.length > 0) {
+    previewEl.style.display = 'flex';
+    extra.previewCards.forEach(card => {
+      if (!card) return;
+      const cardEl = createCardElement(card, gameState.player);
+      previewEl.appendChild(cardEl);
+    });
+  } else {
+    previewEl.style.display = 'none';
+  }
+
   const btnContainer = document.getElementById('choice-modal-buttons');
   btnContainer.innerHTML = '';
 
@@ -1169,6 +1191,9 @@ const EffectEngine = {
             return { ok: false, reason: `ไม่มียูนิท${step.filterTribe ? `เผ่า "${step.filterTribe}"` : ''}บนสนามฝั่งเราให้เพิ่มพลัง!` };
           }
         }
+        if (step.block === 'GRANT_STATUS' && !caster.board.some(m => m !== null)) {
+          return { ok: false, reason: 'ไม่มียูนิทบนสนามฝั่งเราให้มอบความสามารถพิเศษ!' };
+        }
         if (step.block === 'RECOVER_FROM_GRAVE') {
           const matches = this.filterCards(caster.graveyard, step);
           if (matches.length === 0) return { ok: false, reason: 'ไม่มีการ์ดที่ตรงเงื่อนไขอยู่ในกองนรก!' };
@@ -1205,8 +1230,27 @@ const EffectEngine = {
           if (caster.graveyard.length < 2) return { ok: false, reason: `ต้องมีการ์ดในดรอป (นรก) อย่างน้อย 2 ใบ! (ปัจจุบันมี ${caster.graveyard.length} ใบ)` };
         }
         if (step.block === 'NUEA_CLIP_FREE_CAST') {
-          const castableInHand = caster.hand.some(c => c && c.type === 'NormalSpell');
-          if (!castableInHand) return { ok: false, reason: 'ไม่มีการ์ดเวทมนตร์ปกติ (NormalSpell) บนมือให้สั่งใช้งาน!' };
+          const normalSpellsInHand = caster.hand
+            .map((c, idx) => ({ card: c, idx }))
+            .filter(item => item.card && item.card.type === 'NormalSpell');
+          if (normalSpellsInHand.length === 0) {
+            return { ok: false, reason: 'ไม่มีการ์ดเวทมนตร์ปกติ (NormalSpell) บนมือให้สั่งใช้งาน!' };
+          }
+          const anyReadySpell = normalSpellsInHand.some(item => {
+            const spEff = (item.card.effects || []).find(e => e.trigger === 'CAST_SPELL');
+            if (!spEff) return false;
+            return this.canActivateEffect(spEff, {
+              caster,
+              opponent,
+              sourceCard: item.card,
+              spellHandIndex: item.idx,
+              excludeHandIndex: item.idx,
+              isAI: context.isAI
+            }).ok;
+          });
+          if (!anyReadySpell) {
+            return { ok: false, reason: 'การ์ดเวทมนตร์ปกติบนมือยังไม่ครบเงื่อนไขในการสั่งใช้งาน!' };
+          }
         }
         if (step.block === 'DEAN_DRAW2_DISCARD1') {
           if (caster.deck.length === 0) return { ok: false, reason: 'กองการ์ดของคุณหมดแล้ว!' };
@@ -1583,7 +1627,7 @@ const EffectEngine = {
           return;
         }
 
-        const count = step.count || 1;
+        const count = Math.min(step.count || 1, validAllies.length);
         if (isAI) {
           const preferStand = validAllies.find(m => m.state === 'Stand' && m.id !== 'NM05') || validAllies[0];
           if (preferStand) preferStand[prop] = (preferStand[prop] || 0) + amount;
@@ -1641,16 +1685,16 @@ const EffectEngine = {
           return;
         }
 
-        const hasEnemy = opponent.board.some(m => m !== null && !m.immuneToEnemyEffectsUntilEndOfTurn);
-        if (!hasEnemy) {
+        const validEnemies = opponent.board.filter(m => m !== null && !m.immuneToEnemyEffectsUntilEndOfTurn);
+        if (validEnemies.length === 0) {
           setLog(`ℹ️ ${cardTitle} ไม่มีมอนสเตอร์ฝ่ายตรงข้ามที่สามารถลดพลังได้`);
           next();
           return;
         }
 
-        const count = step.count || 1;
+        const count = Math.min(step.count || 1, validEnemies.length);
         if (isAI) {
-          const target = opponent.board.find(m => m !== null && m.id !== 'NM05' && !m.immuneToEnemyEffectsUntilEndOfTurn);
+          const target = validEnemies.find(m => m.id !== 'NM05') || validEnemies[0];
           if (target) target[prop] = (target[prop] || 0) - amount;
           next();
           return;
@@ -1737,6 +1781,7 @@ const EffectEngine = {
           return;
         }
 
+        const count = Math.min(step.count || 1, validSlots.length);
         if (isAI) {
           const slotIdx = validSlots[0];
           const bounced = targetOwner.board[slotIdx];
@@ -1750,7 +1795,7 @@ const EffectEngine = {
         gameState.pendingAction = {
           type: 'MODULAR_SELECT_TARGET',
           targetZone: targetOwner === gameState.player ? 'PLAYER_BOARD' : 'OPPONENT_BOARD',
-          remainingCount: step.count || 1,
+          remainingCount: count,
           promptText: `🌪️ ${cardTitle} คลิกเลือกยูนิทของ ${targetOwner.name} บนสนามเพื่อส่งกลับขึ้นมือ!`,
           onSelectSlot: (slotIdx) => {
             const targetMonster = targetOwner.board[slotIdx];
@@ -1783,10 +1828,28 @@ const EffectEngine = {
           return;
         }
 
+        const validAllies = caster.board.filter(m => m !== null);
+        if (validAllies.length === 0) {
+          next();
+          return;
+        }
+
+        if (isAI) {
+          const chosenAlly = validAllies.find(m => m.state === 'Stand' && m.id !== 'NM05') || validAllies[0];
+          if (chosenAlly) {
+            if (step.status === 'BURN_ON_KILL') chosenAlly.burnLeaderOnKill = true;
+            if (step.status === 'INDESTRUCTIBLE') chosenAlly.indestructibleUntilNextTurn = true;
+            setLog(`🌟 ${cardTitle} มอบความสามารถพิเศษให้ "${chosenAlly.name}" สำเร็จ!`);
+          }
+          next();
+          return;
+        }
+
+        const count = Math.min(step.count || 1, validAllies.length);
         gameState.pendingAction = {
           type: 'MODULAR_SELECT_TARGET',
           targetZone: 'PLAYER_BOARD',
-          remainingCount: step.count || 1,
+          remainingCount: count,
           promptText: `🌟 ${cardTitle} คลิกเลือกยูนิทฝ่ายเรา 1 ใบบนสนามเพื่อรับความสามารถพิเศษ!`,
           onSelectSlot: (slotIdx) => {
             const ally = caster.board[slotIdx];
@@ -2509,12 +2572,15 @@ const EffectEngine = {
             setLog(`🎮 ${cardTitle} เปิด 2 ใบบนสุด อัญเชิญ "${chosenCard.name}" ลงช่องที่ ${emptySlot + 1}!`);
             triggerAfterBankPlace(emptySlot);
           } else if (isAI) {
+            caster.hand.push(chosenCard);
+            setLog(`🎮 ${cardTitle} เปิด 2 ใบบนสุด นำ "${chosenCard.name}" ขึ้นมือ (สนามเต็ม)!`);
             next();
           } else {
             gameState.pendingAction = {
               type: 'CALL_FROM_EFFECT_SELECT_SLOT',
               cardToPlace: chosenCard,
-              onAfterPlace: () => triggerAfterBankPlace(0)
+              skipDefaultOnSummon: true,
+              onAfterPlace: (placedSlot) => triggerAfterBankPlace(placedSlot !== undefined ? placedSlot : 0)
             };
             setLog(`🎮 ${cardTitle} สนามเต็ม 3 ช่อง — คลิกเลือกช่องบนสนามเพื่อวาง "${chosenCard.name}" ทับ!`);
             renderGame();
@@ -2690,7 +2756,23 @@ const EffectEngine = {
         };
 
         if (isAI) {
-          castWithoutQuota(normalSpells[0].idx);
+          const validItem = normalSpells.find(item => {
+            const spellEff = (item.card.effects || []).find(e => e.trigger === 'CAST_SPELL');
+            if (!spellEff) return false;
+            return this.canActivateEffect(spellEff, {
+              caster,
+              opponent,
+              sourceCard: item.card,
+              spellHandIndex: item.idx,
+              excludeHandIndex: item.idx,
+              isAI: true
+            }).ok;
+          });
+          if (validItem) {
+            castWithoutQuota(validItem.idx);
+          } else {
+            next();
+          }
           return;
         }
 
@@ -2699,7 +2781,16 @@ const EffectEngine = {
           color: '#0284c7',
           onSelect: () => castWithoutQuota(item.idx)
         }));
-        opts.push({ label: '❌ ยกเลิก', color: '#475569', onSelect: () => next() });
+        opts.push({
+          label: '❌ ยกเลิก',
+          color: '#475569',
+          onSelect: () => {
+            if (sourceCard && sourceCard.usedSkills) {
+              delete sourceCard.usedSkills['nuea_clip_free_spell'];
+            }
+            next();
+          }
+        });
         showChoiceModal(`📹 ${cardTitle}`, 'เลือกการ์ดเวทมนตร์จากบนมือเพื่อสั่งใช้งานโดยไม่เสียโควต้า:', opts);
         return;
       }
@@ -3134,11 +3225,17 @@ function executeHawksSearch(contestant, slotIndex, sourceZone) {
   renderGame();
 }
 
-function triggerKhunNueaStartTurn(contestant) {
-  if (!contestant.leader || contestant.leader.id !== 'L02') return;
+function triggerKhunNueaStartTurn(contestant, onComplete = null) {
+  if (!contestant.leader || contestant.leader.id !== 'L02') {
+    if (onComplete) onComplete();
+    return;
+  }
   const inGraveIdx = contestant.graveyard.findIndex(c => c.id === 'NM01');
   const inDeckIdx = contestant.deck.findIndex(c => c.id === 'NM01');
-  if (inGraveIdx === -1 && inDeckIdx === -1) return;
+  if (inGraveIdx === -1 && inDeckIdx === -1) {
+    if (onComplete) onComplete();
+    return;
+  }
 
   if (contestant !== gameState.player) {
     if (inGraveIdx !== -1) {
@@ -3154,6 +3251,7 @@ function triggerKhunNueaStartTurn(contestant) {
       setLog('👑 [AI ขุนเหนือ] นำ "ไพร่ชาวนาเหนือ" 1 ใบจากกองขึ้นมือ!');
     }
     renderGame();
+    if (onComplete) onComplete();
     return;
   }
 
@@ -3171,6 +3269,7 @@ function triggerKhunNueaStartTurn(contestant) {
           contestant.hand.push(card);
           setLog('👑 [ขุนเหนือ] นำ "ไพร่ชาวนาเหนือ" 1 ใบจากกองนรกขึ้นมือสำเร็จ!');
           renderGame();
+          if (onComplete) onComplete();
         }
       },
       {
@@ -3184,9 +3283,17 @@ function triggerKhunNueaStartTurn(contestant) {
           contestant.deck = shuffleDeck(contestant.deck);
           setLog('👑 [ขุนเหนือ] นำ "ไพร่ชาวนาเหนือ" 1 ใบจากกองการ์ดขึ้นมือสำเร็จ!');
           renderGame();
+          if (onComplete) onComplete();
         }
       },
-      { label: 'ไม่นำขึ้นมือ (ข้าม)', color: '#475569', onSelect: () => renderGame() }
+      {
+        label: 'ไม่นำขึ้นมือ (ข้าม)',
+        color: '#475569',
+        onSelect: () => {
+          renderGame();
+          if (onComplete) onComplete();
+        }
+      }
     ]
   );
 }
@@ -3296,6 +3403,10 @@ function triggerDebirunStartTurn(contestant, onComplete) {
         resetCardStateForZoneChange(revived);
         contestant.board[emptySlot] = revived;
         setLog(`😈 [AI เดบิรุน] ชุบ "${revived.name}" จากนรกลงสนาม!`);
+        EffectEngine.triggerCardEffects(revived, 'ON_SUMMON', {
+          caster: contestant, opponent: gameState.player, sourceCard: revived, sourceSlot: emptySlot, isAI: true
+        }, onComplete);
+        return;
       }
       if (onComplete) onComplete();
       return;
@@ -3318,7 +3429,9 @@ function triggerDebirunStartTurn(contestant, onComplete) {
               if (emptySlot !== -1) {
                 contestant.board[emptySlot] = card;
                 setLog(`😈 [เดบิรุน] ชุบยูนิต "${card.name}" จากนรกลงสนามสำเร็จ!`);
-                if (onComplete) onComplete();
+                EffectEngine.triggerCardEffects(card, 'ON_SUMMON', {
+                  caster: contestant, opponent: gameState.ai, sourceCard: card, sourceSlot: emptySlot, isAI: false
+                }, onComplete);
               } else {
                 gameState.pendingAction = {
                   type: 'CALL_FROM_EFFECT_SELECT_SLOT',
@@ -3575,14 +3688,71 @@ function executeFutureSummon(caster, opponent, handIndex, baseSlotIndex) {
   }
 
   if (futureCard.id === 'DM12') {
-    if (opponent.hand.length > 0) {
+    const oppHasHand = opponent.hand.length > 0;
+    const oppBoardUnits = opponent.board.map((m, idx) => ({ m, idx })).filter(x => x.m !== null);
+
+    if (opponent === gameState.player) {
+      const opts = [];
+      if (oppHasHand) {
+        opts.push({
+          label: `🃏 ทิ้งการ์ดบนมือของคุณ 1 ใบ (${opponent.hand[opponent.hand.length - 1].name})`,
+          color: '#d97706',
+          onSelect: () => {
+            const discarded = opponent.hand.pop();
+            if (discarded) {
+              resetCardStateForZoneChange(discarded);
+              opponent.graveyard.push(discarded);
+              setLog(`🌌 [อนาคต - นักล่าปีศาจ โซเนบุ] คุณเลือกทิ้งการ์ดบนมือ "${discarded.name}" 1 ใบ!`);
+            }
+            gameState.isWaitingForChoice = false;
+            renderGame();
+          }
+        });
+      }
+      oppBoardUnits.forEach(item => {
+        opts.push({
+          label: `💥 ทำลาย "${item.m.name}" (ช่อง ${item.idx + 1}) บนสนามของคุณ`,
+          color: '#dc2626',
+          onSelect: () => {
+            destroyBoardMonster(opponent, item.idx);
+            setLog(`🌌 [อนาคต - นักล่าปีศาจ โซเนบุ] คุณเลือกทำลาย "${item.m.name}" บนสนามของคุณ!`);
+            gameState.isWaitingForChoice = false;
+            renderGame();
+          }
+        });
+      });
+      opts.push({
+        label: '❌ ไม่ทำ (นักล่าปีศาจ โซเนบุ พลังโจมตี +1)',
+        color: '#475569',
+        onSelect: () => {
+          futureCard.permPowerMod += 1;
+          setLog('🌌 [อนาคต - นักล่าปีศาจ โซเนบุ] คุณเลือกไม่ทำ -> นักล่าปีศาจ โซเนบุ พลัง +1!');
+          gameState.isWaitingForChoice = false;
+          renderGame();
+        }
+      });
+      gameState.isWaitingForChoice = true;
+      showChoiceModal(
+        '🌌 สกิลอนาคตของ นักล่าปีศาจ โซเนบุ!',
+        'ฝ่ายตรงข้ามบังคับให้คุณเลือก ทิ้งการ์ดบนมือ 1 ใบ หรือ ทำลายการ์ดบนสนามของตัวเอง 1 ใบ (หากไม่ทำ โซเนบุ พลัง +1):',
+        opts
+      );
+      return;
+    }
+
+    if (oppHasHand) {
       const discarded = opponent.hand.pop();
       resetCardStateForZoneChange(discarded);
       opponent.graveyard.push(discarded);
-      setLog(`🌌 [อนาคต - นักล่าปีศาจ โซเนบุ] ส่งโซเนบุไปมิติมืด -> ฝ่ายตรงข้ามทิ้งการ์ดบนมือ "${discarded.name}" 1 ใบ!`);
+      setLog(`🌌 [อนาคต - นักล่าปีศาจ โซเนบุ] ส่งโซเนบุไปมิติมืด -> ฝ่ายตรงข้ามเลือกทิ้งการ์ดบนมือ "${discarded.name}" 1 ใบ!`);
+    } else if (oppBoardUnits.length > 0) {
+      oppBoardUnits.sort((a, b) => getEffectivePower(a.m, opponent) - getEffectivePower(b.m, opponent));
+      const target = oppBoardUnits[0];
+      destroyBoardMonster(opponent, target.idx);
+      setLog(`🌌 [อนาคต - นักล่าปีศาจ โซเนบุ] ฝ่ายตรงข้ามไม่มีมือให้ทิ้ง -> เลือกทำลาย "${target.m.name}" บนสนามตัวเอง 1 ใบ!`);
     } else {
       futureCard.permPowerMod += 1;
-      setLog('🌌 [อนาคต - นักล่าปีศาจ โซเนบุ] ฝ่ายตรงข้ามไม่ทิ้งการ์ด -> นักล่าปีศาจ โซเนบุ พลัง +1!');
+      setLog('🌌 [อนาคต - นักล่าปีศาจ โซเนบุ] ฝ่ายตรงข้ามไม่ทิ้งการ์ด/ทำลายยูนิต -> นักล่าปีศาจ โซเนบุ พลัง +1!');
     }
     renderGame();
     return;
@@ -3999,13 +4169,16 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
   });
 
   if (contestant.leader && contestant.leader.id === 'L02') {
-    triggerKhunNueaStartTurn(contestant);
-    if (onStartEffectsComplete) onStartEffectsComplete();
+    triggerKhunNueaStartTurn(contestant, () => {
+      triggerDoomsdayStartTurnQueue(contestant, onStartEffectsComplete);
+    });
     return;
   }
 
   if (contestant.leader && contestant.leader.id === 'L06') {
-    triggerOatLeaderStartTurn(contestant, onStartEffectsComplete);
+    triggerOatLeaderStartTurn(contestant, () => {
+      triggerDoomsdayStartTurnQueue(contestant, onStartEffectsComplete);
+    });
     return;
   }
 
@@ -4026,6 +4199,7 @@ function executeEndPhaseCleanup(activeContestant) {
         label: `นำ "${targetCard.name}" ขึ้นมือ`,
         color: '#7c3aed',
         onSelect: () => {
+          gameState.isWaitingForChoice = false;
           const gIdx = activeContestant.graveyard.findIndex(c => c.id === targetCard.id);
           if (gIdx !== -1) {
             const recovered = activeContestant.graveyard.splice(gIdx, 1)[0];
@@ -4036,6 +4210,7 @@ function executeEndPhaseCleanup(activeContestant) {
           }
         }
       }));
+      gameState.isWaitingForChoice = true;
       showChoiceModal('📜 สัญญาปีศาจ (มิติมืด)', 'เมื่อจบเทิร์น เลือกการ์ด 1 ใบจากกองดรอป (นรก) เพื่อนำกลับขึ้นมือ:', options);
     } else {
       const recovered = activeContestant.graveyard.pop();
@@ -4242,6 +4417,7 @@ function handlePlayerSlotClick(slotIndex) {
     if (action.type === 'CALL_FROM_EFFECT_SELECT_SLOT') {
       const cardToPlace = action.cardToPlace;
       const callback = action.onAfterPlace;
+      const skipDefaultOnSummon = !!action.skipDefaultOnSummon;
       let overwriteMsg = '';
       if (slotMonster !== null) {
         const overwritten = sendOverwrittenMonsterToGrave(player, slotIndex);
@@ -4250,12 +4426,17 @@ function handlePlayerSlotClick(slotIndex) {
       player.board[slotIndex] = cardToPlace;
       gameState.pendingAction = null;
       setLog(`✨ คอล "${cardToPlace.name}" ลงช่องที่ ${slotIndex + 1} สำเร็จ!${overwriteMsg}`);
-      EffectEngine.triggerCardEffects(cardToPlace, 'ON_SUMMON', {
-        caster: player, opponent: gameState.ai, sourceCard: cardToPlace, sourceSlot: slotIndex, isAI: false
-      }, () => {
+      if (skipDefaultOnSummon) {
         renderGame();
-        if (callback) callback();
-      });
+        if (callback) callback(slotIndex);
+      } else {
+        EffectEngine.triggerCardEffects(cardToPlace, 'ON_SUMMON', {
+          caster: player, opponent: gameState.ai, sourceCard: cardToPlace, sourceSlot: slotIndex, isAI: false
+        }, () => {
+          renderGame();
+          if (callback) callback(slotIndex);
+        });
+      }
       return;
     }
 
@@ -5810,6 +5991,21 @@ function setupInGameControlBar() {
   }
 
   if (!document.getElementById('btn-surrender-match')) {
+    const sandboxBtn = document.createElement('button');
+    sandboxBtn.type = 'button';
+    sandboxBtn.id = 'btn-open-sandbox';
+    sandboxBtn.className = 'btn';
+    sandboxBtn.style.background = '#7c3aed';
+    sandboxBtn.style.marginRight = '6px';
+    sandboxBtn.title = 'เปิดห้องทดลองสกิลการ์ด & ตรวจเช็กการ์ด 72 ใบ';
+    sandboxBtn.textContent = '🧪 ทดสอบสกิล';
+    sandboxBtn.onclick = () => {
+      if (window.BOFSandbox && typeof window.BOFSandbox.openModal === 'function') {
+        window.BOFSandbox.openModal();
+      }
+    };
+    parentGroup.appendChild(sandboxBtn);
+
     const nextPhaseBtn = document.createElement('button');
     nextPhaseBtn.id = 'btn-pass-turn-inline';
     nextPhaseBtn.className = 'btn';
@@ -5826,6 +6022,13 @@ function setupInGameControlBar() {
     surrenderBtn.textContent = '🏳️ ยอมแพ้';
     surrenderBtn.onclick = () => handlePlayerSurrender();
     parentGroup.appendChild(surrenderBtn);
+  }
+
+  const sbBtn = document.getElementById('btn-open-sandbox');
+  if (sbBtn) {
+    const isPvp = (typeof pvpState !== 'undefined' && pvpState.isMultiplayer);
+    const isAdmin = (typeof window.BOFSandbox !== 'undefined' && typeof window.BOFSandbox.isAdminUnlocked === 'function' && window.BOFSandbox.isAdminUnlocked());
+    sbBtn.style.display = (!isPvp && isAdmin) ? '' : 'none';
   }
 }
 
@@ -5938,6 +6141,17 @@ function triggerPlayerPassTurn() {
 
 function startAITurn() {
   if (gameState.gameOver) return;
+  if (isInteractionBlocked()) {
+    setTimeout(startAITurn, 400);
+    return;
+  }
+  if (window.BOFSandbox && window.BOFSandbox.isDummyAIEnabled()) {
+    gameState.activeTurn = 'player';
+    gameState.turnCount += 1;
+    setLog('🧪 [โหมดทดสอบสกิล: หุ่นซ้อม AI] ข้ามเทิร์น AI อัตโนมัติและเริ่มเทิร์นใหม่ของคุณทันที!');
+    startPlayerTurn();
+    return;
+  }
   gameState.activeTurn = 'ai';
   gameState.turnCount += 1;
   gameState.phase = 'Start Phase';
@@ -7784,6 +7998,9 @@ document.getElementById('btn-save-start')?.addEventListener('click', () => {
 });
 
 function initGame() {
+  if (window.BOFSandbox && typeof window.BOFSandbox.setDummyAIEnabled === 'function') {
+    window.BOFSandbox.setDummyAIEnabled(false);
+  }
   gameState.turnCount = 1;
   gameState.activeTurn = 'player';
   gameState.phase = 'Mulligan';
@@ -8538,3 +8755,1852 @@ function initArenaCustomBackground() {
 }
 
 document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground());
+
+/* ============================================================================
+   หมวดที่ 12: ห้องทดลองสกิลการ์ด (CARD SKILL SANDBOX) & ระบบสแกนตรวจบั๊ก 72 ใบอัตโนมัติ
+   ============================================================================ */
+(function initBOFSandboxSystem() {
+  const ADMIN_SESSION_KEY = 'bof_admin_unlocked_v1';
+  const ADMIN_PASSCODES = ['bofadmin', '9999'];
+
+  let dummyAIEnabled = false;
+  let selectedDeckFilter = 'ALL';
+  let selectedCardId = 'L01';
+  let searchKeyword = '';
+
+  function isAdminUnlocked() {
+    try {
+      return sessionStorage.getItem(ADMIN_SESSION_KEY) === '1' || localStorage.getItem(ADMIN_SESSION_KEY) === '1';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function setAdminUnlocked(unlocked) {
+    try {
+      if (unlocked) {
+        sessionStorage.setItem(ADMIN_SESSION_KEY, '1');
+        localStorage.setItem(ADMIN_SESSION_KEY, '1');
+      } else {
+        sessionStorage.removeItem(ADMIN_SESSION_KEY);
+        localStorage.removeItem(ADMIN_SESSION_KEY);
+        dummyAIEnabled = false;
+        closeSandboxModal();
+      }
+    } catch (e) {}
+    syncAdminSandboxVisibility();
+  }
+
+  function syncAdminSandboxVisibility() {
+    const unlocked = isAdminUnlocked();
+    const lobbySection = document.getElementById('lobby-admin-sandbox-section');
+    const authBox = document.getElementById('lobby-admin-auth-box');
+    const showAuthBtn = document.getElementById('btn-show-admin-passcode');
+    const sbBtn = document.getElementById('btn-open-sandbox');
+    const isPvp = (typeof pvpState !== 'undefined' && pvpState.isMultiplayer);
+
+    if (lobbySection) {
+      lobbySection.style.display = unlocked ? 'block' : 'none';
+    }
+    if (authBox && unlocked) {
+      authBox.style.display = 'none';
+    }
+    if (showAuthBtn) {
+      showAuthBtn.style.display = unlocked ? 'none' : 'inline-block';
+    }
+    if (sbBtn) {
+      sbBtn.style.display = (unlocked && !isPvp) ? '' : 'none';
+    }
+  }
+
+  function getCardDeckCategory(card) {
+    if (!card) return 'OTHER';
+    if (card.type === 'Leader') return 'LEADER';
+    const id = card.id || '';
+    if (/^(M0|S0)/.test(id)) return 'JIT';
+    if (/^(NM|NS)/.test(id)) return 'NUEA';
+    if (/^(DM\d|DS)/.test(id)) return 'DOOM';
+    if (/^(DN\d|DNS)/.test(id)) return 'DINO';
+    if (/^(DMM|DMS)/.test(id)) return 'DEMON';
+    if (/^(OM|OS)/.test(id)) return 'OAT';
+    return 'OTHER';
+  }
+
+  function makeSandboxCard(cardId) {
+    const tpl = CARD_DATABASE.find(c => c.id === cardId);
+    if (!tpl) return null;
+    const inst = createCardInstance(tpl);
+    resetCardStateForZoneChange(inst);
+    return inst;
+  }
+
+  function ensureSandboxMatchReady() {
+    if (typeof pvpState !== 'undefined' && pvpState.isMultiplayer) {
+      alert('ไม่สามารถใช้ห้องทดลองสกิลในโหมดดวลออนไลน์กับเพื่อนได้');
+      return false;
+    }
+
+    const lobbyScreen = document.getElementById('lobby-screen');
+    const gameBoard = document.querySelector('.game-container');
+    const mullModal = document.getElementById('mulligan-modal');
+    const coinModal = document.getElementById('coin-toss-overlay');
+    const settingsDialog = document.getElementById('lb-settings-dialog');
+
+    if (settingsDialog && typeof settingsDialog.close === 'function' && settingsDialog.open) {
+      settingsDialog.close();
+    }
+    if (lobbyScreen && lobbyScreen.style.display !== 'none') {
+      lobbyScreen.style.display = 'none';
+    }
+    if (gameBoard && gameBoard.style.display === 'none') {
+      gameBoard.style.display = 'flex';
+    }
+    if (mullModal) mullModal.style.display = 'none';
+    if (coinModal) coinModal.style.display = 'none';
+
+    if (!gameState.player || !gameState.ai || gameState.gameOver || gameState.phase === 'Mulligan') {
+      gameState.turnCount = 2;
+      gameState.activeTurn = 'player';
+      gameState.phase = 'Main Phase';
+      gameState.mulliganSelected = [];
+      gameState.selectedHandIndex = null;
+      gameState.selectedAttackerSlot = null;
+      gameState.pendingAttack = null;
+      gameState.pendingAction = null;
+      gameState.isRollingDice = false;
+      gameState.isWaitingForChoice = false;
+      gameState.gameOver = false;
+
+      gameState.player = createContestant('Player', true, 'P1', currentDeckConfig.leaderId || 'L01', currentDeckConfig.mainDeck || DEFAULT_DECK_LIST);
+      gameState.ai = createContestant('AI (หุ่นซ้อม)', false, 'AI', 'L01', DEFAULT_DECK_LIST);
+      gameState.player.turnsTaken = 2;
+      gameState.ai.turnsTaken = 2;
+      drawCards(gameState.player, 5);
+      drawCards(gameState.ai, 5);
+      ensureZoneUIAndViewers();
+      setupInGameControlBar();
+      initArenaCustomBackground();
+    }
+
+    gameState.gameOver = false;
+    gameState.isRollingDice = false;
+    gameState.isWaitingForChoice = false;
+    gameState.pendingAction = null;
+    gameState.pendingAttack = null;
+    gameState.selectedHandIndex = null;
+    gameState.selectedAttackerSlot = null;
+    gameState.activeTurn = 'player';
+    if (gameState.phase !== 'Main Phase' && gameState.phase !== 'Battle Phase') {
+      gameState.phase = 'Main Phase';
+    }
+    if (gameState.player.turnsTaken < 2) gameState.player.turnsTaken = 2;
+    return true;
+  }
+
+  function resetQuotasAndSkills() {
+    if (!ensureSandboxMatchReady()) return;
+    const p = gameState.player;
+    const a = gameState.ai;
+    [p, a].forEach(side => {
+      if (!side) return;
+      side.attacksThisTurn = 0;
+      side.futureUsedThisTurn = false;
+      if (side.leader) side.leader.abilityUsedThisTurn = false;
+      if (side.spellQuota) {
+        side.spellQuota.normalUsed = 0;
+        side.spellQuota.reactionUsed = 0;
+      }
+      side.board.forEach(m => {
+        if (m) {
+          m.state = 'Stand';
+          m.usedSkills = {};
+          m.oatShieldUsedThisTurn = false;
+          m.beelzebubBuffThisTurn = false;
+        }
+      });
+    });
+    gameState.activeTurn = 'player';
+    gameState.phase = 'Main Phase';
+    gameState.pendingAction = null;
+    setLog('🧪 [ห้องทดลอง] รีเซ็ตสกิล 1/เทิร์น, โควต้าเวทมนตร์ และจับยูนิตทุกใบลุกขึ้น Stand เรียบร้อย!');
+    renderGame();
+  }
+
+  function forceAIAttackPlayer(targetType = 'leader', targetSlot = null) {
+    if (!ensureSandboxMatchReady()) return;
+    const ai = gameState.ai;
+    const player = gameState.player;
+    let attackerSlot = ai.board.findIndex(m => m !== null && m.id !== 'NM05');
+    if (attackerSlot === -1) {
+      attackerSlot = 0;
+      ai.board[0] = makeSandboxCard('M01');
+    }
+    ai.board[attackerSlot].state = 'Stand';
+    ai.turnsTaken = Math.max(2, ai.turnsTaken || 2);
+    player.spellQuota.reactionUsed = 0;
+
+    closeSandboxModal();
+    setLog(`🧪 [ห้องทดลอง] สั่งให้ "${ai.board[attackerSlot].name}" ของ AI โจมตี${targetType === 'leader' ? 'ลีดเดอร์ของคุณ' : 'ยูนิตช่องที่ ' + (targetSlot + 1)} ทันที เพื่อทดสอบการป้องกัน/เวทรีแอค!`);
+    renderGame();
+    setTimeout(() => {
+      executeAttack(ai, player, attackerSlot, targetType, targetSlot, () => {
+        gameState.activeTurn = 'player';
+        gameState.phase = 'Main Phase';
+        renderGame();
+      });
+    }, 250);
+  }
+
+  function getScenarioGuideForCard(cardId) {
+    const card = CARD_DATABASE.find(c => c.id === cardId);
+    if (!card) return 'เลือกการ์ดที่ต้องการทดสอบ';
+
+    const guides = {
+      L01: 'ตั้งลีดเดอร์เราเป็น "มายฮีโร่ เดจิต", วางยูนิตบนสนามเรา + เติมการ์ดบนมือ 2 ใบ -> คลิกที่การ์ด Leader ของเราเพื่อกดใช้สกิลทิ้งมือ 1 ใบบัฟพลัง +1!',
+      L02: 'ตั้งลีดเดอร์เราเป็น "ขุนเหนือ", ใส่ "ไพร่ชาวนาเหนือ" ในกองและนรก -> รันสกิลเข้าเทิร์นให้เลือกดึงขึ้นมือทันที และใส่ยูนิตบนมือพร้อมเทสต์สกิลต่อเนื่อง!',
+      L03: 'ตั้งลีดเดอร์เราเป็น "วันสิ้นโลก", ใส่ยูนิตพลัง ≤ 2 ในนรก -> เปิดหน้าต่างเลือกคอลยูนิตจากนรกลงสนามเมื่อเริ่มเทิร์นทันที!',
+      L04: 'ตั้งลีดเดอร์เราเป็น "ศูนย์วิจัยไดโน", เติมการ์ดบนมือและกองการ์ด -> คลิกที่การ์ด Leader ของเราเพื่อทิ้งมือ 1 ใบ โม่กอง 1 ใบ และจั่ว 1 ใบ!',
+      L05: 'ตั้งลีดเดอร์เราเป็น "ปีศาจ", รันออโต้เริ่มเกมนำ "ดินแดนปีศาจ" ไปมิติมืด + จั่ว 2 ใบ และใส่ยูนิตบนสนามอีกฝ่าย -> คลิกที่ Leader เราเพื่อทดสอบสกิลลดพลัง!',
+      L06: 'ตั้งลีดเดอร์เราเป็น "ไอโอ๊ตบ้าทุกสิ่ง", เรียงเวทมนตร์ + ไอโอ๊ตบ้าการ์ตูนไว้ 2 ใบบนสุดของกอง -> เปิดหน้าต่างสกิลเข้าเทิร์นให้เลือกหยิบเวทและเรียงกองทันที!',
+      M03: 'ตั้ง HP ลีดเดอร์เรา = 2, ใส่ "ออลจิต" บนมือเรา และสั่ง AI โจมตีลีดเดอร์เราทันที -> หน้าต่างถามส่งออลจิตจากมือลงมารับดาเมจแทนจะเด้งขึ้นมาทันที!',
+      M04: 'ตั้ง HP ลีดเดอร์เรา = 1, ใส่ "ออลฟอจิต" บนมือเรา, ใส่ บาคุจิต/โทโดจิต/ออลจิต ในนรกครบ และสั่ง AI โจมตีลีดเดอร์เราทันที -> กดอัญเชิญออลฟอจิตลงมารับดาเมจและทำลายทั้งสนามได้เลย!',
+      M05: 'ใส่ "เอ็นเดจิต" บนสนามเรา (Stand) -> คลิกที่เอ็นเดจิตบนสนามเพื่อกดใช้สกิลแลกเลือดลีดเดอร์ 1 HP บัฟพลัง +1 และทริกเกอร์เผาลีดเดอร์เมื่อตีมอนสเตอร์ตาย!',
+      M06: 'ใส่ "ฮออ์กส์ฟีม" บนสนามเรา และใส่ "เอ็นเดจิต" ไว้ทั้งในกองและนรก -> คลิกที่ฮออ์กส์ฟีมบนสนามเพื่อกดใช้สกิลลดพลัง -2 ค้นหาเอ็นเดจิตขึ้นมือ!',
+      NM01: 'ใส่ "ไพร่ชาวนาเหนือ" บนมือเรา, ใส่ "สายลับไพร่เหนือ" และทหารในกอง/นรก -> คลิกที่ไพร่ชาวนาเหนือบนมือเพื่อเลือกทั้ง 3 โหมด (ลงปกติ / ส่งสายลับยึดช่อง AI / ค้นหาทหาร)!',
+      NM02: 'ใส่ "ทหารหลวงเหนือ" + "ไพร่ชาวนาเหนือ" บนมือเรา, วาง "ทหารเกณฑ์เหนือ" บนสนามเรา และใส่ทหารในกอง/นรก -> คลิกทหารหลวงเหนือบนมือเพื่อทดสอบ "อัญเชิญจุติ" และคอลทหารเพิ่มฟรี!',
+      NM03: 'ใส่ "ทหารม้าเหนือ" + "ไพร่ชาวนาเหนือ" บนมือเรา และวางยูนิตบนสนาม AI -> คลิกทหารม้าเหนือบนมือเพื่อทดสอบ "อัญเชิญจุติ"!',
+      NM05: 'ใส่ "สายลับไพร่เหนือ" บนมือเรา และเปิดช่องว่างบนสนาม AI -> คลิกสายลับไพร่เหนือบนมือแล้วคลิกช่องว่างฝั่ง AI เพื่อส่งไปยึดช่อง!',
+      NS01: 'ใส่ "กองทัพหลวงเหนือ" บนมือเรา, วางทหาร 3 ใบบนสนามเรา และวางยูนิต 3 ใบบนสนาม AI -> คลิกร่ายเวทเพื่อทดสอบเงื่อนไขทหาร 1+ / 2+ / 3+ ใบครบทุกขั้น!',
+      DM03: 'วาง "มายอา" (Stand) + "ซึรุรุ" บนสนามเรา, เรียง "โซเนบุ" ไว้ใบบนสุดของกองเรา และสั่ง AI โจมตีทันที -> คลิกเลือกมายอาเข้ารับการโจมตี (Intercept) เพื่อเปิดท็อปกองเจอมอนสเตอร์โซเนบุและบังคับจบเทิร์น AI!',
+      DM04: 'วาง "เดบิรุน" บนสนามเรา, ใส่เวท "เบิกเนตรแห่งแสง" และยูนิตในนรก -> เปิดหน้าต่างสกิลเข้าเทิร์นของเดบิรุนให้เลือกค้นหาเวทหรือชุบยูนิตทันที!',
+      DM07: 'ตั้งค่าจำนวนยูนิตฝั่งเราที่ถูกทำลายในเทิร์นนี้ = 2 ใบ และใส่ "แอชชี่ล่า" บนมือเรา (ขอบการ์ดเรืองแสงสีส้ม) -> คลิกที่แอชชี่ล่าบนมือเพื่อคอลพิเศษพลัง +2 ได้เลย!',
+      DM08: 'วาง "เอมิ" (Rest) คู่กับ "เดบิรุน" บนสนามเรา, เติมการ์ดบนมือ 3 ใบ และเข้าสู่ Battle Phase -> คลิกที่เอมิบนสนามเพื่อกดใช้สกิลทิ้งมือ 3 ใบลุกขึ้น Stand โจมตีซ้ำ!',
+      DM09: 'วาง "มายอา" บนสนามเรา, ใส่ "อนาคต - ผู้รักษาความฝัน มายอา" บนมือเรา และวางเวทไว้ใบบนสุดของกอง -> คลิกการ์ดอนาคตบนมือเพื่อส่งมายอาไปมิติมืดและคอลลงสนาม!',
+      DM10: 'วาง "เดบิรุน" + ยูนิตอีกใบบนสนามเรา, ใส่ "อนาคต - เดบิรุน เดอะ ฟิวเจอร์" บนมือเรา -> คลิกการ์ดอนาคตบนมือเพื่อทดสอบยกเพื่อนขึ้นมือและเปิดท็อปกองคอลลงสนาม!',
+      DM11: 'วาง "ซึรุรุ" บนสนามเรา, ใส่ "มายอา" ในนรก และใส่ "อนาคต - เด็กสาวขนมหวาน ซึรุรุ" บนมือ -> คลิกการ์ดอนาคตบนมือเพื่อชุบมายอาพลัง +1!',
+      DM12: 'วาง "โซเนบุ" บนสนามเรา, ใส่ "อนาคต - นักล่าปีศาจ โซเนบุ" บนมือเรา -> คลิกการ์ดอนาคตบนมือเพื่อบังคับอีกฝ่ายทิ้งมือ/ทำลายยูนิต หรือรับพลัง +1!',
+      DM13: 'วาง "แอชชี่ล่า" บนสนามเรา, วางยูนิตบนสนาม AI และใส่ "อนาคต - แอชชี่ล่า ร่างสมบูรณ์" บนมือ -> คลิกการ์ดอนาคตบนมือเพื่อทำลายยูนิตอีกฝ่ายและรับบัฟพลัง!',
+      DM14: 'วาง "เอมิ" บนสนามเรา, วางยูนิตบนสนาม AI + มอนสเตอร์บนมือ AI และใส่ "อนาคต - สุดยอดเอไอ เอมิ" บนมือ -> คลิกการ์ดอนาคตบนมือเพื่อบังคับ AI สลับยูนิต!',
+      DS02: 'ใส่เวทรีแอค "ร่างโคลนของเอมิ" บนมือเรา, วาง "เอมิ" บนสนามเรา และสั่ง AI โจมตีทันที -> กดใช้เวทรีแอคในหน้าต่างป้องกันเพื่อหยุดการโจมตีและชุบยูนิต!',
+      DN06: 'ใส่ "อินโดมินัสเร็กซ์" บนมือเรา (ขอบเรืองแสงสีเขียว) พร้อมวัตถุดิบ "ทีเร็กซ์" + "เวโลซิแรปเตอร์" -> คลิกที่อินโดมินัสเร็กซ์บนมือเพื่ออัญเชิญไฮบริดส่งวัตถุดิบไปมิติมืด!',
+      DN07: 'ใส่ "อินโดแรปเตอร์" บนมือเรา (ขอบเรืองแสงสีเขียว) พร้อมวัตถุดิบ "อินโดมินัสเร็กซ์" + "เวโลซิแรปเตอร์" -> คลิกที่อินโดแรปเตอร์บนมือเพื่ออัญเชิญไฮบริด!',
+      DNS03: 'ใส่เวทรีแอค "ไดโนคำราม" บนมือเรา, วางไดโนพลัง ≥ 4 และไดโนตัวอื่นบนสนามเรา แล้วสั่ง AI โจมตีทันที -> กดใช้เวทรีแอคเพื่อลดดาเมจเป็น 0 และทำลายผู้โจมตี!',
+      DMM04: 'ใส่ "ซาตาน บาปแห่งความโกรธ" บนมือเรา, เติมมิติมืด 15 ใบ (พร้อมดินแดนปีศาจ) และใส่ปีศาจ 7 บาปอีก 6 ตนครบในสนาม/นรก -> อัญเชิญซาตานลงสนามเพื่อดูสกิลทำลายล้างหรือชนะเกมทันที (Alternate Win)!',
+      DMS01: 'ใส่แลนด์สเปล "สัญญาปีศาจ" บนมือเรา และใส่การ์ดในนรก 3 ใบ -> คลิกร่ายสัญญาปีศาจเพื่อส่งไปมิติมืด จั่ว 1 ทิ้ง 1 (และเมื่อกดจบเทิร์นจะได้เลือกเก็บการ์ดจากนรกขึ้นมือ)!',
+      DMS02: 'ใส่เวทรีแอค "บาปแห่งปีศาจ" บนมือเรา, วาง "ดินแดนปีศาจ" ในมิติมืด, ใส่ปีศาจ 2 ใบในนรก และสั่ง AI โจมตีทันที -> กดใช้เวทรีแอคเพื่อหยุดการโจมตีและนำปีศาจกลับเข้ากอง!',
+      OM02: 'ใส่ "ไอแบงค์บ้าเกม" บนมือเรา และเรียง "ไอโอ๊ตบ้าการ์ตูน (OM01)" กับ "ไอดีนบ้าHee (OM07)" ไว้ 2 ใบบนสุดของกอง -> อัญเชิญไอแบงค์บ้าเกมลงสนามเพื่อเปิด 2 ใบบนสุดคอลลงสนามพร้อมติดบัฟพิเศษ!',
+      OM04: 'วาง "ไอโอ๊ตบ้าการ์ตูน (OM01)", "ไอแบงค์บ้าเกม (OM02)", และ "ไอจิตบ้ากาม (OM03)" บนสนามเรา + ใส่การ์ดในนรก และใส่ "ไออาร์มบ้าการ์ดเกม (OM04)" บนมือ -> อัญเชิญลงสนามเพื่อทริกเกอร์ครบทั้ง 3 เงื่อนไขพร้อมกัน!',
+      OM05: 'ใส่ "ไอเหนือผู้มีคลิปแปลก" บนมือเรา, เรียงเวทไว้ 3 ใบบนสุดของกอง และใส่ Normal Spell บนมือ -> อัญเชิญลงสนามเพื่อหยิบเวทจากท็อป 3 แล้วคลิกที่ตัวมันบนสนามเพื่อร่ายเวทฟรีไม่เสียโควต้า!',
+      OS03: 'ใส่เวทรีแอค "บิดไม่ได้แต่ช่วยได้" บนมือเรา, วาง "ไอเจย์นักบิด (OM08)" บนสนามเรา, ใส่การ์ดในนรก 3 ใบ และสั่ง AI โจมตีทันที -> กดใช้เวทรีแอคเพื่อป้องกันและนำการ์ดกลับเข้ากอง!'
+    };
+
+    if (guides[cardId]) return guides[cardId];
+    if (card.type === 'ReactionSpell') {
+      return `ใส่เวทรีแอค "${card.name}" บนมือเรา พร้อมจัดเงื่อนไขสนามให้ครบ และสั่ง AI โจมตีทันทีเพื่อให้หน้าต่างกดใช้ Reaction Spell เด้งขึ้นมาให้ทดสอบทันที!`;
+    }
+    if (card.type === 'NormalSpell') {
+      return `ใส่เวทมนตร์ "${card.name}" บนมือเรา, รีเซ็ตโควต้าเวทเป็น 0/1 และจัดเตรียมเป้าหมายบนสนาม/นรก/มือให้พร้อม -> คลิกที่การ์ด "${card.name}" บนมือเพื่อร่ายทดสอบสกิลได้ทันที!`;
+    }
+    return `ใส่ยูนิต "${card.name}" บนมือเรา (พร้อมเปิดช่องว่างบนสนามและจัดเงื่อนไขเผ่า/นรก/มิติมืด/ยูนิตฝั่ง AI ให้ครบ) -> คลิกที่ "${card.name}" บนมือเพื่ออัญเชิญลงสนาม หรือคลิกที่ตัวมันบนสนามเพื่อกดใช้สกิลได้ทันที!`;
+  }
+
+  function syncDummyAIButtonUI() {
+    const dummyBtn = document.getElementById('btn-toggle-dummy-ai');
+    if (dummyBtn) {
+      dummyBtn.classList.toggle('is-on', dummyAIEnabled);
+      dummyBtn.textContent = `🛑 หุ่นซ้อม AI (ไม่เดินเอง): ${dummyAIEnabled ? 'เปิดอยู่ ✅' : 'ปิดอยู่ ❌'}`;
+    }
+  }
+
+  function setupScenarioForCard(cardId) {
+    if (!ensureSandboxMatchReady()) return;
+    const cardTpl = CARD_DATABASE.find(c => c.id === cardId);
+    if (!cardTpl) return;
+
+    dummyAIEnabled = true;
+    syncDummyAIButtonUI();
+
+    const p = gameState.player;
+    const a = gameState.ai;
+
+    // เคลียร์สถานะพื้นฐานให้สะอาดและพร้อมเทสต์
+    gameState.gameOver = false;
+    gameState.isWaitingForChoice = false;
+    gameState.pendingAction = null;
+    gameState.pendingAttack = null;
+    gameState.selectedHandIndex = null;
+    gameState.selectedAttackerSlot = null;
+    gameState.activeTurn = 'player';
+    gameState.phase = 'Main Phase';
+    gameState.turnCount = 2;
+
+    p.turnsTaken = 2;
+    p.attacksThisTurn = 0;
+    p.unitsDestroyedThisTurn = 0;
+    p.futureUsedThisTurn = false;
+    p.jitCrazyUpgraded = false;
+    p.spellQuota = { normalUsed: 0, reactionUsed: 0 };
+    p.leader.hp = 6;
+    p.leader.abilityUsedThisTurn = false;
+    p.board = [null, null, null];
+    p.hand = [];
+    p.graveyard = [];
+    p.darkDimension = [];
+    p.deck = DEFAULT_DECK_LIST.map(cid => makeSandboxCard(cid)).filter(Boolean);
+
+    a.turnsTaken = 2;
+    a.attacksThisTurn = 0;
+    a.leader.hp = 6;
+    a.board = [makeSandboxCard('M01'), makeSandboxCard('M02'), null];
+    a.hand = [makeSandboxCard('M01'), makeSandboxCard('M02')];
+    a.graveyard = [makeSandboxCard('M07'), makeSandboxCard('S01')];
+    a.darkDimension = [];
+    a.deck = DEFAULT_DECK_LIST.map(cid => makeSandboxCard(cid)).filter(Boolean);
+
+    // เติมของพื้นฐานในนรกและกองฝั่งเราเผื่อสกิลขุด/ค้นหา
+    p.graveyard.push(makeSandboxCard('M01'), makeSandboxCard('M02'), makeSandboxCard('S01'));
+
+    // กรณีที่ 1: การ์ดประเภท Leader (L01 - L06)
+    if (cardTpl.type === 'Leader') {
+      const newLeader = makeSandboxCard(cardId);
+      newLeader.hp = newLeader.maxHp || 6;
+      newLeader.abilityUsedThisTurn = false;
+      p.leader = newLeader;
+      p.deck = getDefaultDeckForLeader(cardId).map(cid => makeSandboxCard(cid)).filter(Boolean);
+
+      if (cardId === 'L01') {
+        p.board[0] = makeSandboxCard('M01');
+        p.hand.push(makeSandboxCard('M02'), makeSandboxCard('M07'));
+      } else if (cardId === 'L02') {
+        p.graveyard.push(makeSandboxCard('NM01'));
+        p.deck.push(makeSandboxCard('NM01'));
+        p.hand.push(makeSandboxCard('NM02'), makeSandboxCard('NM04'));
+        closeSandboxModal();
+        renderGame();
+        setLog('🧪 [จัดฉาก L02 ขุนเหนือ] ทดสอบสกิลออโต้เข้าเทิร์นของขุนเหนือทันที!');
+        triggerKhunNueaStartTurn(p);
+        return;
+      } else if (cardId === 'L03') {
+        p.graveyard.push(makeSandboxCard('DM01'), makeSandboxCard('DM03'));
+        p.hand.push(makeSandboxCard('DM04'), makeSandboxCard('DS01'));
+        closeSandboxModal();
+        renderGame();
+        setLog('🧪 [จัดฉาก L03 วันสิ้นโลก] ทดสอบสกิลออโต้เข้าเทิร์นคอลยูนิตพลัง ≤ 2 จากนรกทันที!');
+        triggerDoomsdayStartTurnQueue(p);
+        return;
+      } else if (cardId === 'L04') {
+        p.board[0] = makeSandboxCard('DN01');
+        p.hand.push(makeSandboxCard('DN02'), makeSandboxCard('DN05'));
+      } else if (cardId === 'L05') {
+        p.demonStartOfGameTriggered = false;
+        applyStartOfGameLeaderEffects(p);
+        p.board[0] = makeSandboxCard('DMM01');
+      } else if (cardId === 'L06') {
+        p.deck.push(makeSandboxCard('OM01'), makeSandboxCard('OS01'));
+        p.hand.push(makeSandboxCard('OM02'));
+        closeSandboxModal();
+        renderGame();
+        setLog('🧪 [จัดฉาก L06 ไอโอ๊ตบ้าทุกสิ่ง] ทดสอบสกิลออโต้เข้าเทิร์นเปิดการ์ด 2 ใบบนสุดของกองทันที!');
+        triggerOatLeaderStartTurn(p);
+        return;
+      }
+
+      closeSandboxModal();
+      setLog(`🧪 [จัดฉากทดสอบ ${cardTpl.name}] ตั้งเป็น Leader ฝั่งเราเรียบร้อย — คลิกที่การ์ด Leader ของเราเพื่อกดใช้สกิลได้เลย!`);
+      renderGame();
+      return;
+    }
+
+    // กรณีที่ 2: การ์ดป้องกันจากมือ / บนสนาม และ Reaction Spells ที่ต้องให้ AI โจมตีเข้ามา
+    if (cardId === 'M03') {
+      p.leader.hp = 2;
+      p.hand.push(makeSandboxCard('M03'), makeSandboxCard('M01'));
+      forceAIAttackPlayer('leader', null);
+      return;
+    }
+    if (cardId === 'M04') {
+      p.leader.hp = 1;
+      p.graveyard = [makeSandboxCard('M01'), makeSandboxCard('M02'), makeSandboxCard('M03')];
+      p.hand.push(makeSandboxCard('M04'));
+      forceAIAttackPlayer('leader', null);
+      return;
+    }
+    if (cardId === 'DM03') {
+      p.board[0] = makeSandboxCard('DM03');
+      p.board[1] = makeSandboxCard('DM05');
+      p.deck.push(makeSandboxCard('DM06')); // โซเนบุอยู่ใบบนสุดของกอง
+      forceAIAttackPlayer('leader', null);
+      return;
+    }
+    if (cardId === 'DN03') {
+      p.board[0] = makeSandboxCard('DN03');
+      a.board[0] = makeSandboxCard('M07'); // Power 1 ตีเข้ามาไม่เข้ากระดองแองคิโลซอรัส
+      forceAIAttackPlayer('leader', null);
+      return;
+    }
+    if (cardTpl.type === 'ReactionSpell') {
+      p.hand.push(makeSandboxCard(cardId));
+      if (cardId === 'DS02') {
+        p.board[0] = makeSandboxCard('DM08'); // เอมิบนสนาม
+        p.graveyard.push(makeSandboxCard('DM01'), makeSandboxCard('DM04'));
+      } else if (cardId === 'DNS03') {
+        p.board[0] = makeSandboxCard('DN05'); // ทีเร็กซ์ Power 4
+        p.board[1] = makeSandboxCard('DN01'); // สเตโกซอรัส Power 2
+      } else if (cardId === 'DMS02') {
+        p.darkDimension.push(makeSandboxCard('DMS03')); // ดินแดนปีศาจในมิติมืด
+        p.graveyard.push(makeSandboxCard('DMM01'), makeSandboxCard('DMM02'));
+      } else if (cardId === 'OS03') {
+        p.board[0] = makeSandboxCard('OM08'); // ไอเจย์นักบิดบนสนาม
+        p.graveyard.push(makeSandboxCard('OM01'), makeSandboxCard('OM02'), makeSandboxCard('OS01'));
+      }
+      forceAIAttackPlayer('leader', null);
+      return;
+    }
+
+    // กรณีที่ 3: การ์ดที่มีเงื่อนไขเฉพาะตัว
+    switch (cardId) {
+      case 'M02': // โทโดจิต (ต้องการบาคุจิตบนสนาม)
+        p.board[0] = makeSandboxCard('M01');
+        p.hand.push(makeSandboxCard('M02'));
+        break;
+      case 'M05': // เอ็นเดจิต
+        p.board[0] = makeSandboxCard('M05');
+        p.hand.push(makeSandboxCard('M05'));
+        break;
+      case 'M06': // ฮออ์กส์ฟีม (ค้นหาเอ็นเดจิตจากกอง/นรก)
+        p.board[0] = makeSandboxCard('M06');
+        p.graveyard.push(makeSandboxCard('M05'));
+        p.deck.push(makeSandboxCard('M05'));
+        p.hand.push(makeSandboxCard('M06'));
+        break;
+      case 'S01': // วันฟอจิต (ต้องการออลจิตบนสนามจะได้ +3 แทน +2)
+        p.board[0] = makeSandboxCard('M03');
+        p.board[1] = makeSandboxCard('M01');
+        p.hand.push(makeSandboxCard('S01'));
+        break;
+      case 'S02': // ระเบิดจิต (ทิ้งมือ 1 ทำลาย 1)
+        p.hand.push(makeSandboxCard('S02'), makeSandboxCard('M07'));
+        break;
+      case 'S03': // จิตฮีล (ทิ้งมือ 2 ฮีล लीडเดอร์ +1)
+        p.leader.hp = 4;
+        p.hand.push(makeSandboxCard('S03'), makeSandboxCard('M07'), makeSandboxCard('M01'));
+        break;
+      case 'S04': // ทุกสิ่งเพื่อหนึ่งเดียว (ต้องมียูนิต Stand บนสนามเรา >= 2 ใบ)
+        p.board[0] = makeSandboxCard('M01');
+        p.board[1] = makeSandboxCard('M02');
+        p.hand.push(makeSandboxCard('S04'));
+        break;
+      case 'S05': // พลังสืบทอด (ชุบจากนรก)
+        p.graveyard = [makeSandboxCard('M01'), makeSandboxCard('M05'), makeSandboxCard('S01')];
+        p.hand.push(makeSandboxCard('S05'));
+        break;
+
+      // --- เด็คเหนือ ---
+      case 'NM01': // ไพร่ชาวนาเหนือ
+        p.leader = makeSandboxCard('L02');
+        p.deck.push(makeSandboxCard('NM05'), makeSandboxCard('NM02'), makeSandboxCard('NM04'));
+        p.graveyard.push(makeSandboxCard('NM05'));
+        p.hand.push(makeSandboxCard('NM01'), makeSandboxCard('NM01'));
+        break;
+      case 'NM02': // ทหารหลวงเหนือ (จุติ + โบนัสเมื่อมีทหารเกณฑ์เหนือ)
+      case 'NM03': // ทหารม้าเหนือ
+        p.leader = makeSandboxCard('L02');
+        p.board[0] = makeSandboxCard('NM04');
+        p.graveyard.push(makeSandboxCard('NM03'), makeSandboxCard('NM04'));
+        p.deck.push(makeSandboxCard('NM02'), makeSandboxCard('NM04'));
+        p.hand.push(makeSandboxCard(cardId), makeSandboxCard('NM01'));
+        break;
+      case 'NM04': // ทหารเกณฑ์เหนือ
+        p.board[0] = makeSandboxCard('NM02');
+        p.hand.push(makeSandboxCard('NM04'));
+        break;
+      case 'NM05': // สายลับไพร่เหนือ
+        a.board = [makeSandboxCard('M01'), null, null];
+        p.hand.push(makeSandboxCard('NM05'));
+        break;
+      case 'NS01': // กองทัพหลวงเหนือ (ทหาร 3 ใบบนสนาม)
+        p.board = [makeSandboxCard('NM02'), makeSandboxCard('NM03'), makeSandboxCard('NM04')];
+        a.board = [makeSandboxCard('M01'), makeSandboxCard('M02'), makeSandboxCard('M07')];
+        p.hand.push(makeSandboxCard('NS01'));
+        break;
+      case 'NS02': // สั่งประหาร
+        a.board[0] = makeSandboxCard('NM05'); // มีสายลับบนสนามอีกฝ่าย
+        p.hand.push(makeSandboxCard('NS02'), makeSandboxCard('NM01'));
+        break;
+      case 'NS03': // หมอไพร่เหนือ
+        p.graveyard = [makeSandboxCard('NM01'), makeSandboxCard('NM02'), makeSandboxCard('NS01')];
+        p.hand.push(makeSandboxCard('NS03'));
+        break;
+
+      // --- เด็ควันสิ้นโลก ---
+      case 'DM01': // โซระ (ทิ้งมือ 1 คอลยูนิตพลัง <= 2 จากนรก)
+        p.graveyard = [makeSandboxCard('DM03'), makeSandboxCard('DM05')];
+        p.hand.push(makeSandboxCard('DM01'), makeSandboxCard('DM02'));
+        break;
+      case 'DM02': // ยูอิ (เปิดท็อป 3 หยิบมอนสเตอร์พลัง <= 2)
+        p.deck.push(makeSandboxCard('DS01'), makeSandboxCard('DM03'), makeSandboxCard('DM01'));
+        p.hand.push(makeSandboxCard('DM02'));
+        break;
+      case 'DM04': // เดบิรุน
+        p.board[0] = makeSandboxCard('DM04');
+        p.graveyard.push(makeSandboxCard('DS01'), makeSandboxCard('DM01'));
+        p.deck.push(makeSandboxCard('DS03'));
+        p.hand.push(makeSandboxCard('DM04'));
+        closeSandboxModal();
+        renderGame();
+        setLog('🧪 [จัดฉาก DM04 เดบิรุน] เปิดหน้าต่างสกิลออโต้เข้าเทิร์นของเดบิรุนทันที!');
+        triggerDebirunStartTurn(p, () => renderGame());
+        return;
+      case 'DM05': // ซึรุรุ (ปกป้องมายอา + ตายแล้วดึงมายอาขึ้นมือ)
+        p.board[0] = makeSandboxCard('DM03');
+        p.deck.push(makeSandboxCard('DM03'));
+        p.hand.push(makeSandboxCard('DM05'));
+        break;
+      case 'DM06': // โซเนบุ (ต้องมียูนิตใบอื่นบนสนามอีก 2 ใบถึงจะตีได้ และได้ +1)
+        p.board[0] = makeSandboxCard('DM01');
+        p.board[1] = makeSandboxCard('DM03');
+        p.hand.push(makeSandboxCard('DM06'));
+        break;
+      case 'DM07': // แอชชี่ล่า (ยูนิตฝั่งเราถูกทำลาย >= 2 ใบในเทิร์นนี้)
+        p.unitsDestroyedThisTurn = 2;
+        p.hand.push(makeSandboxCard('DM07'));
+        break;
+      case 'DM08': // เอมิ (เมื่อจบการต่อสู้และมีเดบิรุน ทิ้งมือ 3 ใบลุกขึ้น Stand)
+        p.board[0] = makeSandboxCard('DM08');
+        p.board[0].state = 'Rest';
+        p.board[1] = makeSandboxCard('DM04');
+        p.hand.push(makeSandboxCard('DM01'), makeSandboxCard('DM02'), makeSandboxCard('DM03'));
+        gameState.phase = 'Battle Phase';
+        break;
+      case 'DM09': // อนาคต - ผู้รักษาความฝัน มายอา
+        p.board[0] = makeSandboxCard('DM03');
+        p.deck.push(makeSandboxCard('DS01')); // ท็อปกองเป็นเวท
+        p.hand.push(makeSandboxCard('DM09'));
+        break;
+      case 'DM10': // อนาคต - เดบิรุน เดอะ ฟิวเจอร์
+        p.board[0] = makeSandboxCard('DM04');
+        p.board[1] = makeSandboxCard('DM01');
+        p.deck.push(makeSandboxCard('DM06'));
+        p.hand.push(makeSandboxCard('DM10'));
+        break;
+      case 'DM11': // อนาคต - เด็กสาวขนมหวาน ซึรุรุ
+        p.board[0] = makeSandboxCard('DM05');
+        p.graveyard.push(makeSandboxCard('DM03'));
+        p.hand.push(makeSandboxCard('DM11'));
+        break;
+      case 'DM12': // อนาคต - นักล่าปีศาจ โซเนบุ
+        p.board[0] = makeSandboxCard('DM06');
+        p.hand.push(makeSandboxCard('DM12'));
+        break;
+      case 'DM13': // อนาคต - แอชชี่ล่า ร่างสมบูรณ์
+        p.board[0] = makeSandboxCard('DM07');
+        p.hand.push(makeSandboxCard('DM13'));
+        break;
+      case 'DM14': // อนาคต - สุดยอดเอไอ เอมิ
+        p.board[0] = makeSandboxCard('DM08');
+        a.board[0] = makeSandboxCard('M01');
+        a.hand = [makeSandboxCard('M02')];
+        p.hand.push(makeSandboxCard('DM14'));
+        break;
+      case 'DS01': // เบิกเนตรแห่งแสง (มีของในนรก >= 5 ใบจะจั่ว 2 แทน 1)
+        p.board[0] = makeSandboxCard('DM01');
+        p.graveyard = ['DM01', 'DM02', 'DM03', 'DM04', 'DM05'].map(cid => makeSandboxCard(cid));
+        p.hand.push(makeSandboxCard('DS01'));
+        break;
+      case 'DS03': // ประตูสู่มิติอนาคต
+        p.board[0] = makeSandboxCard('DM03');
+        p.deck.push(makeSandboxCard('DM09'), makeSandboxCard('DM10'));
+        p.graveyard.push(makeSandboxCard('DM11'));
+        p.hand.push(makeSandboxCard('DS03'), makeSandboxCard('DM01'));
+        break;
+
+      // --- เด็คไดโน ---
+      case 'DN01': // สเตโกซอรัส
+      case 'DN02': // เวโลซิแรปเตอร์
+      case 'DN04': // พเทอราโนดอน
+      case 'DN05': // ทีเร็กซ์
+        p.board[0] = makeSandboxCard('DN01');
+        p.board[1] = makeSandboxCard('DN02');
+        p.graveyard = [makeSandboxCard('DN03'), makeSandboxCard('DN04'), makeSandboxCard('DN05')];
+        p.hand.push(makeSandboxCard(cardId));
+        break;
+      case 'DN06': // อินโดมินัสเร็กซ์ (ไฮบริด: ทีเร็กซ์ + เวโลซิแรปเตอร์)
+        p.board[0] = makeSandboxCard('DN05');
+        p.graveyard.push(makeSandboxCard('DN02'));
+        p.hand.push(makeSandboxCard('DN06'), makeSandboxCard('DN02'));
+        break;
+      case 'DN07': // อินโดแรปเตอร์ (ไฮบริด: อินโดมินัสเร็กซ์ + เวโลซิแรปเตอร์)
+        p.board[0] = makeSandboxCard('DN06');
+        p.graveyard.push(makeSandboxCard('DN02'));
+        p.hand.push(makeSandboxCard('DN07'), makeSandboxCard('DN02'));
+        break;
+      case 'DNS01': // ฟอสซิลคืนชีพ
+        p.graveyard = [makeSandboxCard('DN05'), makeSandboxCard('DN02'), makeSandboxCard('DN06')];
+        p.hand.push(makeSandboxCard('DNS01'));
+        break;
+      case 'DNS02': // กองทัพไดโนบุก
+        p.board = [makeSandboxCard('DN05'), makeSandboxCard('DN02'), null];
+        p.hand.push(makeSandboxCard('DNS02'));
+        break;
+
+      // --- เด็คปีศาจ ---
+      case 'DMM01': // แอสโมเดียส
+      case 'DMM02': // ลูซิเฟอร์
+      case 'DMM03': // เบลเซบับ
+      case 'DMM05': // ลิเวียธาน
+      case 'DMM06': // เบลเฟกอร์
+      case 'DMM07': // แมมมอน
+      case 'DMM08': // ซามาเอล
+      case 'DMS01': // สัญญาปีศาจ
+      case 'DMS03': // ดินแดนปีศาจ
+      case 'DMS04': // พิธีกรรมอัญเชิญปีศาจ
+        p.leader = makeSandboxCard('L05');
+        p.darkDimension = [
+          makeSandboxCard('DMS03'),
+          makeSandboxCard('DMS01'),
+          ...['DMM01', 'DMM02', 'DMM03', 'DMM05', 'DMM06', 'DMM07', 'DMM08', 'DMM01', 'DMM02', 'DMM03', 'DMM05', 'DMM06', 'DMM07'].map(cid => makeSandboxCard(cid))
+        ]; // 15 ใบในมิติมืด
+        p.graveyard = [makeSandboxCard('DMM01'), makeSandboxCard('DMM02'), makeSandboxCard('DMM04')];
+        p.board[0] = makeSandboxCard('DMM03');
+        p.hand.push(makeSandboxCard(cardId), makeSandboxCard('DMM01'));
+        break;
+      case 'DMM04': // ซาตาน บาปแห่งความโกรธ (ครบ 7 บาป + มิติมืด 15 ใบ)
+        p.leader = makeSandboxCard('L05');
+        p.darkDimension = [
+          makeSandboxCard('DMS03'),
+          ...Array.from({ length: 14 }, () => makeSandboxCard('DMS01'))
+        ]; // 15 ใบในมิติมืด
+        p.board = [makeSandboxCard('DMM01'), makeSandboxCard('DMM02'), null];
+        p.graveyard = ['DMM03', 'DMM05', 'DMM06', 'DMM07', 'DMM08'].map(cid => makeSandboxCard(cid));
+        p.hand.push(makeSandboxCard('DMM04'));
+        break;
+
+      // --- เด็คโอ๊ต ---
+      case 'OM01': // ไอโอ๊ตบ้าการ์ตูน
+      case 'OM03': // ไอจิตบ้ากาม
+      case 'OM07': // ไอดีนบ้าHee
+      case 'OM08': // ไอเจย์นักบิด
+      case 'OS01': // ท่าไม้ตาย(มั้ง)
+      case 'OS02': // โดนแน่มึง
+        p.leader = makeSandboxCard('L06');
+        p.board = [makeSandboxCard('OM01'), makeSandboxCard('OM02'), null];
+        p.graveyard = [makeSandboxCard('OM01'), makeSandboxCard('OM02'), makeSandboxCard('OM03'), makeSandboxCard('OS01')];
+        p.hand.push(makeSandboxCard(cardId), makeSandboxCard('OS01'));
+        break;
+      case 'OM02': // ไอแบงค์บ้าเกม (เปิด 2 ใบบนสุดคอล OM01 / OM07)
+        p.leader = makeSandboxCard('L06');
+        p.deck.push(makeSandboxCard('OM07'), makeSandboxCard('OM01'));
+        p.hand.push(makeSandboxCard('OM02'));
+        break;
+      case 'OM04': // ไออาร์มบ้าการ์ดเกม (เช็ก OM01 + OM02 + OM03 บนสนาม)
+        p.leader = makeSandboxCard('L06');
+        p.board = [makeSandboxCard('OM01'), makeSandboxCard('OM02'), makeSandboxCard('OM03')];
+        p.graveyard = [makeSandboxCard('OS01'), makeSandboxCard('OM07')];
+        p.hand.push(makeSandboxCard('OM04'));
+        break;
+      case 'OM05': // ไอเหนือผู้มีคลิปแปลก (เปิดท็อป 3 หยิบเวท + กดใช้ร่ายเวทฟรี)
+        p.leader = makeSandboxCard('L06');
+        p.deck.push(makeSandboxCard('OS01'), makeSandboxCard('OS02'), makeSandboxCard('OM01'));
+        p.hand.push(makeSandboxCard('OM05'), makeSandboxCard('OS01'));
+        break;
+      case 'OM06': // ไอเอิร์ธบ้าพลัง (มี OM01 + OM02 ในนรกได้พลัง +1)
+        p.leader = makeSandboxCard('L06');
+        p.graveyard = [makeSandboxCard('OM01'), makeSandboxCard('OM02')];
+        p.hand.push(makeSandboxCard('OM06'));
+        break;
+
+      default:
+        p.hand.push(makeSandboxCard(cardId));
+        break;
+    }
+
+    closeSandboxModal();
+    setLog(`🧪 [จัดฉากพร้อมเทสต์: ${cardTpl.name} (${cardTpl.id})] — ${getScenarioGuideForCard(cardId)}`);
+    renderGame();
+  }
+
+  function spawnCardToZone(cardId, zone) {
+    if (!ensureSandboxMatchReady()) return;
+    const inst = makeSandboxCard(cardId);
+    if (!inst) return;
+    const p = gameState.player;
+    const a = gameState.ai;
+
+    if (inst.type === 'Leader') {
+      if (zone === 'AI_BOARD') {
+        a.leader = inst;
+        a.leader.hp = inst.maxHp || 6;
+        setLog(`🧪 [ห้องทดลอง] เปลี่ยน Leader ของ AI เป็น "${inst.name}"!`);
+      } else {
+        p.leader = inst;
+        p.leader.hp = inst.maxHp || 6;
+        setLog(`🧪 [ห้องทดลอง] เปลี่ยน Leader ของเราเป็น "${inst.name}"!`);
+      }
+      renderGame();
+      return;
+    }
+
+    switch (zone) {
+      case 'PLAYER_HAND':
+        p.hand.push(inst);
+        setLog(`🧪 เสก "${inst.name}" เข้ามือเราเรียบร้อย!`);
+        break;
+      case 'PLAYER_BOARD': {
+        if (inst.type !== 'Monster') {
+          p.hand.push(inst);
+          setLog(`🧪 "${inst.name}" เป็นการ์ดเวท จึงเสกเข้ามือเราแทน!`);
+          break;
+        }
+        let slot = p.board.findIndex(m => m === null);
+        if (slot === -1) slot = 0;
+        p.board[slot] = inst;
+        setLog(`🧪 เสก "${inst.name}" ลงช่องที่ ${slot + 1} บนสนามเราเรียบร้อย!`);
+        break;
+      }
+      case 'PLAYER_GRAVE':
+        p.graveyard.push(inst);
+        setLog(`🧪 เสก "${inst.name}" ลงกองนรกเราเรียบร้อย!`);
+        break;
+      case 'PLAYER_DARK':
+        p.darkDimension.push(inst);
+        setLog(`🧪 เสก "${inst.name}" ไปยังมิติมืดเราเรียบร้อย!`);
+        break;
+      case 'PLAYER_DECK_TOP':
+        p.deck.push(inst);
+        setLog(`🧪 วาง "${inst.name}" ไว้ใบบนสุดของกองการ์ดเราเรียบร้อย!`);
+        break;
+      case 'AI_BOARD': {
+        if (inst.type !== 'Monster') {
+          a.hand.push(inst);
+          setLog(`🧪 เสก "${inst.name}" เข้ามือ AI เรียบร้อย!`);
+          break;
+        }
+        let aiSlot = a.board.findIndex(m => m === null);
+        if (aiSlot === -1) aiSlot = 0;
+        a.board[aiSlot] = inst;
+        setLog(`🧪 เสก "${inst.name}" ลงช่องที่ ${aiSlot + 1} บนสนาม AI เรียบร้อย!`);
+        break;
+      }
+      case 'AI_HAND':
+        a.hand.push(inst);
+        setLog(`🧪 เสก "${inst.name}" เข้ามือ AI เรียบร้อย!`);
+        break;
+    }
+    renderGame();
+  }
+
+  // 🤖 ฟังก์ชันรันตรวจเช็กสกิลการ์ดทั้ง 72 ใบแบบอัตโนมัติ (ไม่กระทบกระดานหลัก)
+  async function runAllCardDiagnostics() {
+    const outBox = document.getElementById('bof-sandbox-diag-results');
+    if (outBox) {
+      outBox.style.display = 'block';
+      outBox.innerHTML = `<div style="padding:12px;color:#38bdf8;font-weight:bold;">⏳ กำลังรันตรวจเช็กสกิลการ์ดทั้ง ${CARD_DATABASE.length} ใบ (Schema + รูปภาพ + เงื่อนไขสกิล + จำลองการทำงาน Player/AI)...</div>`;
+    }
+
+    const schemaReport = typeof validateCards === 'function' ? validateCards() : { ok: true, issues: [] };
+
+    // 1. ตรวจสอบการโหลดรูปภาพของการ์ดทั้ง 72 ใบ
+    const checkImage = (src) => new Promise(resolve => {
+      if (!src) { resolve(false); return; }
+      const img = new Image();
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.src = src;
+    });
+
+    // สำรองสถานะเกมไว้ก่อนจำลองรันสกิล
+    const backupState = {
+      turnCount: gameState.turnCount,
+      activeTurn: gameState.activeTurn,
+      phase: gameState.phase,
+      player: gameState.player,
+      ai: gameState.ai,
+      pendingAction: gameState.pendingAction,
+      pendingAttack: gameState.pendingAttack,
+      isWaitingForChoice: gameState.isWaitingForChoice,
+      gameOver: gameState.gameOver,
+      matchLogHistory: Array.isArray(gameState.matchLogHistory) ? [...gameState.matchLogHistory] : [],
+      lastPlayedCardInfo: gameState.lastPlayedCardInfo
+    };
+
+    const results = [];
+    let passCount = 0;
+    let failCount = 0;
+
+    try {
+      for (const card of CARD_DATABASE) {
+        const cardIssues = [];
+        const notes = [];
+
+        // เช็ก 1: รูปภาพ
+        const imgOk = await checkImage(card.image);
+        if (!imgOk) {
+          cardIssues.push(`ไม่พบไฟล์รูปภาพ: ${card.image}`);
+        } else {
+          notes.push('รูปภาพพร้อม');
+        }
+
+        // เช็ก 2: คำอธิบายและข้อมูลพื้นฐาน
+        const desc = getCardDescription(card);
+        if (!desc || desc.trim().length === 0) {
+          cardIssues.push('ไม่มีคำอธิบายความสามารถ (desc)');
+        }
+
+        // เช็ก 3: จำลองคำนวณค่าพลังและตรวจสอบสกิลในสภาพแวดล้อมจำลอง
+        try {
+          const mockP = createContestant('DiagPlayer', true, 'DP', 'L01', DEFAULT_DECK_LIST);
+          const mockA = createContestant('DiagAI', false, 'DA', 'L01', DEFAULT_DECK_LIST);
+          mockP.turnsTaken = 2;
+          mockA.turnsTaken = 2;
+          mockP.unitsDestroyedThisTurn = 2;
+          mockP.board = [makeSandboxCard('M01'), makeSandboxCard('NM04'), makeSandboxCard('OM01')];
+          mockA.board = [makeSandboxCard('M01'), makeSandboxCard('M02'), null];
+          mockP.hand = [makeSandboxCard('M01'), makeSandboxCard('NM01'), makeSandboxCard('OS01')];
+          mockA.hand = [makeSandboxCard('M01'), makeSandboxCard('M02')];
+          mockP.graveyard = ['M01', 'M02', 'M03', 'DM03', 'DN02', 'DMM01', 'OM01', 'OM02', 'DS01'].map(cid => makeSandboxCard(cid)).filter(Boolean);
+          mockP.darkDimension = [makeSandboxCard('DMS03'), ...Array.from({ length: 14 }, () => makeSandboxCard('DMS01'))];
+
+          gameState.player = mockP;
+          gameState.ai = mockA;
+          gameState.activeTurn = 'player';
+          gameState.phase = 'Main Phase';
+          gameState.gameOver = false;
+          gameState.pendingAction = null;
+
+          const inst = makeSandboxCard(card.id);
+          if (inst.type === 'Monster') {
+            const pwr = getEffectivePower(inst, mockP);
+            if (typeof pwr !== 'number' || Number.isNaN(pwr)) {
+              cardIssues.push(`คำนวณพลังโจมตีผิดพลาด (ได้ค่า ${pwr})`);
+            } else {
+              notes.push(`Power=${pwr}`);
+            }
+          }
+
+          if (Array.isArray(inst.effects) && inst.effects.length > 0) {
+            for (const eff of inst.effects) {
+              const ctxAI = {
+                caster: mockP,
+                opponent: mockA,
+                sourceCard: inst,
+                sourceSlot: 0,
+                isAI: true
+              };
+              const checkRes = EffectEngine.canActivateEffect(eff, ctxAI);
+              if (typeof checkRes.ok !== 'boolean') {
+                cardIssues.push(`canActivateEffect คืนค่าไม่ถูกต้องในเอฟเฟกต์ ${eff.id || eff.trigger}`);
+              }
+              // จำลองรันสเต็ปของเอฟเฟกต์ในโหมด AI เพื่อเช็กว่าไม่มี exception หรือค้าง
+              if (Array.isArray(eff.steps)) {
+                EffectEngine.runSteps(eff.steps, 0, ctxAI, () => {});
+              }
+              notes.push(`Effect[${eff.trigger}] OK`);
+            }
+          } else {
+            notes.push('Special/Passive Handler OK');
+          }
+        } catch (simErr) {
+          cardIssues.push(`จำลองรันสกิลพบข้อผิดพลาด: ${simErr.message || simErr}`);
+        }
+
+        const choiceModal = document.getElementById('custom-choice-modal');
+        if (choiceModal) choiceModal.style.display = 'none';
+
+        const ok = cardIssues.length === 0;
+        if (ok) passCount++;
+        else failCount++;
+
+        results.push({
+          id: card.id,
+          name: card.name,
+          type: card.type,
+          ok,
+          issues: cardIssues,
+          notes: notes.join(' · ')
+        });
+      }
+    } finally {
+      // คืนค่าสถานะกระดานเดิมกลับมาทั้งหมด
+      gameState.turnCount = backupState.turnCount;
+      gameState.activeTurn = backupState.activeTurn;
+      gameState.phase = backupState.phase;
+      gameState.player = backupState.player;
+      gameState.ai = backupState.ai;
+      gameState.pendingAction = backupState.pendingAction;
+      gameState.pendingAttack = backupState.pendingAttack;
+      gameState.isWaitingForChoice = backupState.isWaitingForChoice;
+      gameState.gameOver = backupState.gameOver;
+      gameState.matchLogHistory = backupState.matchLogHistory;
+      gameState.lastPlayedCardInfo = backupState.lastPlayedCardInfo;
+      if (gameState.player && gameState.ai) {
+        _originalRenderGame();
+      }
+    }
+
+    if (!outBox) return results;
+
+    const allOk = failCount === 0 && schemaReport.ok;
+    outBox.innerHTML = `
+      <div class="bof-diag-summary ${allOk ? 'is-pass' : 'is-fail'}">
+        <div>
+          <strong>${allOk ? '✅ ตรวจเช็กการ์ดทั้ง 72 ใบผ่านครบ 100%!' : `⚠️ พบจุดต้องตรวจสอบ ${failCount} ใบ`}</strong>
+          <div style="font-size:12px;margin-top:2px;color:#cbd5e1;">
+            ผ่านการตรวจสอบ: <b>${passCount}/${CARD_DATABASE.length} ใบ</b> · Schema & เด็คมาตรฐาน: <b>${schemaReport.ok ? 'ปกติ (0 issues)' : `พบ ${schemaReport.issues.length} รายการ`}</b>
+          </div>
+        </div>
+        <button type="button" class="btn" style="background:#334155;font-size:11.5px;padding:4px 10px;" id="btn-hide-diag-results">ซ่อนผลลัพธ์</button>
+      </div>
+      <div class="bof-diag-table-wrap">
+        ${results.map(r => `
+          <div class="bof-diag-row ${r.ok ? 'is-ok' : 'is-err'}">
+            <span class="bof-diag-badge">${r.ok ? '✅ PASS' : '❌ FAIL'}</span>
+            <strong class="bof-diag-card-name">[${r.id}] ${r.name}</strong>
+            <span class="bof-diag-card-type">${r.type}</span>
+            <span class="bof-diag-card-note">${r.ok ? r.notes : r.issues.join(', ')}</span>
+            <button type="button" class="btn bof-diag-try-btn" data-diag-try="${r.id}">⚡ เทสต์ใบนี้</button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    outBox.querySelector('#btn-hide-diag-results')?.addEventListener('click', () => {
+      outBox.style.display = 'none';
+    });
+    outBox.querySelectorAll('[data-diag-try]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cid = btn.getAttribute('data-diag-try');
+        selectedCardId = cid;
+        setupScenarioForCard(cid);
+      });
+    });
+
+    return results;
+  }
+
+  function renderSandboxCardDetails() {
+    const selectEl = document.getElementById('bof-sandbox-card-select');
+    const previewEl = document.getElementById('bof-sandbox-card-preview');
+    if (!selectEl || !previewEl) return;
+
+    const filteredCards = CARD_DATABASE.filter(c => {
+      if (selectedDeckFilter !== 'ALL' && getCardDeckCategory(c) !== selectedDeckFilter) return false;
+      if (searchKeyword) {
+        const kw = searchKeyword.toLowerCase();
+        const matchId = (c.id || '').toLowerCase().includes(kw);
+        const matchName = (c.name || '').toLowerCase().includes(kw);
+        const matchDesc = (c.desc || '').toLowerCase().includes(kw);
+        if (!matchId && !matchName && !matchDesc) return false;
+      }
+      return true;
+    });
+
+    if (filteredCards.length > 0 && !filteredCards.some(c => c.id === selectedCardId)) {
+      selectedCardId = filteredCards[0].id;
+    }
+
+    selectEl.innerHTML = filteredCards.map(c => {
+      const pwrTxt = c.type === 'Monster' ? `⚔️${c.power}` : (c.type === 'Leader' ? `👑HP ${c.maxHp}` : `✨${c.type}`);
+      return `<option value="${c.id}" ${c.id === selectedCardId ? 'selected' : ''}>[${c.id}] ${c.name} (${pwrTxt})</option>`;
+    }).join('');
+
+    const currentCard = CARD_DATABASE.find(c => c.id === selectedCardId) || filteredCards[0];
+    if (!currentCard) {
+      previewEl.innerHTML = `<div style="padding:16px;color:#94a3b8;text-align:center;">ไม่พบการ์ดที่ตรงกับคำค้นหา</div>`;
+      return;
+    }
+
+    const guideTxt = getScenarioGuideForCard(currentCard.id);
+    const descTxt = getCardDescription(currentCard);
+
+    previewEl.innerHTML = `
+      <div class="bof-sb-preview-card">
+        <img class="bof-sb-preview-img" src="${currentCard.image}" alt="${currentCard.name}">
+        <div class="bof-sb-preview-info">
+          <div class="bof-sb-preview-head">
+            <span class="bof-sb-id-badge">${currentCard.id}</span>
+            <strong class="bof-sb-title">${currentCard.name}</strong>
+            <span class="bof-sb-meta-pill">${currentCard.type}${currentCard.tribe ? ` · เผ่า${currentCard.tribe}` : ''}${currentCard.power !== undefined ? ` · Power ${currentCard.power}` : ''}</span>
+          </div>
+          <div class="bof-sb-skill-box">
+            <b>📜 ความสามารถการ์ด:</b>
+            <div>${descTxt}</div>
+          </div>
+          <div class="bof-sb-guide-box">
+            <b>💡 วิธีทดสอบเมื่อกดปุ่ม "จัดฉากพร้อมเทสต์ใบนี้ทันที":</b>
+            <div>${guideTxt}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function ensureSandboxModal() {
+    let modal = document.getElementById('bof-sandbox-modal');
+    if (modal) return modal;
+
+    modal = document.createElement('div');
+    modal.id = 'bof-sandbox-modal';
+    modal.className = 'modal-overlay';
+    modal.style.display = 'none';
+    modal.style.zIndex = '320';
+
+    const deckTabs = [
+      { key: 'ALL', label: '🃏 ทั้งหมด (72)' },
+      { key: 'LEADER', label: '👑 Leader (6)' },
+      { key: 'JIT', label: '⚡ เด็คจิต' },
+      { key: 'NUEA', label: '🌾 เด็คเหนือ' },
+      { key: 'DOOM', label: '⏳ วันสิ้นโลก' },
+      { key: 'DINO', label: '🦖 เด็คไดโน' },
+      { key: 'DEMON', label: '😈 เด็คปีศาจ' },
+      { key: 'OAT', label: '🤪 เด็คโอ๊ต' }
+    ];
+
+    modal.innerHTML = `
+      <div class="modal-box bof-sandbox-box">
+        <div class="ai-setup-header">
+          <div>
+            <h2>🧪 ห้องทดลองสกิลการ์ด & ตรวจเช็กบั๊ก 72 ใบ (Skill Lab)</h2>
+            <p>เลือกการ์ดใบไหนก็ได้เพื่อจัดฉากเทสต์สกิลในคลิกเดียวโดยไม่ต้องรอสุ่มจั่วในแมตช์จริง</p>
+          </div>
+          <button type="button" id="btn-close-sandbox-x" class="bof-auth-close-x" aria-label="ปิด">✕</button>
+        </div>
+
+        <!-- แถบที่ 1: ปุ่มสแกนตรวจเช็กอัตโนมัติทั้ง 72 ใบ + โหมดหุ่นซ้อม AI -->
+        <div class="bof-sb-top-bar">
+          <button type="button" class="btn bof-sb-diag-btn" id="btn-run-all-diagnostics">
+            🤖 สแกนตรวจเช็กสกิลการ์ดทั้ง 72 ใบอัตโนมัติ (1-Click Audit)
+          </button>
+          <button type="button" class="btn bof-sb-dummy-btn ${dummyAIEnabled ? 'is-on' : ''}" id="btn-toggle-dummy-ai">
+            🛑 หุ่นซ้อม AI (ไม่เดินเอง): ${dummyAIEnabled ? 'เปิดอยู่ ✅' : 'ปิดอยู่ ❌'}
+          </button>
+        </div>
+
+        <div id="bof-sandbox-diag-results" class="bof-sandbox-diag-results" style="display:none;"></div>
+
+        <!-- แถบที่ 2: เลือกหมวดหมู่เด็ค + ค้นหา + เลือกการ์ด -->
+        <div class="bof-sb-filter-section">
+          <div class="bof-sb-deck-tabs" id="bof-sb-deck-tabs">
+            ${deckTabs.map(t => `
+              <button type="button" class="bof-sb-tab-btn ${t.key === selectedDeckFilter ? 'is-active' : ''}" data-sb-tab="${t.key}">${t.label}</button>
+            `).join('')}
+          </div>
+          <div class="bof-sb-select-row">
+            <input type="text" id="bof-sandbox-search" class="bof-sb-search-input" placeholder="🔍 พิมพ์ค้นหาชื่อการ์ด / รหัส (เช่น ซาตาน, M04, ไฮบริด, อนาคต)...">
+            <select id="bof-sandbox-card-select" class="bof-sb-card-select"></select>
+          </div>
+        </div>
+
+        <!-- แถบที่ 3: ข้อมูลการ์ดที่เลือก + ปุ่มจัดฉากพร้อมเทสต์ทันที -->
+        <div id="bof-sandbox-card-preview"></div>
+
+        <div class="bof-sb-primary-actions">
+          <button type="button" class="btn bof-sb-scenario-btn" id="btn-sb-setup-scenario">
+            ⚡ จัดฉากพร้อมเทสต์ใบนี้ทันที! (เซ็ตสนาม/มือ/นรก/มิติมืดให้ครบอัตโนมัติ)
+          </button>
+        </div>
+
+        <!-- แถบที่ 4: เสกการ์ดใบที่เลือกลงโซนต่างๆ โดยตรง -->
+        <div class="bof-sb-zone-bar">
+          <span class="bof-sb-bar-label">🃏 เสกใบนี้เพิ่มลงโซน:</span>
+          <button type="button" class="btn bof-sb-zone-btn" data-sb-zone="PLAYER_HAND">+ มือเรา</button>
+          <button type="button" class="btn bof-sb-zone-btn" data-sb-zone="PLAYER_BOARD">+ สนามเรา</button>
+          <button type="button" class="btn bof-sb-zone-btn" data-sb-zone="PLAYER_GRAVE">+ นรกเรา</button>
+          <button type="button" class="btn bof-sb-zone-btn" data-sb-zone="PLAYER_DARK">+ มิติมืดเรา</button>
+          <button type="button" class="btn bof-sb-zone-btn" data-sb-zone="PLAYER_DECK_TOP">+ ใบบนสุดกองเรา</button>
+          <button type="button" class="btn bof-sb-zone-btn is-ai" data-sb-zone="AI_BOARD">+ สนาม AI</button>
+          <button type="button" class="btn bof-sb-zone-btn is-ai" data-sb-zone="AI_HAND">+ มือ AI</button>
+        </div>
+
+        <!-- แถบที่ 5: ปุ่มควบคุมกระดานด่วน -->
+        <div class="bof-sb-quick-tools">
+          <span class="bof-sb-bar-label">🎛️ เครื่องมือช่วยเทสต์ด่วน:</span>
+          <button type="button" class="btn bof-sb-tool-btn is-attack" id="btn-sb-force-ai-attack">⚔️ สั่ง AI โจมตีเราทันที (เทสต์ป้องกัน/เวทรีแอค)</button>
+          <button type="button" class="btn bof-sb-tool-btn" id="btn-sb-reset-quotas">🔄 รีเซ็ตสกิล 1/เทิร์น & โควต้าเวท + Stand ทุกใบ</button>
+          <button type="button" class="btn bof-sb-tool-btn" id="btn-sb-trigger-start">🌅 ทดสอบเอฟเฟกต์เข้าเทิร์น (Start Phase)</button>
+          <button type="button" class="btn bof-sb-tool-btn" id="btn-sb-trigger-end">🌙 ทดสอบเอฟเฟกต์จบเทิร์น (End Phase)</button>
+          <button type="button" class="btn bof-sb-tool-btn" id="btn-sb-hp-1">💔 ตั้ง HP เรา = 1</button>
+          <button type="button" class="btn bof-sb-tool-btn" id="btn-sb-hp-full">❤️ ฮีลเต็ม 6 HP ทั้งคู่</button>
+          <button type="button" class="btn bof-sb-tool-btn" id="btn-sb-fill-dark">🌌 เติมมิติมืด 15 ใบ</button>
+          <button type="button" class="btn bof-sb-tool-btn" id="btn-sb-lock-admin-inline" style="background:#475569 !important;margin-left:auto;">🔒 ล็อกซ่อนโหมดแอดมิน</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.querySelector('#btn-close-sandbox-x').onclick = closeSandboxModal;
+    modal.querySelector('#btn-sb-lock-admin-inline').onclick = () => {
+      setAdminUnlocked(false);
+    };
+    modal.addEventListener('click', e => {
+      if (e.target === modal) closeSandboxModal();
+    });
+
+    modal.querySelector('#btn-run-all-diagnostics').onclick = () => {
+      runAllCardDiagnostics();
+    };
+
+    const dummyBtn = modal.querySelector('#btn-toggle-dummy-ai');
+    dummyBtn.onclick = () => {
+      dummyAIEnabled = !dummyAIEnabled;
+      dummyBtn.classList.toggle('is-on', dummyAIEnabled);
+      dummyBtn.textContent = `🛑 หุ่นซ้อม AI (ไม่เดินเอง): ${dummyAIEnabled ? 'เปิดอยู่ ✅' : 'ปิดอยู่ ❌'}`;
+    };
+
+    modal.querySelectorAll('[data-sb-tab]').forEach(tabBtn => {
+      tabBtn.onclick = () => {
+        selectedDeckFilter = tabBtn.getAttribute('data-sb-tab') || 'ALL';
+        modal.querySelectorAll('[data-sb-tab]').forEach(b => b.classList.toggle('is-active', b === tabBtn));
+        renderSandboxCardDetails();
+      };
+    });
+
+    const searchInput = modal.querySelector('#bof-sandbox-search');
+    searchInput.oninput = () => {
+      searchKeyword = searchInput.value.trim();
+      renderSandboxCardDetails();
+    };
+
+    const selectEl = modal.querySelector('#bof-sandbox-card-select');
+    selectEl.onchange = () => {
+      selectedCardId = selectEl.value;
+      renderSandboxCardDetails();
+    };
+
+    modal.querySelector('#btn-sb-setup-scenario').onclick = () => {
+      setupScenarioForCard(selectedCardId);
+    };
+
+    modal.querySelectorAll('[data-sb-zone]').forEach(zBtn => {
+      zBtn.onclick = () => {
+        const zone = zBtn.getAttribute('data-sb-zone');
+        spawnCardToZone(selectedCardId, zone);
+      };
+    });
+
+    modal.querySelector('#btn-sb-force-ai-attack').onclick = () => {
+      forceAIAttackPlayer('leader', null);
+    };
+
+    modal.querySelector('#btn-sb-reset-quotas').onclick = () => {
+      resetQuotasAndSkills();
+      closeSandboxModal();
+    };
+
+    modal.querySelector('#btn-sb-trigger-start').onclick = () => {
+      if (!ensureSandboxMatchReady()) return;
+      closeSandboxModal();
+      executeStartPhase(gameState.player, () => renderGame());
+    };
+
+    modal.querySelector('#btn-sb-trigger-end').onclick = () => {
+      if (!ensureSandboxMatchReady()) return;
+      closeSandboxModal();
+      executeEndPhaseCleanup(gameState.player);
+      renderGame();
+    };
+
+    modal.querySelector('#btn-sb-hp-1').onclick = () => {
+      if (!ensureSandboxMatchReady()) return;
+      gameState.player.leader.hp = 1;
+      setLog('🧪 [ห้องทดลอง] ตั้ง HP ลีดเดอร์ของเราเป็น 1 HP เรียบร้อย!');
+      renderGame();
+      closeSandboxModal();
+    };
+
+    modal.querySelector('#btn-sb-hp-full').onclick = () => {
+      if (!ensureSandboxMatchReady()) return;
+      gameState.player.leader.hp = 6;
+      gameState.ai.leader.hp = 6;
+      setLog('🧪 [ห้องทดลอง] ฟื้นฟู HP ลีดเดอร์ทั้งสองฝั่งเป็น 6/6 เรียบร้อย!');
+      renderGame();
+      closeSandboxModal();
+    };
+
+    modal.querySelector('#btn-sb-fill-dark').onclick = () => {
+      if (!ensureSandboxMatchReady()) return;
+      const p = gameState.player;
+      p.darkDimension = [
+        makeSandboxCard('DMS03'),
+        ...Array.from({ length: 14 }, () => makeSandboxCard('DMS01'))
+      ];
+      setLog('🧪 [ห้องทดลอง] เติมการ์ดในมิติมืดของเราเป็น 15 ใบ (พร้อมดินแดนปีศาจ) เรียบร้อย!');
+      renderGame();
+      closeSandboxModal();
+    };
+
+    return modal;
+  }
+
+  function openSandboxModal(autoRunDiag = false) {
+    if (!isAdminUnlocked()) return;
+    const modal = ensureSandboxModal();
+    syncDummyAIButtonUI();
+    renderSandboxCardDetails();
+    modal.style.display = 'flex';
+    if (autoRunDiag) {
+      runAllCardDiagnostics();
+    }
+  }
+
+  function closeSandboxModal() {
+    const modal = document.getElementById('bof-sandbox-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function verifyAdminPasscode(rawInput) {
+    const val = String(rawInput || '').trim().toLowerCase();
+    return ADMIN_PASSCODES.includes(val);
+  }
+
+  function bindAdminAndSandboxEvents() {
+    syncAdminSandboxVisibility();
+
+    const openAuthBox = () => {
+      if (isAdminUnlocked()) return;
+      const authBox = document.getElementById('lobby-admin-auth-box');
+      const passInput = document.getElementById('input-admin-passcode');
+      if (authBox) {
+        authBox.style.display = 'block';
+        if (passInput) setTimeout(() => passInput.focus(), 50);
+      }
+    };
+
+    const showAuthBtn = document.getElementById('btn-show-admin-passcode');
+    if (showAuthBtn && !showAuthBtn._bofBound) {
+      showAuthBtn._bofBound = true;
+      showAuthBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        openAuthBox();
+      });
+    }
+
+    // ทริกเกอร์เสริม: แตะหัวข้อ "ตั้งค่า" ในหน้าต่างตั้งค่าเพื่อเปิดช่องกรอกรหัสแอดมินได้เช่นกัน
+    const settingsTitleEl = document.getElementById('lb-settings-title');
+    if (settingsTitleEl && !settingsTitleEl._bofBound) {
+      settingsTitleEl._bofBound = true;
+      settingsTitleEl.addEventListener('click', () => {
+        openAuthBox();
+      });
+    }
+
+    // คีย์ลัดสำหรับแอดมินบน PC: กด Ctrl + Shift + D
+    if (!window._bofAdminKeyBound) {
+      window._bofAdminKeyBound = true;
+      document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+          e.preventDefault();
+          if (isAdminUnlocked()) {
+            openSandboxModal(false);
+            return;
+          }
+          const entered = window.prompt('🔐 กรอกรหัสผ่านแอดมินเพื่อเปิดระบบทดสอบสกิลการ์ด:');
+          if (entered !== null && verifyAdminPasscode(entered)) {
+            setAdminUnlocked(true);
+            openSandboxModal(false);
+          } else if (entered !== null) {
+            alert('❌ รหัสแอดมินไม่ถูกต้อง');
+          }
+        }
+      });
+    }
+
+    const verifyBtn = document.getElementById('btn-verify-admin-passcode');
+    const passInput = document.getElementById('input-admin-passcode');
+    const feedbackEl = document.getElementById('admin-passcode-feedback');
+
+    const handleVerifyClick = () => {
+      const val = passInput ? passInput.value : '';
+      if (verifyAdminPasscode(val)) {
+        if (passInput) passInput.value = '';
+        if (feedbackEl) feedbackEl.style.display = 'none';
+        setAdminUnlocked(true);
+      } else if (feedbackEl) {
+        feedbackEl.textContent = '❌ รหัสแอดมินไม่ถูกต้อง';
+        feedbackEl.style.display = 'block';
+      }
+    };
+
+    if (verifyBtn && !verifyBtn._bofBound) {
+      verifyBtn._bofBound = true;
+      verifyBtn.addEventListener('click', handleVerifyClick);
+    }
+    if (passInput && !passInput._bofBound) {
+      passInput._bofBound = true;
+      passInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleVerifyClick();
+        }
+      });
+    }
+
+    const lockBtn = document.getElementById('btn-lobby-lock-admin');
+    if (lockBtn && !lockBtn._bofBound) {
+      lockBtn._bofBound = true;
+      lockBtn.addEventListener('click', () => {
+        setAdminUnlocked(false);
+      });
+    }
+
+    const lobbyOpenBtn = document.getElementById('btn-lobby-open-sandbox');
+    if (lobbyOpenBtn && !lobbyOpenBtn._bofBound) {
+      lobbyOpenBtn._bofBound = true;
+      lobbyOpenBtn.addEventListener('click', () => {
+        if (!isAdminUnlocked()) return;
+        dummyAIEnabled = true;
+        ensureSandboxMatchReady();
+        renderGame();
+        openSandboxModal(false);
+      });
+    }
+    const lobbyDiagBtn = document.getElementById('btn-lobby-run-diagnostics');
+    if (lobbyDiagBtn && !lobbyDiagBtn._bofBound) {
+      lobbyDiagBtn._bofBound = true;
+      lobbyDiagBtn.addEventListener('click', () => {
+        if (!isAdminUnlocked()) return;
+        const settingsDialog = document.getElementById('lb-settings-dialog');
+        if (settingsDialog && typeof settingsDialog.close === 'function' && settingsDialog.open) {
+          settingsDialog.close();
+        }
+        openSandboxModal(true);
+      });
+    }
+  }
+
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bindAdminAndSandboxEvents);
+    } else {
+      bindAdminAndSandboxEvents();
+    }
+  }
+
+  window.BOFSandbox = {
+    openModal: openSandboxModal,
+    closeModal: closeSandboxModal,
+    setupScenarioForCard,
+    spawnCardToZone,
+    runAllCardDiagnostics,
+    forceAIAttackPlayer,
+    resetQuotasAndSkills,
+    isAdminUnlocked,
+    setAdminUnlocked,
+    isDummyAIEnabled: () => (isAdminUnlocked() && dummyAIEnabled) || (window.BOFTutorial && window.BOFTutorial.isTutorialActive()),
+    setDummyAIEnabled: (val) => {
+      dummyAIEnabled = !!val;
+      syncDummyAIButtonUI();
+    }
+  };
+})();
+
+/* ============================================================================
+   หมวดที่ 13: ระบบสอนการเล่น (INTERACTIVE TUTORIAL) & คัมภีร์คอมโบทั้ง 6 เด็ค
+   ============================================================================ */
+(function initBOFTutorialAndComboGuide() {
+  const DECK_COMBO_GUIDES = [
+    {
+      leaderId: 'L01',
+      deckName: '⚡ เด็คจิต (มายฮีโร่ เดจิต)',
+      overview: 'จุดเด่น: บุกทะลวงด้วยยูนิตเผ่าฮีโร่ ทำลายแผงหน้าของคู่แข่งพร้อมเร่งพลังโจมตีปิดเกมในเทิร์นเดียว และมีไพ่ตายพลิกเกมเมื่อเลือดเหลือ 1 HP',
+      combos: [
+        {
+          id: 'jit_duo',
+          title: '💥 คอมโบ 1: คู่หูถล่มสนาม (บาคุจิต + โทโดจิต)',
+          cards: ['M01', 'M02'],
+          practiceCardId: 'M02',
+          steps: [
+            '1. อัญเชิญ "บาคุจิต (M01)" ลงสนาม → สกิลเมื่อลงสนามจะทำลายมอนสเตอร์ของอีกฝ่าย 1 ใบทันที!',
+            '2. อัญเชิญ "โทโดจิต (M02)" ตามลงมาขณะที่ยังมีบาคุจิตอยู่บนสนาม → จะได้จั่วการ์ดฟรี 1 ใบ และโทโดจิตได้รับพลังโจมตี +1 ถาวร (กลายเป็น Power 4)!'
+          ]
+        },
+        {
+          id: 'jit_ende',
+          title: '🦅 คอมโบ 2: ฮออ์กส์ค้นหาเอ็นเดจิต ยิงทะลุถึง Leader!',
+          cards: ['M06', 'M05', 'L01'],
+          practiceCardId: 'M06',
+          steps: [
+            '1. ลง "ฮออ์กส์ฟีม (M06)" แล้วคลิกที่ตัวมันบนสนามเพื่อกดใช้สกิล (ลดพลังตัวเอง -2) ดึง "เอ็นเดจิต (M05)" จากกองการ์ดหรือนรกขึ้นมือทันที',
+            '2. อัญเชิญ "เอ็นเดจิต (M05)" ลงสนาม แล้วคลิกที่ตัวเอ็นเดจิตเพื่อกดใช้สกิลแลกเลือด Leader เรา 1 HP -> รับพลัง +1 และเมื่อเอ็นเดจิตตีมอนสเตอร์อีกฝ่ายตาย จะยิง 1 ดาเมจใส่ Leader อีกฝ่ายฟรี!'
+          ]
+        },
+        {
+          id: 'jit_allforjit',
+          title: '👑 คอมโบ 3: ป้อมปราการพลิกนรก (ออลจิต & ออลฟอจิต)',
+          cards: ['M03', 'S01', 'M04'],
+          practiceCardId: 'M04',
+          steps: [
+            '1. เก็บ "ออลจิต (M03)" ไว้บนมือ เมื่ออีกฝ่ายโจมตีมาตอนเลือด Leader เราเหลือ ≤ 2 จะมีหน้าต่างถามให้ส่งออลจิตจากมือลงมารับดาเมจแทนได้ทันที!',
+            '2. เมื่อมีออลจิตอยู่บนสนาม ร่ายเวท "วันฟอจิต (S01)" จะบัฟพลังให้ยูนิตถึง +3 (จากปกติ +2)!',
+            '3. ท่าไม้ตายก้นหีบ: เมื่อเลือด Leader เราเหลือ 1 HP และมี บาคุจิต + โทโดจิต + ออลจิต อยู่ในนรกครบ เมื่อถูกโจมตีสามารถอัญเชิญ "ออลฟอจิต (M04)" (Power 5) จากมือลงมารับดาเมจแทนและทำลายมอนสเตอร์ทุกใบบนสนาม!'
+          ]
+        }
+      ]
+    },
+    {
+      leaderId: 'L02',
+      deckName: '🌾 เด็คเหนือ (ขุนเหนือ)',
+      overview: 'จุดเด่น: ดึง "ไพร่ชาวนาเหนือ" ขึ้นมือทุกเทิร์น ส่งสายลับไปยึดช่องสนามอีกฝ่ายให้วางมอนสเตอร์ไม่ได้ และอัญเชิญ "จุติ" เรียกกองทัพทหารลงสนามรัวๆ',
+      combos: [
+        {
+          id: 'nuea_spy',
+          title: '🕵️ คอมโบ 1: ส่งสายลับยึดช่อง + สั่งประหารจั่ว 2 ใบ',
+          cards: ['L02', 'NM01', 'NM05', 'NS02'],
+          practiceCardId: 'NM01',
+          steps: [
+            '1. เข้าเทิร์น สกิลออโต้ของ "ขุนเหนือ (L02)" จะให้เลือกดึง "ไพร่ชาวนาเหนือ (NM01)" 1 ใบจากกองหรือนรกขึ้นมือฟรี',
+            '2. คลิกที่ "ไพร่ชาวนาเหนือ (NM01)" บนมือ -> เลือกหัวข้อที่ 1 (ทิ้งตัวเองลงนรก) เพื่อส่ง "สายลับไพร่เหนือ (NM05)" จากกอง/นรกไปยึดช่องว่างบนสนามอีกฝ่าย!',
+            '3. ร่ายเวท "สั่งประหาร (NS02)" ทิ้งมือ 1 ใบ ทำลายยูนิตอีกฝ่าย 1 ใบ และเลือกทำลายสายลับไพร่เหนือบนสนามอีกฝ่ายเพื่อจั่วการ์ดฟรีถึง 2 ใบ!'
+          ]
+        },
+        {
+          id: 'nuea_juti',
+          title: '🔥 คอมโบ 2: อัญเชิญจุติ ทหารหลวงเหนือ เรียกพรรคพวกฟรี!',
+          cards: ['NM04', 'NM01', 'NM02'],
+          practiceCardId: 'NM02',
+          steps: [
+            '1. ลง "ทหารเกณฑ์เหนือ (NM04)" ไว้บนสนาม (ถ้ามีการ์ดทหารใบอื่นอยู่จะได้พลัง +1)',
+            '2. คลิกที่ "ทหารหลวงเหนือ (NM02)" บนมือ -> เลือก "สั่งใช้จากมือ (จุติ)" โดยทิ้งไพร่ชาวนาเหนือ 1 ใบ',
+            '3. ทหารหลวงเหนือจะลงสนามด้วยพลัง +1, ทำลายยูนิตอีกฝ่ายที่พลัง ≤ ตัวมัน 1 ใบ และเพราะมีทหารเกณฑ์เหนืออยู่บนสนาม จะได้อัญเชิญ "ทหาร" จากกองหรือนรกเพิ่มฟรีอีก 1 ใบทันที!'
+          ]
+        },
+        {
+          id: 'nuea_army',
+          title: '⚔️ คอมโบ 3: กองทัพหลวงเหนือ ครบ 3 ทหาร กวาดเรียบ!',
+          cards: ['NM02', 'NM03', 'NM04', 'NS01'],
+          practiceCardId: 'NS01',
+          steps: [
+            '1. จัดวางยูนิตที่มีคำว่า "ทหาร" ให้ครบ 3 ใบบนสนามเรา',
+            '2. ร่ายเวท "กองทัพหลวงเหนือ (NS01)" -> จะทำงานครบทั้ง 3 ขั้นพร้อมกัน: ทหารทุกใบพลัง +1 จนจบเทิร์น + จั่วการ์ด 1 ใบ + ทำลายยูนิตของอีกฝ่าย 1 ใบ!'
+          ]
+        }
+      ]
+    },
+    {
+      leaderId: 'L03',
+      deckName: '⏳ เด็ควันสิ้นโลก',
+      overview: 'จุดเด่น: ชุบยูนิตพลัง ≤ 2 จากนรกทุกต้นเทิร์น ตั้งป้อมอมตะด้วย "มายอา + ซึรุรุ" และส่งร่างต้นไปมิติมืดเพื่ออัญเชิญร่าง "อนาคต" ลงมาถล่ม!',
+      combos: [
+        {
+          id: 'doom_maya_lock',
+          title: '🔮 คอมโบ 1: ป้อมอมตะ ซึรุรุ + มายอา บังคับจบเทิร์น!',
+          cards: ['DM05', 'DM03', 'DM06'],
+          practiceCardId: 'DM03',
+          steps: [
+            '1. วาง "ซึรุรุ (DM05)" คู่กับ "มายอา (DM03)" บนสนาม -> สกิลติดตัวของซึรุรุจะทำให้มายอาไม่ถูกทำลายจากการต่อสู้และเอฟเฟกต์การ์ด!',
+            '2. เมื่ออีกฝ่ายสั่งโจมตีเข้ามา ให้คลิกเลือก "มายอา (DM03)" เข้ารับการโจมตีแทน (Intercept)',
+            '3. มายอาจะไม่ตายเพราะมีซึรุรุคุ้มครอง และจะเปิดการ์ดใบบนสุดของกองเรา (หากเปิดได้มอนสเตอร์จะได้จั่วขึ้นมือ และถ้าใบนั้นคือ "โซเนบุ (DM06)" จะบังคับจบเทิร์นของอีกฝ่ายทันที!)'
+          ]
+        },
+        {
+          id: 'doom_future',
+          title: '🌌 คอมโบ 2: ประตูสู่มิติอนาคต & วิวัฒน์ร่างอนาคต',
+          cards: ['DS03', 'DM04', 'DM10', 'DM13'],
+          practiceCardId: 'DM10',
+          steps: [
+            '1. ร่ายเวท "ประตูสู่มิติอนาคต (DS03)" เพื่อดึงการ์ด "อนาคต" ที่ตรงกับชื่อยูนิตบนสนามเราจากกอง/นรกขึ้นมือ',
+            '2. คลิกการ์ด "อนาคต (DM09–DM14)" บนมือ -> ส่งร่างต้นบนสนามไปที่ "มิติมืด" แล้วคอลร่างอนาคตลงสนามฟรีพร้อมใช้สกิลสุดแกร่งทันที!',
+            '3. เมื่อจบเทิร์น ร่างอนาคตจะลงนรกและดึงร่างต้นจากมิติมืดกลับลงสนามในสถานะ Stand พร้อมป้องกันในเทิร์นอีกฝ่ายต่อทันที!'
+          ]
+        },
+        {
+          id: 'doom_emi',
+          title: '⚡ คอมโบ 3: เอมิ + เดบิรุน ตีเบิ้ลและร่างโคลนสวนกลับ',
+          cards: ['DM04', 'DM08', 'DS02'],
+          practiceCardId: 'DM08',
+          steps: [
+            '1. เข้าเทิร์นเมื่อมี "เดบิรุน (DM04)" บนสนาม จะได้ค้นหาเวท "เบิกเนตรแห่งแสง (DS01)" มาบังคับใช้จั่วการ์ดฟรี หรือชุบมอนสเตอร์จากนรกลงสนาม',
+            '2. ในช่วง Battle Phase หลังจาก "เอมิ (DM08)" โจมตีเสร็จและนอน Rest อยู่ หากมีเดบิรุนบนสนาม ให้คลิกที่เอมิบนสนามเพื่อทิ้งมือ 3 ใบและลุกขึ้น Stand โจมตีซ้ำอีกครั้ง!'
+          ]
+        }
+      ]
+    },
+    {
+      leaderId: 'L04',
+      deckName: '🦖 เด็คไดโน (ศูนย์วิจัยไดโน)',
+      overview: 'จุดเด่น: โม่การ์ดเผ่าไดโนลงนรกเพื่อเร่งพลังและสะสมวัตถุดิบ จากนั้นส่งวัตถุดิบไปมิติมืดเพื่อผสานร่าง "ไฮบริดไดโน" ที่โจมตี 2 ครั้งติดในเทิร์นเดียว!',
+      combos: [
+        {
+          id: 'dino_mill',
+          title: '🦴 คอมโบ 1: โม่กองเร่งฟอสซิล + แรปเตอร์บัฟพลัง +2',
+          cards: ['L04', 'DN04', 'DN01', 'DN02'],
+          practiceCardId: 'DN04',
+          steps: [
+            '1. คลิกที่ Leader "ศูนย์วิจัยไดโน (L04)" และยูนิต "พเทอราโนดอน (DN04)" บนสนามเพื่อโม่การ์ดใบบนสุดลงนรกและจั่วการ์ดใหม่',
+            '2. พอมีเผ่าไดโนในนรก "สเตโกซอรัส (DN01)" จะได้พลัง +1 อัตโนมัติ และคลิกที่ "เวโลซิแรปเตอร์ (DN02)" เพื่อ Rest ตัวเองบัฟพลังให้ไดโนอีกตัว +2 จนจบเทิร์น!'
+          ]
+        },
+        {
+          id: 'dino_hybrid',
+          title: '🦖 คอมโบ 2: ผสานร่างไฮบริด (อินโดมินัสเร็กซ์ -> อินโดแรปเตอร์)',
+          cards: ['DN05', 'DN02', 'DN06', 'DN07'],
+          practiceCardId: 'DN06',
+          steps: [
+            '1. เมื่อมี "อินโดมินัสเร็กซ์ (DN06)" บนมือ และมีวัตถุดิบ "ทีเร็กซ์ (DN05)" + "เวโลซิแรปเตอร์ (DN02)" อยู่ในมือ/สนาม/นรก ขอบการ์ดจะเรืองแสงสีเขียว',
+            '2. คลิกที่อินโดมินัสเร็กซ์บนมือเพื่อส่งวัตถุดิบทั้ง 2 ใบไปมิติมืด และอัญเชิญลงสนาม (Power 5)! เมื่อโจมตีทำลายมอนสเตอร์อีกฝ่ายได้ จะลุกขึ้น Stand โจมตีต่อได้อีก 1 ครั้ง!',
+            '3. ต่อยอดขั้นสุด: ใช้ "อินโดมินัสเร็กซ์ (DN06)" + "เวโลซิแรปเตอร์ (DN02)" ผสานเป็น "อินโดแรปเตอร์ (DN07)" (Power 6 กันเอฟเฟกต์ทั้งเทิร์นที่ลง + ตีเบิ้ล)!'
+          ]
+        }
+      ]
+    },
+    {
+      leaderId: 'L05',
+      deckName: '😈 เด็คปีศาจ',
+      overview: 'จุดเด่น: เปิดเกมด้วย "ดินแดนปีศาจ" ในมิติมืดพร้อมจั่วฟรี 2 ใบ สะสมการ์ดในมิติมืดให้ครบ 10–15 ใบเพื่อปลดล็อกพลังมหาบาปทั้ง 7 และชนะเกมทันทีด้วย "ซาตาน"!',
+      combos: [
+        {
+          id: 'demon_dark_engine',
+          title: '🌌 คอมโบ 1: เร่งมิติมืด 10–15 ใบ (ดินแดนปีศาจ + สัญญาปีศาจ + เบลเซบับ)',
+          cards: ['L05', 'DMS03', 'DMS01', 'DMM03'],
+          practiceCardId: 'DMM03',
+          steps: [
+            '1. เริ่มเกม "ปีศาจ (L05)" จะนำ "ดินแดนปีศาจ (DMS03)" ไปไว้ในมิติมืดและจั่วการ์ด 2 ใบให้อัตโนมัติ',
+            '2. ร่ายแลนด์สเปล "สัญญาปีศาจ (DMS01)" ไปสะสมในมิติมืด (จั่ว 1 ทิ้ง 1 และทุกจบเทิร์นจะได้เลือกเก็บการ์ดจากนรกขึ้นมือฟรี 1 ใบ!)',
+            '3. ใช้สกิลของ "เบลเซบับ (DMM03)" และ "แอสโมเดียส (DMM01)" ถมการ์ดเข้ามิติมืดจนถึง 10–15 ใบ เพื่อปลดล็อกโบนัสลดพลัง/ทำลายล้างของปีศาจทุกตัว!'
+          ]
+        },
+        {
+          id: 'demon_satan_win',
+          title: '🔥 คอมโบ 2: มหาบาปทั้ง 7 ครบ = อัญเชิญ "ซาตาน" ชนะเกมทันที!',
+          cards: ['DMM01', 'DMM02', 'DMM03', 'DMM04'],
+          practiceCardId: 'DMM04',
+          steps: [
+            '1. สะสมการ์ดในมิติมืดให้ครบ 10 ใบขึ้นไป: เมื่ออัญเชิญ "ซาตาน บาปแห่งความโกรธ (DMM04)" จะทำลายการ์ดบนสนามอีกฝ่ายทั้งหมดและทำลายใบอื่นบนสนามเรา!',
+            '2. เงื่อนไขชนะเกมทันที (Alternate Win): หากในมิติมืดมี 15 ใบขึ้นไป และในสนาม/นรกของเรามีปีศาจ "บาป" ครบ 7 ชื่อที่ไม่ซ้ำกัน เมื่ออัญเชิญซาตานลงสนาม คุณจะชนะการประลองทันที!'
+          ]
+        }
+      ]
+    },
+    {
+      leaderId: 'L06',
+      deckName: '🤪 เด็คโอ๊ต (ไอโอ๊ตบ้าทุกสิ่ง)',
+      overview: 'จุดเด่น: จัดเรียงการ์ดใบบนสุดของกองทุกเทิร์น ใช้ "ไอแบงค์บ้าเกม" เปิดท็อปกองคอลพรรคพวกลงสนามพร้อมเกราะอมตะ และรวมแก๊ง 3 ช่าปลดล็อกคอมโบ "ไออาร์มบ้าการ์ดเกม"!',
+      combos: [
+        {
+          id: 'oat_topdeck_bank',
+          title: '🎮 คอมโบ 1: เรียงท็อปกอง + ไอแบงค์บ้าเกม เปิดคอลติดเกราะอมตะ!',
+          cards: ['L06', 'OM02', 'OM01', 'OM07'],
+          practiceCardId: 'OM02',
+          steps: [
+            '1. เข้าเทิร์น สกิลออโต้ของ "ไอโอ๊ตบ้าทุกสิ่ง (L06)" จะเปิดการ์ด 2 ใบบนสุดของกอง (หยิบเวทมนตร์ขึ้นมือได้ 1 ใบ และเลือกเรียงใบที่เหลือไว้บนสุดของกอง)',
+            '2. เลือกเรียง "ไอโอ๊ตบ้าการ์ตูน (OM01)" หรือ "ไอดีนบ้าHee (OM07)" ไว้บนสุดของกอง แล้วอัญเชิญ "ไอแบงค์บ้าเกม (OM02)" ลงสนาม!',
+            '3. สกิลของไอแบงค์จะเปิด 2 ใบบนสุดและคอลลงสนามฟรี! ถ้าคอล "ไอโอ๊ตบ้าการ์ตูน (OM01)" ด้วยสกิลนี้ จะได้รับพลังโจมตี +2 (เป็น Power 4) และได้รับเกราะอมตะไม่ถูกทำลายเทิร์นละ 1 ครั้ง!'
+          ]
+        },
+        {
+          id: 'oat_arm_triple',
+          title: '🃏 คอมโบ 2: รวมแก๊ง 3 ใบ (โอ๊ต + แบงค์ + จิต) ปลดล็อกไออาร์มครบ 3 ขั้น!',
+          cards: ['OM01', 'OM02', 'OM03', 'OM04'],
+          practiceCardId: 'OM04',
+          steps: [
+            '1. ตั้งสนามให้มี "ไอโอ๊ตบ้าการ์ตูน (OM01)", "ไอแบงค์บ้าเกม (OM02)" และ "ไอจิตบ้ากาม (OM03)"',
+            '2. อัญเชิญ "ไออาร์มบ้าการ์ดเกม (OM04)" ลงสนาม (วางทับได้หากสนามเต็ม) -> จะปลดล็อกครบ 3 เงื่อนไข: เก็บการ์ดจากนรกขึ้นมือ 1 ใบ + พลังโจมตีตัวเอง +2 จนจบเทิร์นอีกฝ่าย + อัปเกรดสกิลลดพลังของไอจิตบ้ากามให้ลดพลังศัตรูทุกใบทั้งสนาม!'
+          ]
+        },
+        {
+          id: 'oat_nuea_clip',
+          title: '📹 คอมโบ 3: ไอเหนือผู้มีคลิปแปลก ค้นหาเวท & ร่ายเวทฟรีไม่เสียโควต้า!',
+          cards: ['OM05', 'OS01', 'OS02'],
+          practiceCardId: 'OM05',
+          steps: [
+            '1. อัญเชิญ "ไอเหนือผู้มีคลิปแปลก (OM05)" ลงสนาม -> ดูการ์ด 3 ใบบนสุดของกองและหยิบการ์ดเวทมนตร์ 1 ใบขึ้นมือฟรี',
+            '2. คลิกที่ "ไอเหนือผู้มีคลิปแปลก (OM05)" บนสนามเพื่อกดใช้สกิล (1 ครั้ง/เทิร์น) -> สั่งร่าย Normal Spell จากบนมือได้ฟรี 1 ใบโดยไม่เสียโควต้า Normal Spell ประจำเทิร์น!'
+          ]
+        }
+      ]
+    }
+  ];
+
+  let selectedComboLeaderId = 'L01';
+  let tutorialStep = 0; // 0 = ปิด, 1..4 = กำลังอยู่ในโหมดฝึกสอน
+
+  function renderComboGuideSection() {
+    const tabsBox = document.getElementById('howto-combo-deck-tabs');
+    const contentBox = document.getElementById('howto-combo-content');
+    if (!tabsBox || !contentBox) return;
+
+    tabsBox.innerHTML = DECK_COMBO_GUIDES.map(d => {
+      const lCard = CARD_DATABASE.find(c => c.id === d.leaderId);
+      const img = lCard ? lCard.image : 'images/เด็คจิต/1.png';
+      return `
+        <button type="button" class="lb-combo-deck-pill ${d.leaderId === selectedComboLeaderId ? 'is-active' : ''}" data-combo-leader="${d.leaderId}">
+          <img src="${img}" alt="">
+          <span>${d.deckName}</span>
+        </button>
+      `;
+    }).join('');
+
+    tabsBox.querySelectorAll('[data-combo-leader]').forEach(btn => {
+      btn.onclick = () => {
+        selectedComboLeaderId = btn.getAttribute('data-combo-leader') || 'L01';
+        renderComboGuideSection();
+      };
+    });
+
+    const currentDeckGuide = DECK_COMBO_GUIDES.find(d => d.leaderId === selectedComboLeaderId) || DECK_COMBO_GUIDES[0];
+
+    contentBox.innerHTML = `
+      <div class="lb-combo-overview">
+        <strong>${currentDeckGuide.deckName}</strong>
+        <p>${currentDeckGuide.overview}</p>
+      </div>
+      ${currentDeckGuide.combos.map(combo => {
+        const cardsHtml = combo.cards.map((cid, idx) => {
+          const cObj = CARD_DATABASE.find(c => c.id === cid);
+          if (!cObj) return '';
+          const subTxt = cObj.type === 'Monster' ? `Power ${cObj.power}` : (cObj.type === 'Leader' ? `Leader` : cObj.type);
+          const arrow = idx < combo.cards.length - 1 ? `<span class="lb-combo-arrow">➔</span>` : '';
+          return `
+            <div class="lb-combo-mini-card" data-preview-cid="${cObj.id}" title="คลิกเพื่อดูการ์ดใบใหญ่">
+              <img src="${cObj.image}" alt="${cObj.name}">
+              <div class="lb-combo-mini-meta">
+                <b>${cObj.name}</b>
+                <small>${cObj.id} · ${subTxt}</small>
+              </div>
+            </div>
+            ${arrow}
+          `;
+        }).join('');
+
+        return `
+          <div class="lb-combo-card">
+            <div class="lb-combo-card-head">
+              <span class="lb-combo-card-title">${combo.title}</span>
+              <button type="button" class="btn lb-combo-practice-btn" data-practice-cid="${combo.practiceCardId}">
+                🎮 ลองซ้อมคอมโบนี้เลย!
+              </button>
+            </div>
+            <div class="lb-combo-cards-strip">${cardsHtml}</div>
+            <ol class="lb-combo-steps-list">
+              ${combo.steps.map(s => `<li>${s.replace(/^\d+\.\s*/, '')}</li>`).join('')}
+            </ol>
+          </div>
+        `;
+      }).join('')}
+    `;
+
+    contentBox.querySelectorAll('[data-preview-cid]').forEach(el => {
+      el.onclick = () => {
+        const cid = el.getAttribute('data-preview-cid');
+        const cObj = CARD_DATABASE.find(c => c.id === cid);
+        if (cObj && typeof window.openCardDetailModal === 'function') {
+          const howtoDlg = document.getElementById('lb-howto-dialog');
+          if (howtoDlg && howtoDlg.open) howtoDlg.close();
+          window.openCardDetailModal(cObj, null, el);
+        }
+      };
+    });
+
+    contentBox.querySelectorAll('[data-practice-cid]').forEach(btn => {
+      btn.onclick = () => {
+        const cid = btn.getAttribute('data-practice-cid');
+        const howtoDlg = document.getElementById('lb-howto-dialog');
+        if (howtoDlg && howtoDlg.open) howtoDlg.close();
+        startComboPracticeSession(cid);
+      };
+    });
+  }
+
+  function startComboPracticeSession(cardId) {
+    tutorialStep = 0;
+    hideTutorialCoachBar();
+    if (window.BOFSandbox && typeof window.BOFSandbox.setupScenarioForCard === 'function') {
+      window.BOFSandbox.setupScenarioForCard(cardId);
+      const cardObj = CARD_DATABASE.find(c => c.id === cardId);
+      showTutorialCoachBar(
+        '🎮 โหมดซ้อมคอมโบประจำเด็ค',
+        `จัดเตรียมสนามสำหรับฝึกคอมโบ "${cardObj ? cardObj.name : cardId}" เรียบร้อย!`,
+        'ลองคลิกใช้การ์ดบนมือหรือกดสกิลบนสนามตามขั้นตอนในคัมภีร์คอมโบได้เลย (กดปุ่ม "ออกจากการฝึก" ด้านขวาเมื่อซ้อมเสร็จ)',
+        true
+      );
+    }
+  }
+
+  function ensureTutorialCoachBar() {
+    let bar = document.getElementById('bof-tutorial-coach-bar');
+    if (bar) return bar;
+    bar = document.createElement('div');
+    bar.id = 'bof-tutorial-coach-bar';
+    bar.style.display = 'none';
+    document.body.appendChild(bar);
+    return bar;
+  }
+
+  function hideTutorialCoachBar() {
+    const bar = document.getElementById('bof-tutorial-coach-bar');
+    if (bar) bar.style.display = 'none';
+  }
+
+  function showTutorialCoachBar(badgeText, titleText, descText, isPracticeMode = false) {
+    const bar = ensureTutorialCoachBar();
+    bar.innerHTML = `
+      <div class="bof-coach-main">
+        <span class="bof-coach-step-badge">${badgeText}</span>
+        <div class="bof-coach-title">${titleText}</div>
+        <div class="bof-coach-desc">${descText}</div>
+      </div>
+      <div class="bof-coach-actions">
+        ${!isPracticeMode && tutorialStep > 0 && tutorialStep < 4 ? `<button type="button" class="btn" id="btn-coach-next-step" style="background:#0284c7;padding:6px 11px;font-size:12px;">ถัดไป ▶</button>` : ''}
+        <button type="button" class="btn" id="btn-coach-exit" style="background:#dc2626;padding:6px 11px;font-size:12px;">✕ ออกจากการฝึก</button>
+      </div>
+    `;
+    bar.style.display = 'flex';
+
+    bar.querySelector('#btn-coach-next-step')?.addEventListener('click', () => {
+      advanceInteractiveTutorial(tutorialStep + 1);
+    });
+    bar.querySelector('#btn-coach-exit')?.addEventListener('click', () => {
+      tutorialStep = 0;
+      hideTutorialCoachBar();
+      returnToLobbyScreen();
+    });
+  }
+
+  function startInteractiveTutorial() {
+    const howtoDlg = document.getElementById('lb-howto-dialog');
+    if (howtoDlg && howtoDlg.open) howtoDlg.close();
+
+    const lobbyScreen = document.getElementById('lobby-screen');
+    const gameBoard = document.querySelector('.game-container');
+    const mullModal = document.getElementById('mulligan-modal');
+    if (lobbyScreen) lobbyScreen.style.display = 'none';
+    if (gameBoard) gameBoard.style.display = 'flex';
+    if (mullModal) mullModal.style.display = 'none';
+
+    const makeCard = (cid) => {
+      const tpl = CARD_DATABASE.find(c => c.id === cid);
+      return tpl ? createCardInstance(tpl) : null;
+    };
+
+    gameState.turnCount = 2;
+    gameState.activeTurn = 'player';
+    gameState.phase = 'Main Phase';
+    gameState.pendingAction = null;
+    gameState.pendingAttack = null;
+    gameState.selectedHandIndex = null;
+    gameState.selectedAttackerSlot = null;
+    gameState.isRollingDice = false;
+    gameState.isWaitingForChoice = false;
+    gameState.gameOver = false;
+
+    gameState.player = createContestant('ผู้ฝึกสอน', true, 'P1', 'L01', DEFAULT_DECK_LIST);
+    gameState.ai = createContestant('หุ่นฝึกสอน AI', false, 'AI', 'L01', DEFAULT_DECK_LIST);
+    gameState.player.turnsTaken = 2;
+    gameState.ai.turnsTaken = 2;
+    gameState.ai.leader.hp = 1; // เหลือ 1 HP เพื่อให้ผู้เล่นโจมตีปิดเกมในขั้นสุดท้ายได้ทันที
+
+    // จัดการ์ดบนมือให้เหมาะกับการเรียน 4 สเต็ป
+    gameState.player.board = [null, null, null];
+    gameState.player.hand = [
+      makeCard('M01'), // บาคุจิต
+      makeCard('M02'), // โทโดจิต
+      makeCard('S01'), // วันฟอจิต (Normal Spell)
+      makeCard('M07')  // มิเนจิต (ไว้ทิ้งเป็นค่าร่ายสกิล Leader)
+    ];
+    gameState.ai.board = [makeCard('M07'), null, null];
+
+    ensureZoneUIAndViewers();
+    setupInGameControlBar();
+    renderGame();
+    advanceInteractiveTutorial(1);
+  }
+
+  function advanceInteractiveTutorial(stepNum) {
+    tutorialStep = stepNum;
+    if (stepNum === 1) {
+      showTutorialCoachBar(
+        '🎓 ขั้นที่ 1 / 4: การอัญเชิญยูนิต (Main Phase)',
+        'คลิกที่การ์ด "บาคุจิต" หรือ "โทโดจิต" บนมือคุณ (ด้านล่าง) แล้วคลิกช่องว่างบนสนามฝั่งเรา',
+        '💡 เคล็ดลับคอมโบ: หากลง "บาคุจิต" ก่อน จะทำลายมอนสเตอร์ของ AI ได้ทันที และเมื่อลง "โทโดจิต" ตามมาจะได้จั่วการ์ดฟรี 1 ใบพร้อมพลัง +1!'
+      );
+    } else if (stepNum === 2) {
+      showTutorialCoachBar(
+        '🎓 ขั้นที่ 2 / 4: การใช้สกิล Leader และการ์ดเวทมนตร์',
+        'คลิกที่การ์ดเวท "วันฟอจิต" บนมือ หรือคลิกที่การ์ด "Leader มายฮีโร่ เดจิต" ของคุณ',
+        '💡 ใน Main Phase คุณใช้ Normal Spell ได้เทิร์นละ 1 ใบ และกดใช้สกิลของ Leader ได้เทิร์นละ 1 ครั้งเพื่อบัฟพลังให้ยูนิตบนสนาม!'
+      );
+    } else if (stepNum === 3) {
+      showTutorialCoachBar(
+        '🎓 ขั้นที่ 3 / 4: การเข้าสู่ Battle Phase',
+        'เมื่อลงการ์ดและบัฟพลังพร้อมแล้ว ให้กดปุ่มสีฟ้า "⚔️ เฟสถัดไป (Battle Phase)" บนแถบตรงกลางสนาม!',
+        '💡 ยูนิตที่ตั้งตรง (Stand) เท่านั้นที่จะสั่งโจมตีในช่วง Battle Phase ได้'
+      );
+    } else if (stepNum === 4) {
+      showTutorialCoachBar(
+        '🎓 ขั้นที่ 4 / 4: สั่งยูนิตโจมตี Leader อีกฝ่ายเพื่อคว้าชัยชนะ!',
+        'คลิกที่ยูนิตที่ตั้งอยู่บนสนามของคุณ แล้วคลิกที่การ์ด "👑 Leader" ของฝ่ายตรงข้าม (ด้านบนสุด)!',
+        '🏆 ตอนนี้ Leader ของหุ่นฝึกสอนเหลือ 1 HP — โจมตีเข้าเพียงครั้งเดียวก็จะชนะการประลองทันที!'
+      );
+    }
+  }
+
+  function bindHowtoTabsAndTutorial() {
+    const howtoDlg = document.getElementById('lb-howto-dialog');
+    if (!howtoDlg) return;
+
+    const tabs = howtoDlg.querySelectorAll('[data-howto-tab]');
+    const panes = {
+      rules: document.getElementById('howto-pane-rules'),
+      zones: document.getElementById('howto-pane-zones'),
+      combos: document.getElementById('howto-pane-combos')
+    };
+
+    tabs.forEach(tabBtn => {
+      if (tabBtn._bofBound) return;
+      tabBtn._bofBound = true;
+      tabBtn.addEventListener('click', () => {
+        const targetKey = tabBtn.getAttribute('data-howto-tab') || 'rules';
+        tabs.forEach(b => b.classList.toggle('is-active', b === tabBtn));
+        Object.entries(panes).forEach(([k, el]) => {
+          if (el) el.style.display = (k === targetKey) ? 'block' : 'none';
+        });
+        if (targetKey === 'combos') {
+          renderComboGuideSection();
+        }
+      });
+    });
+
+    const startTutBtn = document.getElementById('btn-start-interactive-tutorial');
+    if (startTutBtn && !startTutBtn._bofBound) {
+      startTutBtn._bofBound = true;
+      startTutBtn.addEventListener('click', () => {
+        startInteractiveTutorial();
+      });
+    }
+
+    // ตรวจจับการกระทำของผู้เล่นระหว่างอยู่ในโหมดฝึกสอนเพื่อเลื่อนสเต็ปให้อัตโนมัติ
+    const origRender = renderGame;
+    renderGame = function () {
+      origRender();
+      if (tutorialStep > 0 && gameState.player) {
+        const hasUnitOnBoard = gameState.player.board.some(m => m !== null);
+        if (tutorialStep === 1 && hasUnitOnBoard) {
+          advanceInteractiveTutorial(2);
+        } else if (tutorialStep === 2 && (gameState.player.spellQuota.normalUsed > 0 || gameState.player.leader.abilityUsedThisTurn)) {
+          advanceInteractiveTutorial(3);
+        } else if ((tutorialStep === 2 || tutorialStep === 3) && gameState.phase === 'Battle Phase') {
+          advanceInteractiveTutorial(4);
+        }
+        if (gameState.gameOver) {
+          tutorialStep = 0;
+          hideTutorialCoachBar();
+        }
+      }
+    };
+  }
+
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bindHowtoTabsAndTutorial);
+    } else {
+      bindHowtoTabsAndTutorial();
+    }
+  }
+
+  window.BOFTutorial = {
+    startInteractiveTutorial,
+    startComboPracticeSession,
+    hideTutorialCoachBar,
+    isTutorialActive: () => tutorialStep > 0
+  };
+})();

@@ -2921,3 +2921,718 @@ html[data-card-back="cosmic"] .player-mat-half .deck-packet {
     width: 58px;
   }
 }
+
+/* ============================================================================
+   5. CARD SKILL SANDBOX & 72-CARD DIAGNOSTIC RUNNER (ห้องทดลองสกิลการ์ด)
+   ============================================================================ */
+.bof-sandbox-box {
+  max-width: 820px !important;
+  width: min(820px, 96vw) !important;
+  max-height: 92dvh;
+  overflow-y: auto;
+  text-align: left !important;
+  background: linear-gradient(180deg, #13182b 0%, #0b0e1a 100%) !important;
+  border: 1.5px solid #a855f7 !important;
+  border-radius: 18px !important;
+  padding: 18px 20px !important;
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.85) !important;
+}
+
+.bof-sb-top-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.bof-sb-diag-btn {
+  flex: 1;
+  min-width: 240px;
+  background: linear-gradient(135deg, #0284c7, #2563eb) !important;
+  font-size: 12.5px !important;
+  font-weight: 700 !important;
+  padding: 9px 14px !important;
+  border-radius: 10px !important;
+}
+
+.bof-sb-dummy-btn {
+  background: #334155 !important;
+  border: 1px solid #64748b !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  padding: 9px 14px !important;
+  border-radius: 10px !important;
+}
+
+.bof-sb-dummy-btn.is-on {
+  background: rgba(22, 163, 74, 0.25) !important;
+  border-color: #22c55e !important;
+  color: #86efac !important;
+}
+
+.bof-sandbox-diag-results {
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.bof-diag-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.bof-diag-summary.is-pass {
+  background: rgba(22, 163, 74, 0.2);
+  border: 1px solid rgba(74, 222, 128, 0.45);
+  color: #86efac;
+}
+
+.bof-diag-summary.is-fail {
+  background: rgba(220, 38, 38, 0.2);
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  color: #fca5a5;
+}
+
+.bof-diag-table-wrap {
+  max-height: 190px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 4px;
+}
+
+.bof-diag-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: rgba(30, 41, 59, 0.75);
+  font-size: 11.5px;
+}
+
+.bof-diag-row.is-err {
+  background: rgba(127, 29, 29, 0.45);
+  border: 1px solid #ef4444;
+}
+
+.bof-diag-badge {
+  font-weight: 800;
+  color: #4ade80;
+  white-space: nowrap;
+}
+
+.bof-diag-row.is-err .bof-diag-badge {
+  color: #f87171;
+}
+
+.bof-diag-card-name {
+  color: #f8fafc;
+  min-width: 170px;
+}
+
+.bof-diag-card-type {
+  color: #fde047;
+  font-size: 10.5px;
+  min-width: 82px;
+}
+
+.bof-diag-card-note {
+  flex: 1;
+  color: #94a3b8;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bof-diag-try-btn {
+  padding: 3px 9px !important;
+  font-size: 10.5px !important;
+  background: #7c3aed !important;
+  border-radius: 6px !important;
+  white-space: nowrap;
+}
+
+.bof-sb-filter-section {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid #2b3554;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.bof-sb-deck-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 9px;
+}
+
+.bof-sb-tab-btn {
+  background: #1e293b;
+  color: #cbd5e1;
+  border: 1px solid #334155;
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-family: 'Kanit', sans-serif;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.bof-sb-tab-btn.is-active {
+  background: #7c3aed;
+  color: #ffffff;
+  border-color: #c084fc;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.45);
+}
+
+.bof-sb-select-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bof-sb-search-input {
+  flex: 1;
+  min-width: 210px;
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid #475569;
+  border-radius: 8px;
+  padding: 7px 11px;
+  font-size: 12.5px;
+  font-family: 'Kanit', sans-serif;
+}
+
+.bof-sb-card-select {
+  flex: 1.3;
+  min-width: 230px;
+  background: #0f172a;
+  color: #fde047;
+  border: 1.5px solid #a855f7;
+  border-radius: 8px;
+  padding: 7px 11px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'Kanit', sans-serif;
+  cursor: pointer;
+}
+
+.bof-sb-preview-card {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.bof-sb-preview-img {
+  width: 96px;
+  aspect-ratio: 750 / 1050;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1.5px solid #f3c969;
+  flex-shrink: 0;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+}
+
+.bof-sb-preview-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.bof-sb-preview-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.bof-sb-id-badge {
+  background: #7c3aed;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.bof-sb-title {
+  font-size: 16px;
+  color: #fde047;
+}
+
+.bof-sb-meta-pill {
+  font-size: 11.5px;
+  color: #94a3b8;
+  background: rgba(30, 41, 59, 0.9);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.bof-sb-skill-box {
+  font-size: 12px;
+  color: #e2e8f0;
+  background: rgba(30, 41, 59, 0.65);
+  border-left: 3px solid #38bdf8;
+  padding: 6px 10px;
+  border-radius: 6px;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
+.bof-sb-guide-box {
+  font-size: 12px;
+  color: #bbf7d0;
+  background: rgba(22, 163, 74, 0.16);
+  border-left: 3px solid #22c55e;
+  padding: 6px 10px;
+  border-radius: 6px;
+  line-height: 1.45;
+}
+
+.bof-sb-primary-actions {
+  margin-bottom: 12px;
+}
+
+.bof-sb-scenario-btn {
+  width: 100%;
+  padding: 12px 16px !important;
+  font-size: 14.5px !important;
+  font-weight: 800 !important;
+  background: linear-gradient(135deg, #16a34a, #059669) !important;
+  border: 1.5px solid #4ade80 !important;
+  border-radius: 11px !important;
+  box-shadow: 0 6px 20px rgba(22, 163, 74, 0.45);
+}
+
+.bof-sb-zone-bar,
+.bof-sb-quick-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid #2b3554;
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+
+.bof-sb-bar-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #fde047;
+  margin-right: 4px;
+}
+
+.bof-sb-zone-btn {
+  padding: 5px 10px !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  background: #1e293b !important;
+  border: 1px solid #38bdf8 !important;
+  color: #bae6fd !important;
+  border-radius: 7px !important;
+}
+
+.bof-sb-zone-btn.is-ai {
+  border-color: #f97316 !important;
+  color: #fed7aa !important;
+}
+
+.bof-sb-tool-btn {
+  padding: 5px 10px !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  background: #334155 !important;
+  border: 1px solid #64748b !important;
+  border-radius: 7px !important;
+}
+
+.bof-sb-tool-btn.is-attack {
+  background: #dc2626 !important;
+  border-color: #f87171 !important;
+}
+
+@media (max-width: 767px) {
+  .bof-sb-preview-card {
+    flex-direction: column;
+    align-items: center;
+  }
+  .bof-sb-preview-img {
+    width: 82px;
+  }
+}
+
+/* ============================================================================
+   6. HOW-TO-PLAY, 6-DECK COMBO GUIDE & INTERACTIVE TUTORIAL COACH
+   ============================================================================ */
+#lb-howto-dialog.lb-howto-wide {
+  width: min(680px, calc(100vw - 24px)) !important;
+  max-height: 90dvh;
+  overflow-y: auto;
+  padding: 20px 22px !important;
+  background: #f5ecd7;
+  color: #12142a;
+}
+
+.lb-howto-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.lb-howto-header h2 {
+  font-size: clamp(20px, 3vw, 25px) !important;
+  margin: 0 !important;
+}
+
+.lb-howto-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding: 4px;
+  background: #e2d5b6;
+  border-radius: 12px;
+}
+
+.lb-howto-tab {
+  flex: 1;
+  border: 0;
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-family: 'Kanit', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.lb-howto-tab.is-active {
+  background: #12142a;
+  color: #fde047;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+}
+
+.lb-howto-tutorial-banner {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  color: #f8fafc;
+  border: 1.5px solid #38bdf8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.lb-howto-tutorial-banner strong {
+  display: block;
+  font-size: 14px;
+  color: #fde047;
+  margin-bottom: 2px;
+}
+
+.lb-howto-tutorial-banner p {
+  font-size: 12px;
+  color: #cbd5e1;
+  margin: 0;
+}
+
+.lb-start-tutorial-btn {
+  background: linear-gradient(135deg, #16a34a, #059669) !important;
+  color: #fff !important;
+  padding: 8px 14px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  border-radius: 9px !important;
+  white-space: nowrap;
+}
+
+.lb-zones-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.lb-zone-guide-card {
+  background: #e6dac0;
+  border: 1px solid #cbb994;
+  border-radius: 11px;
+  padding: 11px 13px;
+}
+
+.lb-zone-guide-card strong {
+  display: block;
+  font-size: 13.5px;
+  color: #12142a;
+  margin-bottom: 4px;
+}
+
+.lb-zone-guide-card p {
+  font-size: 12.5px;
+  color: #334155;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.lb-combo-deck-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.lb-combo-deck-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px 5px 6px;
+  border-radius: 999px;
+  border: 1.5px solid #cbb994;
+  background: #e6dac0;
+  color: #1e293b;
+  font-family: 'Kanit', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.lb-combo-deck-pill img {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #12142a;
+}
+
+.lb-combo-deck-pill.is-active {
+  background: #12142a;
+  color: #fde047;
+  border-color: #f59e0b;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+}
+
+.lb-combo-content-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 52dvh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.lb-combo-overview {
+  background: #12142a;
+  color: #f8fafc;
+  border-radius: 12px;
+  padding: 11px 14px;
+  border-left: 4px solid #f59e0b;
+}
+
+.lb-combo-overview strong {
+  color: #fde047;
+  font-size: 14px;
+  display: block;
+  margin-bottom: 3px;
+}
+
+.lb-combo-overview p {
+  font-size: 12px;
+  color: #cbd5e1;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.lb-combo-card {
+  background: #1e293b;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.lb-combo-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lb-combo-card-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #38bdf8;
+}
+
+.lb-combo-practice-btn {
+  padding: 4px 10px !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  background: linear-gradient(135deg, #d97706, #b45309) !important;
+  color: #fff !important;
+  border-radius: 7px !important;
+}
+
+.lb-combo-cards-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px 2px;
+}
+
+.lb-combo-mini-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid #475569;
+  border-radius: 8px;
+  padding: 4px 8px 4px 4px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.lb-combo-mini-card img {
+  width: 32px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #f3c969;
+}
+
+.lb-combo-mini-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.lb-combo-mini-meta b {
+  font-size: 11.5px;
+  color: #fde047;
+}
+
+.lb-combo-mini-meta small {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.lb-combo-arrow {
+  color: #f59e0b;
+  font-weight: 900;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.lb-combo-steps-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: #e2e8f0;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* แถบโค้ชสอนเล่นบนกระดานจริง (Interactive Tutorial Coach Bar) */
+#bof-tutorial-coach-bar {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 240;
+  width: min(640px, 95vw);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.97), rgba(30, 41, 59, 0.97));
+  border: 2px solid #facc15;
+  border-radius: 14px;
+  padding: 10px 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8), 0 0 20px rgba(250, 204, 21, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #f8fafc;
+}
+
+.bof-coach-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.bof-coach-step-badge {
+  display: inline-block;
+  background: #f59e0b;
+  color: #090d16;
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 1px 8px;
+  border-radius: 999px;
+  margin-bottom: 3px;
+}
+
+.bof-coach-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #fde047;
+  margin-bottom: 2px;
+}
+
+.bof-coach-desc {
+  font-size: 12px;
+  color: #e2e8f0;
+  line-height: 1.4;
+}
+
+.bof-coach-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .lb-zones-guide-grid {
+    grid-template-columns: 1fr;
+  }
+  .lb-howto-tab {
+    font-size: 11.5px;
+    padding: 7px 6px;
+  }
+  #bof-tutorial-coach-bar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 8px 11px;
+  }
+  .bof-coach-actions {
+    justify-content: flex-end;
+  }
+}

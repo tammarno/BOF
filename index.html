@@ -125,22 +125,75 @@
       </div>
     </dialog>
 
-    <!-- หน้าต่าง: วิธีเล่น -->
-    <dialog id="lb-howto-dialog" class="lb-dialog" aria-labelledby="lb-howto-title">
-      <h2 id="lb-howto-title">📖 วิธีเล่นเข้าใจง่าย</h2>
-      <ol class="lb-steps">
-        <li><b>🎯 เป้าหมายชนะ:</b> โจมตี <b>Leader</b> อีกฝ่ายจน <b>HP เหลือ 0</b> (เริ่มต้น 6 HP)</li>
-        <li><b>🃏 เริ่มเกม (เด็ค 21 ใบ):</b> จั่วการ์ดเริ่มต้น 5 ใบ เลือกเปลี่ยนใบที่ไม่ต้องการได้สูงสุด 2 ใบ และจั่วเพิ่มเทิร์นละ 1 ใบ</li>
-        <li><b>⚡ Main Phase:</b> ลง <b>ยูนิต</b> ได้สูงสุด 3 ช่องสนาม, กดใช้สกิล Leader/ยูนิต และใช้ <b>Normal Spell</b> ได้เทิร์นละ 1 ใบ</li>
-        <li><b>⚔️ Battle Phase:</b> สั่งยูนิตที่ตั้งอยู่ (Stand) โจมตียูนิตหรือ Leader อีกฝ่าย (พลังโจมตี ≥ เป้าหมาย = ทำลายยูนิตนั้น)</li>
-        <li><b>🛡️ ป้องกัน & เวทสวนกลับ:</b> เมื่อถูกโจมตี เลือกยูนิตที่ Stand มารับดาเมจแทน (Intercept) หรือใช้ <b>Reaction Spell</b> (เทิร์นละ 1 ใบ)</li>
-      </ol>
+    <!-- หน้าต่าง: วิธีเล่น & คัมภีร์คอมโบ 6 เด็ค -->
+    <dialog id="lb-howto-dialog" class="lb-dialog lb-howto-wide" aria-labelledby="lb-howto-title">
+      <div class="lb-howto-header">
+        <h2 id="lb-howto-title">📖 วิธีเล่นเข้าใจง่าย & คัมภีร์คอมโบ</h2>
+        <button type="button" class="bof-auth-close-x" data-close aria-label="ปิด">✕</button>
+      </div>
+
+      <!-- แท็บสลับระหว่าง วิธีเล่นพื้นฐาน vs สอนคอมโบ 6 เด็ค -->
+      <div class="lb-howto-tabs" role="tablist">
+        <button type="button" class="lb-howto-tab is-active" data-howto-tab="rules">📖 วิธีเล่นเข้าใจง่าย</button>
+        <button type="button" class="lb-howto-tab" data-howto-tab="zones">🗺️ โซนสนาม & สถานะ</button>
+        <button type="button" class="lb-howto-tab" data-howto-tab="combos">🔥 สอนคอมโบทั้ง 6 เด็ค</button>
+      </div>
+
+      <!-- มุมมองที่ 1: วิธีเล่นเข้าใจง่าย -->
+      <div class="lb-howto-pane is-active" id="howto-pane-rules">
+        <ol class="lb-steps">
+          <li>🎯 <b>เป้าหมายชนะ:</b> โจมตี <b>Leader</b> อีกฝ่ายจน <b>HP เหลือ 0</b> (เริ่มต้น 6 HP)</li>
+          <li>🃏 <b>เริ่มเกม (เด็ค 21 ใบ):</b> จั่วการ์ดเริ่มต้น 5 ใบ เลือกเปลี่ยนใบที่ไม่ต้องการได้สูงสุด 2 ใบ และจั่วเพิ่มเทิร์นละ 1 ใบ</li>
+          <li>⚡ <b>Main Phase:</b> ลง <b>ยูนิต</b> ได้สูงสุด 3 ช่องสนาม, กดใช้สกิล Leader/ยูนิต และใช้ <b>Normal Spell</b> ได้เทิร์นละ 1 ใบ</li>
+          <li>⚔️ <b>Battle Phase:</b> สั่งยูนิตที่ตั้งอยู่ (Stand) โจมตียูนิตหรือ Leader อีกฝ่าย (พลังโจมตี ≥ เป้าหมาย = ทำลายยูนิตนั้น)</li>
+          <li>🛡️ <b>ป้องกัน & เวทสวนกลับ:</b> เมื่อถูกโจมตี เลือกยูนิตที่ Stand มารับดาเมจแทน (Intercept) หรือใช้ <b>Reaction Spell</b> (เทิร์นละ 1 ใบ)</li>
+        </ol>
+
+        <div class="lb-howto-tutorial-banner">
+          <div>
+            <strong>🎓 มือใหม่เพิ่งเริ่มเล่นใช่ไหม?</strong>
+            <p>เข้าโหมดฝึกสอนแบบจับมือทำทีละขั้น (สอนลงยูนิต → ใช้สกิล → ร่ายเวท → โจมตีชนะ!)</p>
+          </div>
+          <button type="button" class="btn lb-start-tutorial-btn" id="btn-start-interactive-tutorial">
+            ▶️ เริ่มโหมดฝึกสอนเล่นจริง
+          </button>
+        </div>
+      </div>
+
+      <!-- มุมมองที่ 2: โซนสนาม & กฎสำคัญที่ควรรู้ -->
+      <div class="lb-howto-pane" id="howto-pane-zones" style="display: none;">
+        <div class="lb-zones-guide-grid">
+          <div class="lb-zone-guide-card">
+            <strong>👑 ช่อง Leader & ช่องยูนิต 3 ช่อง</strong>
+            <p>ลงยูนิตได้ไม่จำกัดจำนวนครั้งใน Main Phase (หากเต็ม 3 ช่อง สามารถลงยูนิตใหม่วางทับใบเก่าเพื่อส่งใบเก่าลงนรกได้)</p>
+          </div>
+          <div class="lb-zone-guide-card">
+            <strong>🔄 สถานะ Stand (ตั้ง) vs Rest (นอน)</strong>
+            <p>ยูนิตที่ <b>Stand</b> เท่านั้นจึงจะสั่งโจมตีหรือโดดบัง (Intercept) ได้ เมื่อโจมตีหรือบังเสร็จจะเปลี่ยนเป็น <b>Rest</b> และลุกขึ้นใหม่เมื่อเข้าเทิร์นหน้า</p>
+          </div>
+          <div class="lb-zone-guide-card">
+            <strong>🪙 กฎผู้เริ่มก่อน vs ผู้เริ่มหลัง</strong>
+            <p><b>ผู้เล่นคนแรก (Turn 1):</b> ห้ามโจมตีในเทิร์นแรกของตัวเอง<br><b>ผู้เล่นคนที่สอง:</b> ในเทิร์นแรกของตัวเอง โจมตีได้สูงสุดเพียง 1 ครั้ง</p>
+          </div>
+          <div class="lb-zone-guide-card">
+            <strong>💀 กองนรก (Drop) vs 🌌 มิติมืด</strong>
+            <p>การ์ดที่ถูกทำลายหรือใช้เสร็จจะลง <b>นรก</b> ส่วนการ์ดที่ถูกส่งไป <b>มิติมืด</b> จะออกจากเกม (ใช้ทำเงื่อนไขของเด็คไดโน, วันสิ้นโลก และปีศาจ)</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- มุมมองที่ 3: คัมภีร์สอนคอมโบทั้ง 6 เด็ค -->
+      <div class="lb-howto-pane" id="howto-pane-combos" style="display: none;">
+        <div class="lb-combo-deck-selector" id="howto-combo-deck-tabs"></div>
+        <div id="howto-combo-content" class="lb-combo-content-box"></div>
+      </div>
+
       <button type="button" class="lb-btn lb-btn-primary lb-dialog-ok" data-close>เข้าใจแล้ว</button>
     </dialog>
 
     <!-- หน้าต่าง: ตั้งค่า -->
     <dialog id="lb-settings-dialog" class="lb-dialog" aria-labelledby="lb-settings-title">
-      <h2 id="lb-settings-title">ตั้งค่า</h2>
+      <h2 id="lb-settings-title" style="user-select: none; cursor: default;" title="">ตั้งค่า</h2>
       <label class="lb-switch">
         <span class="lb-switch-text">สับการ์ดบนมือทุกเทิร์น</span>
         <input type="checkbox" role="switch" id="lb-setting-shuffle" class="lb-switch-input">
@@ -174,7 +227,45 @@
         <p id="lobby-arena-bg-status" style="margin: 6px 0 0 0; font-size: 11px; color: #4ade80; display: none;">✓ กำลังใช้ภาพพื้นหลังกำหนดเอง</p>
       </div>
 
-      <button type="button" class="lb-dialog-close" data-close>ปิด</button>
+      <!-- กล่องใส่รหัสแอดมิน (ซ่อนอยู่ จะแสดงเมื่อกดปุ่ม 🔐 แอดมิน หรือแตะคำว่า "ตั้งค่า" 5 ครั้ง) -->
+      <div id="lobby-admin-auth-box" style="display: none; margin-top: 14px; padding: 12px; background: #1e293b; border: 1.5px solid #a855f7; border-radius: 10px;">
+        <label style="display: block; font-size: 12.5px; font-weight: bold; color: #e9d5ff; margin-bottom: 6px;">
+          🔐 ยืนยันรหัสแอดมิน (Admin Passcode)
+        </label>
+        <div style="display: flex; gap: 6px;">
+          <input type="password" id="input-admin-passcode" placeholder="กรอกรหัสแอดมิน..." autocomplete="off" style="flex: 1; background: #090d16; color: #f8fafc; border: 1px solid #64748b; border-radius: 7px; padding: 6px 10px; font-size: 13px; font-family: 'Kanit', sans-serif;">
+          <button type="button" id="btn-verify-admin-passcode" class="btn" style="background: #7c3aed; color: #fff; padding: 6px 14px; font-size: 12.5px; font-weight: bold; border-radius: 7px;">
+            ปลดล็อก
+          </button>
+        </div>
+        <p id="admin-passcode-feedback" style="margin: 5px 0 0 0; font-size: 11.5px; color: #fca5a5; display: none;"></p>
+      </div>
+
+      <!-- ห้องทดลองสกิลการ์ด & ตรวจเช็กการ์ด 72 ใบ (ซ่อนจากผู้เล่นทั่วไป 100% แสดงเฉพาะเมื่อปลดล็อกแอดมินแล้ว) -->
+      <div id="lobby-admin-sandbox-section" style="display: none; margin-top: 14px; padding: 12px; background: #1e293b; border: 1.5px solid #a855f7; border-radius: 10px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+          <label style="font-size: 13px; font-weight: bold; color: #e9d5ff;">
+            🧪 ห้องทดลองสกิลการ์ด (เฉพาะแอดมิน)
+          </label>
+          <button type="button" id="btn-lobby-lock-admin" class="btn" style="background: #dc2626; color: #fff; padding: 3px 9px; font-size: 11px; border-radius: 6px;" title="ซ่อนปุ่มแอดมินทั้งหมดกลับเหมือนผู้เล่นปกติ">
+            🔒 ล็อกซ่อนระบบ
+          </button>
+        </div>
+        <p style="font-size: 11px; color: #cbd5e1; margin: 0 0 10px 0;">ทดสอบสกิลการ์ดทั้ง 72 ใบแบบจัดฉากอัตโนมัติในคลิกเดียว โดยไม่ต้องสุ่มจั่วในแมตช์จริง</p>
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <button type="button" id="btn-lobby-open-sandbox" class="btn" style="background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; padding: 8px 12px; font-size: 12.5px; font-weight: bold; border-radius: 8px;">
+            ⚡ เข้าสนามทดลองสกิลการ์ดทันที (Skill Sandbox)
+          </button>
+          <button type="button" id="btn-lobby-run-diagnostics" class="btn" style="background: #0284c7; color: #fff; padding: 7px 12px; font-size: 12px; font-weight: bold; border-radius: 8px;">
+            🤖 สแกนตรวจเช็กสกิลการ์ดทั้ง 72 ใบอัตโนมัติ
+          </button>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 14px;">
+        <button type="button" class="lb-dialog-close" data-close style="margin-top: 0;">ปิด</button>
+        <button type="button" id="btn-show-admin-passcode" style="background: none; border: 1px dashed rgba(18, 20, 42, 0.35); color: #475569; border-radius: 6px; padding: 3px 8px; font-size: 11px; cursor: pointer; font-family: 'Kanit', sans-serif;">🔐 แอดมิน</button>
+      </div>
     </dialog>
 
     <!-- หน้าต่าง (มือถือ): เข้าห้องด้วยรหัส -->
