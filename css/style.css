@@ -3617,6 +3617,46 @@ html[data-card-back="cosmic"] .player-mat-half .deck-packet {
   display: flex;
   gap: 6px;
   flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+/* ไฮไลต์ชี้เป้าแบบจับมือสอน (Hand-Holding Pointer Highlight) */
+@keyframes bofGuidePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px #facc15, 0 0 22px rgba(250, 204, 21, 0.95);
+    transform: translateY(-4px) scale(1.03);
+  }
+  50% {
+    box-shadow: 0 0 0 5px #22c55e, 0 0 30px rgba(34, 197, 94, 1);
+    transform: translateY(-7px) scale(1.06);
+  }
+}
+
+.bof-guided-highlight {
+  position: relative !important;
+  z-index: 65 !important;
+  outline: 3px solid #facc15 !important;
+  border-radius: 10px !important;
+  animation: bofGuidePulse 1.15s infinite ease-in-out !important;
+}
+
+.bof-guided-pointer-badge {
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #facc15, #f59e0b);
+  color: #090d16;
+  font-family: 'Kanit', sans-serif;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 2px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.75);
+  pointer-events: none;
+  z-index: 90;
+  border: 1.5px solid #ffffff;
 }
 
 @media (max-width: 767px) {
