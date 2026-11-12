@@ -82,7 +82,8 @@
   }
 
   // ---------- สถานะต่อฝั่ง (ใช้เทียบก่อน-หลังทุกครั้งที่ render) ----------
-  let match = null;   // อ้างอิง gameState.player ของเกมปัจจุบัน (เปลี่ยน = เกมใหม่ → ล้างสถานะ)
+  // เกมใหม่ = เทิร์นนับถอยหลัง หรือ gameOver กลับเป็น false (ไม่ใช้ identity ของ gameState.player เพราะ PvP แทนที่ object ทุกแพ็กเก็ต)
+  let lastCount = 0, wasOver = false;
   let mem = {};
   const freshMem = () => ({ uids: [null, null, null], pow: {}, gauge: 0, primed: false });
 
@@ -91,8 +92,13 @@
   let lastTurn = null;
   function sync() {
     if (typeof gameState === 'undefined' || !gameState || !gameState.player) return;
-    if (match !== gameState.player) { match = gameState.player; mem = { player: freshMem(), ai: freshMem() }; lastTurn = null; }
+    const count = gameState.turnCount || 0;
     const h = halves();
+    if (!mem.player || count < lastCount || (wasOver && !gameState.gameOver)) {
+      mem = { player: freshMem(), ai: freshMem() }; lastTurn = null;
+      for (const k of ['player', 'ai']) h[k]?.classList.remove('mat-defeated');
+    }
+    lastCount = count; wasOver = !!gameState.gameOver;
     for (const key of ['player', 'ai']) {
       const half = h[key];
       if (!half) continue;
@@ -485,11 +491,12 @@
     document.body.appendChild(panel);
   }
 
-  const origRender = window.renderGame;
-  if (typeof origRender === 'function') {
-    window.renderGame = function () {
-      const r = origRender.apply(this, arguments);
-      try { sync(); } catch (e) { console.warn('deck-themes', e); }
+  // ห่อ renderBoardSlots แทน renderGame: PvP เรียก _originalRenderGame ตรง ๆ ซึ่งข้าม wrapper ของ renderGame
+  const origSlots = window.renderBoardSlots;
+  if (typeof origSlots === 'function') {
+    window.renderBoardSlots = function (containerId) {
+      const r = origSlots.apply(this, arguments);
+      if (containerId === 'player-board') { try { sync(); } catch (e) { console.warn('deck-themes', e); } }
       return r;
     };
   }
