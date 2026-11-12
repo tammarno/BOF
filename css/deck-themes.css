@@ -1,0 +1,226 @@
+/* ธีมสนามตามเด็ค / ออร่าเทิร์น / หลังการ์ดประจำเด็ค / เอฟเฟกต์โจมตี (คู่กับ js/deck-themes.js) */
+
+#bof-game-arena .mat-half { position: relative; isolation: isolate; transition: filter .5s ease, box-shadow .5s ease, border-color .5s ease; }
+.deck-mat-fx { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; border-radius: inherit; }
+.deck-mat-fx svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* ---------- สนามเดจิต: ฟูลคาวล์ 100% ---------- */
+#bof-game-arena .mat-half[data-mat="deku"] {
+  background:
+    linear-gradient(180deg, rgba(4, 22, 15, .66), rgba(5, 26, 18, .84)),
+    url('../images/mats/deku.webp') center 30% / cover no-repeat;
+  border-color: rgba(62, 224, 143, .45);
+}
+.deck-mat-fx[data-kind="deku"] .bolt { fill: none; stroke: #6dffbb; stroke-width: 2.4; stroke-linejoin: bevel; opacity: 0; filter: drop-shadow(0 0 4px #2bff9a); animation: deku-flicker 3.4s infinite; }
+.deck-mat-fx[data-kind="deku"] .b2 { animation-delay: 1.1s; animation-duration: 4.1s; }
+.deck-mat-fx[data-kind="deku"] .b3 { animation-delay: 2.2s; animation-duration: 3.8s; }
+.deck-mat-fx[data-kind="deku"] .b4 { animation-delay: .6s; animation-duration: 4.6s; }
+@keyframes deku-flicker { 0%, 100% { opacity: 0 } 6% { opacity: .95 } 8% { opacity: .2 } 10% { opacity: .85 } 16% { opacity: 0 } }
+:where(.mat-half[data-mat="deku"]) .slot { border-color: rgba(62, 224, 143, .55); background: rgba(8, 36, 25, .72); color: #7dffc4; animation: deku-slot 2.4s ease-in-out infinite; }
+:where(.mat-half[data-mat="deku"]) .slot[data-slot="1"] { animation-delay: .4s; }
+:where(.mat-half[data-mat="deku"]) .slot[data-slot="2"] { animation-delay: .8s; }
+:where(.mat-half[data-mat]) .slot:is(.valid-target, .cd-droppable, .cd-hot) { animation: none; }
+@keyframes deku-slot { 0%, 100% { box-shadow: 0 0 4px rgba(43, 255, 154, .25) } 50% { box-shadow: 0 0 14px rgba(43, 255, 154, .6) } }
+.mat-half[data-mat="deku"] .info-box { border-color: rgba(62, 224, 143, .55); }
+
+/* ---------- สนามวันสิ้นโลก: บัลลังก์นาฬิกา ---------- */
+#bof-game-arena .mat-half[data-mat="doom"] {
+  background:
+    linear-gradient(180deg, rgba(14, 16, 51, .66), rgba(18, 14, 52, .84)),
+    url('../images/mats/doom.webp') center 25% / cover no-repeat;
+  border-color: rgba(232, 201, 119, .45);
+}
+.deck-mat-fx[data-kind="doom"] .doom-clock { left: 50%; top: 50%; width: min(270px, 62%); height: auto; aspect-ratio: 1; transform: translate(-50%, -50%); right: auto; bottom: auto; opacity: .6; }
+.doom-clock .ring { fill: none; stroke: #d9b45a; stroke-width: 1.4; }
+.doom-clock .ring.dash { stroke-width: .7; stroke-dasharray: 2 4; }
+.doom-clock text { fill: #e8c977; font: 11px Georgia, 'Times New Roman', serif; text-anchor: middle; }
+.doom-clock .hand { stroke: #ffe9a8; filter: drop-shadow(0 0 3px #e8c977); stroke-linecap: round; transform-origin: 0 0; transition: transform 1.2s cubic-bezier(.3, 1.4, .5, 1); }
+.doom-clock .hour { stroke-width: 6; }
+.doom-clock .minute { stroke-width: 3.5; }
+.doom-clock .sweep { stroke-width: 1; stroke: #fff4cf; opacity: .8; animation: doom-spin 12s linear infinite; transition: none; }
+.doom-clock .pin { fill: #f3d98c; }
+@keyframes doom-spin { to { transform: rotate(360deg) } }
+:where(.mat-half[data-mat="doom"]) .slot { border-color: rgba(201, 162, 76, .7); background: rgba(20, 23, 74, .72); }
+.mat-half[data-mat="doom"] .slot:not(:has(.card)) { color: transparent; }
+.mat-half[data-mat="doom"] .slot:not(:has(.card))::after { position: absolute; color: #e8c977; font: 20px Georgia, 'Times New Roman', serif; }
+.mat-half[data-mat="doom"] .slot[data-slot="0"]:not(:has(.card))::after { content: 'I'; }
+.mat-half[data-mat="doom"] .slot[data-slot="1"]:not(:has(.card))::after { content: 'II'; }
+.mat-half[data-mat="doom"] .slot[data-slot="2"]:not(:has(.card))::after { content: 'III'; }
+.mat-half[data-mat="doom"] .info-box { border-color: rgba(232, 201, 119, .6); }
+
+/* ---------- ออร่าเทิร์น (ทุกเด็ค ใช้ --deck-c) ---------- */
+#bof-game-arena .mat-half.turn-active { border-color: var(--deck-c); box-shadow: 0 0 18px color-mix(in srgb, var(--deck-c) 45%, transparent), inset 0 0 26px color-mix(in srgb, var(--deck-c) 22%, transparent); animation: aura-breathe 2.8s ease-in-out infinite; }
+#bof-game-arena .mat-half.turn-idle { filter: brightness(.78) saturate(.85); }
+@keyframes aura-breathe {
+  0%, 100% { box-shadow: 0 0 14px color-mix(in srgb, var(--deck-c) 35%, transparent), inset 0 0 20px color-mix(in srgb, var(--deck-c) 16%, transparent) }
+  50% { box-shadow: 0 0 26px color-mix(in srgb, var(--deck-c) 60%, transparent), inset 0 0 34px color-mix(in srgb, var(--deck-c) 30%, transparent) }
+}
+#bof-game-arena .mat-half.turn-in::after,
+#bof-game-arena .mat-half.turn-out::after { content: ''; position: absolute; inset: -2px; border-radius: inherit; pointer-events: none; z-index: 5; border: 2px solid var(--deck-c); }
+#bof-game-arena .mat-half.turn-in::after { animation: aura-in 1.1s ease-out forwards; }
+#bof-game-arena .mat-half.turn-out::after { animation: aura-out .5s ease-in forwards; }
+@keyframes aura-in {
+  0% { opacity: 0; box-shadow: inset 0 0 0 color-mix(in srgb, var(--deck-c) 0%, transparent) }
+  30% { opacity: 1; box-shadow: inset 0 0 70px color-mix(in srgb, var(--deck-c) 70%, transparent), 0 0 40px var(--deck-c) }
+  100% { opacity: 0; box-shadow: inset 0 0 20px transparent, 0 0 0 transparent }
+}
+@keyframes aura-out {
+  0% { opacity: 1; transform: scale(1); box-shadow: 0 0 22px var(--deck-c) }
+  100% { opacity: 0; transform: scale(.97); box-shadow: 0 0 0 transparent }
+}
+/* เริ่มเทิร์นของสองเด็คหลัก: สายฟ้าปะทุ / นาฬิกาเร่ง */
+.mat-half[data-mat="deku"].turn-in .bolt { animation: deku-burst 1s ease-out; }
+@keyframes deku-burst { 0%, 30%, 60% { opacity: 1 } 15%, 45% { opacity: .25 } 100% { opacity: 0 } }
+.mat-half[data-mat="doom"].turn-in .doom-clock { animation: doom-pulse 1.1s ease-out; }
+.mat-half[data-mat="doom"].turn-in .doom-clock .sweep { animation: doom-spin .9s cubic-bezier(.2, .7, .3, 1) 1; }
+@keyframes doom-pulse { 0% { transform: translate(-50%, -50%) scale(.85); opacity: .9 } 40% { transform: translate(-50%, -50%) scale(1.12); opacity: .85 } 100% { transform: translate(-50%, -50%) scale(1); opacity: .5 } }
+
+/* ---------- หลังการ์ดประจำเด็ค (กองการ์ด / กองที่กำลังสับ) ---------- */
+#bof-game-arena .mat-half[data-back] :is(.deck-box, .deck-packet, .deck-shuffle-anim) {
+  background-image: var(--back-emblem), linear-gradient(160deg, color-mix(in srgb, var(--deck-c) 38%, transparent), rgba(5, 8, 20, .35)), url('../images/card-back.png');
+  background-size: 46% auto, cover, cover;
+  background-position: center 22%, center, center;
+  background-repeat: no-repeat;
+  border-color: var(--deck-c);
+}
+.mat-half[data-back="L01"] { --back-emblem: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='18' fill='%23062a1a' stroke='%233ee08f' stroke-width='2'/%3E%3Cpath d='M23 5 L11 22 H19 L16 35 L29 16 H21Z' fill='%236dffbb'/%3E%3C/svg%3E"); }
+.mat-half[data-back="L02"] { --back-emblem: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='18' fill='%23301a05' stroke='%23f0a347' stroke-width='2'/%3E%3Cpath d='M20 5 L22 12 L24 13 L25 20 L28 22 L28 32 H12 L12 22 L15 20 L16 13 L18 12Z' fill='%23f6c27a'/%3E%3C/svg%3E"); }
+.mat-half[data-back="L03"] { --back-emblem: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='18' fill='%23141747' stroke='%23e8c977' stroke-width='2'/%3E%3Ccircle cx='20' cy='20' r='12' fill='none' stroke='%23e8c977' stroke-dasharray='1.5 3'/%3E%3Cpath d='M20 20 V10 M20 20 L27 24' stroke='%23f3d98c' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"); }
+.mat-half[data-back="L04"] { --back-emblem: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='18' fill='%231d2a06' stroke='%23a3e635' stroke-width='2'/%3E%3Cpath d='M12 30 Q14 18 20 9 M18 31 Q20 20 26 11 M24 32 Q26 22 31 15' fill='none' stroke='%23d9f99d' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E"); }
+.mat-half[data-back="L05"] { --back-emblem: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='18' fill='%232a0b3d' stroke='%23c084fc' stroke-width='2'/%3E%3Cpath d='M11 10 Q13 20 20 22 Q27 20 29 10 Q26 16 20 16 Q14 16 11 10Z M15 25 Q20 33 25 25' fill='%23e9d5ff' stroke='%23e9d5ff' stroke-width='1.2'/%3E%3C/svg%3E"); }
+.mat-half[data-back="L06"] { --back-emblem: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='18' fill='%23331405' stroke='%23fb923c' stroke-width='2'/%3E%3Cpath d='M20 20 m0 -2 a2 2 0 1 1 -2 2 a4 4 0 1 1 4 4 a6 6 0 1 1 -6 -6 a8 8 0 1 1 8 8 a10 10 0 0 1 -10 -10' fill='none' stroke='%23fed7aa' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E"); }
+
+/* ---------- เอฟเฟกต์โจมตี ---------- */
+#deck-attack-fx { position: fixed; inset: 0; pointer-events: none; z-index: 320; }
+.dfx { position: absolute; transform: translate(-50%, -50%); }
+svg.deku-trail { left: 0; top: 0; width: 100vw; height: 100vh; transform: none; overflow: visible; }
+.deku-trail path { fill: none; stroke: #b8ffdc; stroke-width: 4; stroke-linejoin: bevel; filter: drop-shadow(0 0 6px #2bff9a) drop-shadow(0 0 12px #2bff9a); stroke-dasharray: 1; stroke-dashoffset: 1; animation: deku-draw .6s ease-out forwards; }
+.deku-trail.big path { stroke-width: 6; }
+@keyframes deku-draw { 0% { stroke-dashoffset: 1; opacity: 1 } 40% { stroke-dashoffset: 0; opacity: 1 } 100% { stroke-dashoffset: 0; opacity: 0 } }
+.deku-shock { width: 60px; height: 60px; border-radius: 50%; border: 4px solid #6dffbb; box-shadow: 0 0 18px #2bff9a, inset 0 0 14px #2bff9a; animation: shock .6s ease-out forwards; }
+.deku-shock.big { border-width: 6px; }
+@keyframes shock { 0% { transform: translate(-50%, -50%) scale(calc(var(--s, 1) * .3)); opacity: 1 } 100% { transform: translate(-50%, -50%) scale(calc(var(--s, 1) * 2.6)); opacity: 0 } }
+.deku-shock.big { animation-name: shock-big; }
+@keyframes shock-big { 0% { transform: translate(-50%, -50%) scale(calc(var(--s, 1) * .3)); opacity: 1 } 100% { transform: translate(-50%, -50%) scale(calc(var(--s, 1) * 3.6)); opacity: 0 } }
+#bof-game-arena.deck-shake { animation: deck-shake .3s linear; }
+@keyframes deck-shake { 0%, 100% { translate: 0 0 } 25% { translate: -4px 2px } 50% { translate: 3px -2px } 75% { translate: -2px 1px } }
+
+#bof-game-arena.time-stop { filter: grayscale(.7) brightness(.85) contrast(1.1); transition: filter .08s; }
+.doom-dial { width: 100px; height: 100px; animation: dial .64s ease-out forwards; }
+.doom-dial svg { width: 100%; height: 100%; overflow: visible; }
+.doom-dial circle { fill: rgba(20, 23, 74, .35); stroke: #e8c977; stroke-width: 2.5; filter: drop-shadow(0 0 5px #e8c977); }
+.doom-dial circle.dash { fill: none; stroke-width: 1; stroke-dasharray: 2 4; }
+.doom-dial .hand { stroke: #fff4cf; stroke-width: 3; stroke-linecap: round; transform-origin: 0 0; animation: doom-spin .35s cubic-bezier(.3, .6, .4, 1) forwards; }
+@keyframes dial { 0% { transform: translate(-50%, -50%) scale(calc(var(--s, 1) * .4)); opacity: 0 } 25% { opacity: 1 } 60% { transform: translate(-50%, -50%) scale(var(--s, 1)); opacity: 1 } 100% { transform: translate(-50%, -50%) scale(calc(var(--s, 1) * 1.15)); opacity: 0 } }
+.doom-dial.big { animation-name: dial-big; }
+@keyframes dial-big { 0% { transform: translate(-50%, -50%) scale(calc(var(--s, 1) * .5)); opacity: 0 } 25% { opacity: 1 } 60% { transform: translate(-50%, -50%) scale(calc(var(--s, 1) * 1.5)); opacity: 1 } 100% { transform: translate(-50%, -50%) scale(calc(var(--s, 1) * 1.7)); opacity: 0 } }
+.doom-shard { width: 9px; height: 14px; background: linear-gradient(135deg, #fff4cf, #d9b45a); clip-path: polygon(50% 0, 100% 40%, 60% 100%, 0 70%); animation: shard .52s ease-out forwards; }
+@keyframes shard { 0% { transform: translate(-50%, -50%) rotate(0); opacity: 1 } 100% { transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) rotate(var(--rot)); opacity: 0 } }
+
+.plain-ring { width: 60px; height: 60px; border-radius: 50%; border: 3px solid var(--c); box-shadow: 0 0 16px var(--c); animation: shock .56s ease-out forwards; }
+.plain-ring.big { border-width: 5px; animation-name: shock-big; }
+.deck-hit.fx-target-hit { box-shadow: 0 0 32px var(--hit-c, #dc2626) !important; }
+
+/* ---------- ที่วางการ์ดบนมือ: โปร่งแสงให้เห็นสนามด้านหลัง ---------- */
+#bof-game-arena .player-mat-half .hand-row {
+  background: rgba(8, 10, 20, .32);
+  backdrop-filter: blur(3px);
+  border: 1px solid color-mix(in srgb, var(--deck-c, #94a3b8) 35%, transparent);
+  box-shadow: inset 0 0 18px color-mix(in srgb, var(--deck-c, #94a3b8) 12%, transparent);
+}
+
+/* ---------- เดจิต: เกจฟูลคาวล์ ---------- */
+.mat-center-field { position: relative; }
+.deku-gauge { position: absolute; left: calc(50% + 170px); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; z-index: 2; pointer-events: none; }
+.deku-gauge .bar { width: 10px; height: 104px; border-radius: 6px; background: rgba(4, 22, 15, .75); border: 1px solid rgba(62, 224, 143, .6); overflow: hidden; display: flex; align-items: flex-end; }
+.deku-gauge .bar i { width: 100%; height: calc(var(--g, 0) * 100%); background: linear-gradient(0deg, #129e5d, #6dffbb); box-shadow: 0 0 10px #2bff9a; transition: height .5s cubic-bezier(.3, 1.4, .5, 1); }
+.deku-gauge b { font: 600 10.5px Kanit, sans-serif; color: #7dffc4; text-shadow: 0 0 6px #062a1a; }
+.mat-half.full-cowl .deku-gauge .bar { animation: gauge-flash .25s steps(2) 5; }
+@keyframes gauge-flash { 50% { background: #6dffbb; } }
+#bof-game-arena .mat-half.full-cowl { animation: full-cowl 1.4s ease-out; }
+@keyframes full-cowl { 0% { box-shadow: inset 0 0 0 transparent } 20% { box-shadow: inset 0 0 90px rgba(43, 255, 154, .55), 0 0 40px #2bff9a } 100% { box-shadow: inset 0 0 0 transparent } }
+.mat-half.full-cowl .bolt { animation: deku-burst 1.2s ease-out !important; }
+
+/* เดจิต: การ์ดที่ถูกบัฟ — ประกายไฟเขียววิ่งรอบช่อง */
+#bof-game-arena .slot.deku-buffed { border-color: #6dffbb; animation: deku-buffed .7s steps(3) infinite; }
+@keyframes deku-buffed {
+  0% { box-shadow: 0 0 6px #2bff9a, 3px -2px 10px rgba(109, 255, 187, .8) }
+  33% { box-shadow: 0 0 12px #2bff9a, -3px 3px 8px rgba(109, 255, 187, .9) }
+  66% { box-shadow: 0 0 8px #2bff9a, 2px 3px 12px rgba(109, 255, 187, .7) }
+}
+/* เดจิต: เศษหินตอนฮีโร่ลงสนาม */
+.deku-debris { width: 8px; height: 7px; background: #6b7280; border: 1px solid #374151; clip-path: polygon(20% 0, 100% 25%, 80% 100%, 0 70%); animation: shard .65s cubic-bezier(.2, .7, .4, 1) forwards; }
+/* เดจิต: SMASH!! */
+.deku-smash { font: 700 34px Kanit, sans-serif; color: #3ee08f; -webkit-text-stroke: 2px #04140c; paint-order: stroke; letter-spacing: 1px; white-space: nowrap; animation: smash .9s cubic-bezier(.2, 1.6, .4, 1) forwards; text-shadow: 3px 3px 0 #04140c; }
+@keyframes smash { 0% { transform: translate(-50%, -50%) scale(.2) rotate(-18deg); opacity: 0 } 25% { transform: translate(-50%, -50%) scale(1.25) rotate(-8deg); opacity: 1 } 70% { transform: translate(-50%, -50%) scale(1) rotate(-8deg); opacity: 1 } 100% { transform: translate(-50%, -70%) scale(1.05) rotate(-8deg); opacity: 0 } }
+/* เดจิต: HP ใกล้หมด — ฟ้าแดง สายฟ้าถี่ */
+#bof-game-arena .mat-half[data-mat="deku"].hp-critical { background: linear-gradient(180deg, rgba(60, 8, 8, .6), rgba(5, 26, 18, .84)), url('../images/mats/deku.webp') center 30% / cover no-repeat; }
+.mat-half[data-mat="deku"].hp-critical .bolt { animation-duration: 1.6s; stroke: #b8ffdc; }
+
+/* ---------- วันสิ้นโลก: ลงการ์ด / วิวัฒน์ / คู่หู / เที่ยงคืน ---------- */
+.doom-summon { width: 120px; height: 120px; animation: doom-summon .8s cubic-bezier(.5, 0, .7, .4) forwards; }
+.doom-summon svg { width: 100%; height: 100%; overflow: visible; }
+.doom-summon .ring { fill: none; stroke: #e8c977; stroke-width: 1.5; filter: drop-shadow(0 0 4px #e8c977); }
+.doom-summon text { fill: #f3d98c; font: 9px Georgia, serif; text-anchor: middle; }
+@keyframes doom-summon { 0% { transform: translate(-50%, -50%) scale(calc(var(--s, 1) * 1.6)) rotate(-120deg); opacity: 0 } 30% { opacity: 1 } 100% { transform: translate(-50%, -50%) scale(calc(var(--s, 1) * .15)) rotate(120deg); opacity: 0 } }
+
+#bof-game-arena.time-rewind { filter: sepia(.55) grayscale(.35) brightness(.85); transition: filter .1s; }
+.doom-rewind { width: 100px; height: 100px; animation: dial .9s ease-out forwards; }
+.doom-rewind svg { width: 100%; height: 100%; overflow: visible; }
+.doom-rewind circle { fill: rgba(20, 23, 74, .4); stroke: #e8c977; stroke-width: 2.5; filter: drop-shadow(0 0 6px #e8c977); }
+.doom-rewind circle.dash { fill: none; stroke-width: 1; stroke-dasharray: 2 4; }
+.doom-rewind .hand { stroke: #fff4cf; stroke-width: 3; stroke-linecap: round; transform-origin: 0 0; animation: doom-rewind .6s cubic-bezier(.3, .1, .3, 1) forwards; }
+.doom-rewind .hand.short { stroke-width: 4; animation-duration: .9s; }
+@keyframes doom-rewind { to { transform: rotate(-1080deg) } }
+.doom-flash { width: 60px; height: 60px; border-radius: 50%; background: radial-gradient(circle, #fff8dc 0%, rgba(232, 201, 119, .7) 35%, transparent 70%); animation: doom-flash .6s ease-out forwards; }
+@keyframes doom-flash { 0% { transform: translate(-50%, -50%) scale(calc(var(--s, 1) * .3)); opacity: 1 } 100% { transform: translate(-50%, -50%) scale(calc(var(--s, 1) * 2.2)); opacity: 0 } }
+#bof-game-arena .slot.doom-evolved { animation: doom-evolved .9s ease-out; }
+@keyframes doom-evolved { 0% { box-shadow: 0 0 0 transparent } 30% { box-shadow: 0 0 30px #e8c977, inset 0 0 20px #fff4cf } 100% { box-shadow: 0 0 0 transparent } }
+
+#bof-game-arena .mat-half > .doom-pair { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; overflow: visible; opacity: 0; transition: opacity .6s; }
+#bof-game-arena .slot.doom-paired { border-color: #e8c977; box-shadow: 0 0 12px rgba(232, 201, 119, .55); }
+#bof-game-arena .mat-half > .doom-pair.on { opacity: 1; }
+.doom-pair path { fill: none; stroke: #e8c977; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 14 10; filter: drop-shadow(0 0 5px #e8c977); animation: ribbon 1.6s linear infinite; }
+@keyframes ribbon { to { stroke-dashoffset: -48 } }
+
+#bof-game-arena .mat-half[data-mat="doom"].hp-critical { border-color: #b4532a; background: linear-gradient(180deg, rgba(56, 22, 10, .66), rgba(18, 14, 52, .84)), url('../images/mats/doom.webp') center 25% / cover no-repeat; }
+.mat-half[data-mat="doom"].hp-critical .doom-clock { opacity: .75; }
+.mat-half[data-mat="doom"].hp-critical .doom-clock .ring, .mat-half[data-mat="doom"].hp-critical .doom-clock .hand { stroke: #e8875a; }
+.mat-half[data-mat="doom"].hp-critical .doom-clock text { fill: #f0a070; }
+
+/* ---------- ฉากจบเกม ---------- */
+.doom-midnight { width: min(70vw, 420px); aspect-ratio: 1; animation: midnight 1.5s ease-out forwards; }
+.doom-midnight svg { width: 100%; height: 100%; overflow: visible; }
+.doom-midnight .ring { fill: rgba(14, 16, 51, .55); stroke: #e8c977; stroke-width: 2; filter: drop-shadow(0 0 10px #e8c977); }
+.doom-midnight text { fill: #f3d98c; font: 15px Georgia, serif; text-anchor: middle; }
+.doom-midnight .hand { stroke: #fff4cf; stroke-width: 4; stroke-linecap: round; transform-origin: 0 0; transform: rotate(-90deg); animation: to-twelve .8s cubic-bezier(.4, 1.6, .5, 1) .1s forwards; }
+.doom-midnight .hand.short { stroke-width: 6; transform: rotate(-150deg); }
+@keyframes to-twelve { to { transform: rotate(0deg) } }
+@keyframes midnight { 0% { transform: translate(-50%, -50%) scale(.6); opacity: 0 } 15% { opacity: 1 } 70% { transform: translate(-50%, -50%) scale(1); opacity: 1 } 100% { transform: translate(-50%, -50%) scale(1.25); opacity: 0 } }
+.doom-flash.big { width: 80px; height: 80px; }
+#bof-game-arena .mat-half.mat-defeated { filter: grayscale(.85) brightness(.45); transition: filter 1.2s ease; }
+#bof-game-arena .mat-half.mat-defeated::before { content: ''; position: absolute; inset: 0; z-index: 6; pointer-events: none; border-radius: inherit; animation: crack-in .5s ease-out .3s both;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 200' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23e2e8f0' stroke-opacity='.55' stroke-width='1.3'%3E%3Cpath d='M200 100 L150 40 L120 0 M200 100 L260 30 L280 0 M200 100 L90 120 L0 140 M200 100 L320 130 L400 120 M200 100 L180 170 L170 200 M200 100 L250 180 M150 40 L110 55 M260 30 L300 45 M90 120 L70 90 M320 130 L340 165'/%3E%3C/g%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+@keyframes crack-in { from { opacity: 0; transform: scale(.6) } to { opacity: 1; transform: scale(1) } }
+
+/* ---------- แผงตัวอย่าง (?fxpreview) ---------- */
+#fx-preview-panel { position: fixed; left: 10px; bottom: 10px; z-index: 400; width: 230px; max-height: 70vh; overflow: auto; padding: 10px; border-radius: 10px; background: rgba(10, 12, 24, .92); border: 1px solid #334155; color: #e2e8f0; font: 12px Kanit, sans-serif; display: flex; flex-direction: column; gap: 8px; }
+#fx-preview-panel .grp { display: flex; flex-wrap: wrap; gap: 4px; }
+#fx-preview-panel .grp span { width: 100%; color: #94a3b8; }
+#fx-preview-panel button { font: inherit; color: inherit; background: #1e293b; border: 1px solid #475569; border-radius: 6px; padding: 3px 7px; cursor: pointer; }
+#fx-preview-panel button:hover { background: #334155; }
+#fx-preview-panel button:focus-visible { outline: 2px solid #38bdf8; outline-offset: 1px; }
+
+/* ---------- มือถือ / ลดการเคลื่อนไหว: เหลือภาพพื้นหลัง + แสงขอบนิ่ง ---------- */
+@media (max-width: 760px), (prefers-reduced-motion: reduce) {
+  .deck-mat-fx { display: none; }
+  .deku-gauge { left: auto; right: -4px; }
+  .deku-gauge .bar { height: 70px; }
+  .mat-half[data-mat] .slot { animation: none; }
+  #bof-game-arena .mat-half.turn-active { animation: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #bof-game-arena .mat-half.turn-in::after, #bof-game-arena .mat-half.turn-out::after { animation: none; display: none; }
+  #bof-game-arena.deck-shake, #bof-game-arena.time-stop, #bof-game-arena.time-rewind { animation: none; filter: none; }
+  .doom-pair path, #bof-game-arena .slot.deku-buffed { animation: none; }
+}
