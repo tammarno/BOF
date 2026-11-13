@@ -1680,7 +1680,7 @@
     COSMETIC_ITEMS.forEach(it => { counts[it.category] = (counts[it.category] || 0) + 1; });
     const filteredItems = COSMETIC_ITEMS.filter(it => cosmeticFilterCat === 'ALL' || it.category === cosmeticFilterCat);
     const user = window.BOFAuth && typeof window.BOFAuth.currentUser === 'function' ? window.BOFAuth.currentUser() : null;
-    const avatarSrc = (user && user.customAvatar) || 'images/เด็คจิต/1.png';
+    const avatarSrc = (user && user.customAvatar) || 'images/thumbs/เด็คจิต/1.webp';
     const playerName = (document.querySelector('#lb-auth-bar .lb-auth-name') || {}).textContent || 'ผู้เล่น';
 
     // ชุดบนเวที = ที่สวมอยู่ ทับด้วยชิ้นที่กำลังลอง

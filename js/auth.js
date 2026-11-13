@@ -24,12 +24,12 @@
   const DECK_STORAGE_KEY = 'my_card_game_deck';
 
   const AVATAR_LEADERS = [
-    { id: 'L01', label: 'เด็คจิต (เดจิต)', image: 'images/เด็คจิต/1.png' },
-    { id: 'L02', label: 'เด็คขุนเหนือ', image: 'images/เด็คเหนือ/1.png' },
-    { id: 'L03', label: 'เด็ควันสิ้นโลก', image: 'images/วันสิ้นโลก/1.png' },
-    { id: 'L04', label: 'เด็คศูนย์วิจัยไดโน', image: 'images/ไดโน/1.png' },
-    { id: 'L05', label: 'เด็คปีศาจ', image: 'images/เด็คปีศาจ/1.png' },
-    { id: 'L06', label: 'เด็คโอ็ต', image: 'images/เด็คโอ๊ต/1.png' }
+    { id: 'L01', label: 'เด็คจิต (เดจิต)', image: 'images/thumbs/เด็คจิต/1.webp' },
+    { id: 'L02', label: 'เด็คขุนเหนือ', image: 'images/thumbs/เด็คเหนือ/1.webp' },
+    { id: 'L03', label: 'เด็ควันสิ้นโลก', image: 'images/thumbs/วันสิ้นโลก/1.webp' },
+    { id: 'L04', label: 'เด็คศูนย์วิจัยไดโน', image: 'images/thumbs/ไดโน/1.webp' },
+    { id: 'L05', label: 'เด็คปีศาจ', image: 'images/thumbs/เด็คปีศาจ/1.webp' },
+    { id: 'L06', label: 'เด็คโอ็ต', image: 'images/thumbs/เด็คโอ๊ต/1.webp' }
   ];
 
   let currentUser = null;

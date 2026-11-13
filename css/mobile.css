@@ -82,6 +82,9 @@
   }
   #bof-game-arena #btn-surrender-match::before { content: '🏳️'; font-size: 18px; }
 
+  /* ช่องกรอกเล็กกว่า 16px ทำให้ iOS ซูมทั้งหน้าตอนแตะ */
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), select, textarea { font-size: 16px !important; }
+
   /* ---------- หน้าจัดเด็ค: หัวติดจอ (นับใบ + บันทึก) · การ์ด 4 คอลัมน์ ---------- */
   #deck-builder-modal .deck-builder-box { padding: 0 10px 12px !important; max-height: 92dvh; }
   #deck-builder-modal .deck-builder-header {

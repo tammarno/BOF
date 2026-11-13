@@ -367,6 +367,16 @@
     return r;
   };
 
+  // รูปเล็กที่ game.js ใส่ภาพเต็ม (~1MB) → ภาพย่อ WebP: รูปเด็คในหน้าตั้งค่าบอท และปุ่มการ์ดล่าสุดของคู่แข่ง
+  const thumbOf = src => String(src || '').replace(/^images\/(?!thumbs\/)(.+)\.png$/, 'images/thumbs/$1.webp');
+  if (typeof AI_DECK_CATALOG !== 'undefined') AI_DECK_CATALOG.forEach(d => { d.img = thumbOf(d.img); });
+  const origLastCard = window.updateLastPlayedCardWidget;
+  if (origLastCard) window.updateLastPlayedCardWidget = function (info) {
+    origLastCard.apply(this, arguments);
+    const img = document.querySelector('#btn-last-card-pill .last-card-pill-img');
+    if (img && info && info.card) img.src = thumbOf(info.card.image);
+  };
+
   bindTilt(document.getElementById('player-hand'), 12);
   bindLongPress();
   window.HoloTilt = { bind: bindTilt, decorate, holoLayersHTML, addStars };
