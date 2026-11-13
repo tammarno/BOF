@@ -1,0 +1,295 @@
+/* ============================================================================
+   หน้าวิธีเล่น (#lb-howto-dialog) ธีม "ตราทอง": กรมท่าเข้ม + กรอบทองแบบการ์ด
+   ทับสไตล์เดิมใน style.css หมวด 6 · มือถืออยู่ใน mobile.css หมวด (9)
+   ============================================================================ */
+#lb-howto-dialog.lb-howto-wide {
+  width: min(760px, calc(100vw - 24px)) !important;
+  padding: 0 22px 22px !important;
+  overflow-x: hidden; /* canvas อนุภาค + ส่วนที่มี margin ข้าง ล้นแนวนอนได้เล็กน้อย */
+  color: var(--fx-text);
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgba(243, 201, 105, .16), transparent 60%),
+    linear-gradient(180deg, #161b3d, var(--fx-ink) 70%);
+  border: 1px solid rgba(243, 201, 105, .6);
+  border-radius: 20px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .65), 0 0 0 4px rgba(11, 14, 36, .9), 0 0 0 5px rgba(243, 201, 105, .35), 0 0 46px rgba(243, 201, 105, .18);
+  scrollbar-width: thin; scrollbar-color: rgba(243, 201, 105, .5) transparent;
+}
+
+/* หัว: ติดบนสุดตอนเลื่อน พร้อมแท็บ */
+#lb-howto-dialog .lb-howto-header {
+  position: sticky; top: 0; z-index: 30; margin: 0 -22px; padding: 18px 22px 10px;
+  background: #161b3d; box-shadow: 0 1px 0 rgba(243, 201, 105, .12), 0 10px 16px -8px rgba(8, 10, 28, .7);
+}
+#lb-howto-dialog .lb-howto-header h2 {
+  font: 700 clamp(20px, 3vw, 26px)/1.2 var(--font-display, 'Kanit') !important;
+  background: var(--fx-gold-grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 10px rgba(243, 201, 105, .25));
+}
+#lb-howto-dialog .bof-auth-close-x {
+  min-width: 44px; min-height: 44px; border-radius: 12px;
+  color: var(--fx-gold-hi); background: rgba(243, 201, 105, .08); border: 1px solid rgba(243, 201, 105, .4);
+}
+
+/* แท็บหลัก: รางเข้ม ปุ่มที่เลือกเป็นทอง */
+#lb-howto-dialog .lb-howto-tabs {
+  gap: 4px; padding: 5px; margin-bottom: 16px; border-radius: 14px;
+  background: rgba(8, 10, 28, .92); border: 1px solid var(--fx-line);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, .5), 0 8px 18px rgba(8, 10, 28, .6);
+}
+#lb-howto-dialog .lb-howto-tab {
+  min-height: 44px; border-radius: 10px; font-size: 14px; color: var(--fx-text-soft);
+  transition: color .2s, background .2s, transform .2s var(--m-ease, ease);
+}
+#lb-howto-dialog .lb-howto-tab:hover { color: var(--fx-gold-hi); background: rgba(243, 201, 105, .07); }
+#lb-howto-dialog .lb-howto-tab.is-active {
+  color: #1a1405; background: var(--fx-gold-grad);
+  box-shadow: 0 4px 14px rgba(243, 201, 105, .35), inset 0 1px 0 rgba(255, 255, 255, .6);
+}
+
+/* หน้า: กติกา + โซน */
+#lb-howto-dialog .lb-steps li { color: var(--fx-text); }
+#lb-howto-dialog .lb-steps b, #lb-howto-dialog .lb-zone-guide-card b { color: var(--fx-gold-hi); }
+#lb-howto-dialog .lb-zone-guide-card {
+  background: var(--fx-panel); border: 1px solid var(--fx-line); border-radius: 14px;
+}
+#lb-howto-dialog .lb-zone-guide-card strong { color: var(--fx-gold-hi); }
+#lb-howto-dialog .lb-zone-guide-card p { color: var(--fx-text-soft); }
+#lb-howto-dialog .lb-howto-tutorial-banner { border: 1px solid rgba(243, 201, 105, .45); background: linear-gradient(135deg, var(--fx-panel-hi), var(--fx-panel)); }
+#lb-howto-dialog .lb-dialog-ok { margin: 18px 0 0; width: 100%; min-height: 52px; }
+
+/* ---------- ตัวเลือกเด็ค: แถบเลื่อนแนวนอน วงกลมลีดเดอร์ขอบสีเด็ค ---------- */
+#lb-howto-dialog .lb-combo-deck-selector {
+  flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding: 4px 2px 10px; margin-bottom: 8px;
+  scrollbar-width: none; overscroll-behavior-x: contain;
+}
+#lb-howto-dialog .lb-combo-deck-selector::-webkit-scrollbar { display: none; }
+#lb-howto-dialog .lb-combo-deck-pill {
+  flex: 0 0 auto; min-height: 48px; padding: 4px 14px 4px 4px; gap: 8px;
+  font: 600 14px var(--font-display, 'Kanit'); color: var(--fx-text-soft);
+  background: var(--fx-panel); border: 1px solid rgba(255, 255, 255, .08); border-radius: 999px;
+  transition: transform .25s var(--m-ease, ease), border-color .2s, color .2s, background .2s;
+}
+#lb-howto-dialog .lb-combo-deck-pill img {
+  width: 38px; height: 38px; border-radius: 50%; object-fit: cover; object-position: center 18%;
+  border: 2px solid var(--deck-c, var(--fx-gold));
+}
+#lb-howto-dialog .lb-combo-deck-pill:hover { color: var(--fx-text); transform: translateY(-1px); }
+#lb-howto-dialog .lb-combo-deck-pill.is-active {
+  color: var(--fx-ink); background: var(--deck-c, var(--fx-gold)); border-color: transparent;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--deck-c, #f3c969) 45%, transparent);
+}
+#lb-howto-dialog .lb-combo-deck-pill.is-active img { border-color: #fff; }
+
+/* ---------- ภาพรวมเด็ค + การ์ดคอมโบ ---------- */
+#lb-howto-dialog .lb-combo-content-box { display: grid; gap: 14px; padding: 0 0 4px; max-height: none; overflow: visible; } /* เลื่อนทั้งหน้าต่างอย่างเดียว ไม่ซ้อนแถบเลื่อน */
+#lb-howto-dialog .lb-combo-overview {
+  margin: 0; padding: 12px 14px; border-radius: 14px; color: var(--fx-text-soft);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--deck-c, #f3c969) 18%, transparent), transparent 70%), var(--fx-panel);
+  border: 1px solid rgba(255, 255, 255, .06); border-left: 4px solid var(--deck-c, var(--fx-gold));
+}
+#lb-howto-dialog .lb-combo-overview strong { color: var(--deck-c, var(--fx-gold-hi)); font-size: 16px; }
+#lb-howto-dialog .lb-combo-overview p { color: var(--fx-text-soft); font-size: 13.5px; line-height: 1.55; }
+
+#lb-howto-dialog .lb-combo-card {
+  margin: 0; padding: 14px; border-radius: 16px; display: grid; gap: 10px;
+  background: var(--fx-panel); border: 1px solid var(--fx-line);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .35);
+}
+#lb-howto-dialog .lb-combo-card-head { display: block; margin: 0; }
+#lb-howto-dialog .lb-combo-card-title { display: flex; flex-direction: column; gap: 4px; color: var(--fx-text); font-size: 16px; }
+.cr-badge {
+  align-self: flex-start; padding: 2px 10px; border-radius: 999px; font: 700 12px var(--font-display, 'Kanit');
+  color: var(--fx-ink); background: var(--deck-c, var(--fx-gold));
+}
+.cr-title { font: 600 16px/1.35 var(--font-display, 'Kanit'); }
+
+/* ปุ่มซ้อมจริง: ทองเต็มความกว้าง */
+#lb-howto-dialog .lb-combo-practice-btn.cr-practice {
+  width: 100%; min-height: 46px; border: 0; border-radius: 12px !important; cursor: pointer; padding: 0 14px !important;
+  font: 700 15px var(--font-display, 'Kanit') !important; color: #1a1405 !important; background: var(--fx-gold-grad) !important;
+  box-shadow: 0 6px 16px rgba(243, 201, 105, .25);
+}
+
+/* ข้อความขั้นตอน (พับไว้เมื่อมีวิดีโอ) */
+.cr-text { border-radius: 12px; background: rgba(8, 10, 28, .5); border: 1px solid rgba(255, 255, 255, .06); }
+.cr-text > summary {
+  min-height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 14px; cursor: pointer; list-style: none;
+  font: 600 13.5px var(--font-display, 'Kanit'); color: var(--fx-text-soft);
+}
+.cr-text > summary::-webkit-details-marker { display: none; }
+.cr-text > summary::before { content: '▸'; color: var(--fx-gold); transition: transform .2s; }
+.cr-text[open] > summary::before { transform: rotate(90deg); }
+.cr-text > :not(summary) { margin: 0 14px 12px; }
+#lb-howto-dialog .lb-combo-mini-card { background: var(--fx-panel-hi); border-color: var(--fx-line); }
+#lb-howto-dialog .lb-combo-mini-meta b { color: var(--fx-text); }
+#lb-howto-dialog .lb-combo-mini-meta small { color: var(--fx-text-soft); }
+#lb-howto-dialog .lb-combo-steps-list li { color: var(--fx-text-soft); }
+
+/* ---------- วิดีโอสาธิตคอมโบ ---------- */
+.cr-player { display: grid; gap: 8px; }
+.cr-stage {
+  position: relative; aspect-ratio: var(--cr-aspect, 16 / 10); border-radius: 14px; overflow: hidden; cursor: pointer; isolation: isolate;
+  background:
+    radial-gradient(70% 55% at 50% 50%, rgba(243, 201, 105, .08), transparent 70%),
+    repeating-linear-gradient(60deg, rgba(255, 255, 255, .025) 0 1px, transparent 1px 22px),
+    repeating-linear-gradient(-60deg, rgba(255, 255, 255, .025) 0 1px, transparent 1px 22px),
+    linear-gradient(180deg, #1b1033 0%, #0d1130 46%, #0c1a2c 54%, #0a0d22 100%);
+  border: 1px solid rgba(243, 201, 105, .35);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, .6);
+  user-select: none; -webkit-user-select: none;
+}
+.cr-board { position: absolute; inset: 0; pointer-events: none; }
+.cr-divider { /* เส้นแบ่งแดน */
+  position: absolute; left: 20%; right: 18%; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(243, 201, 105, .45), transparent);
+}
+.cr-slot {
+  position: absolute; width: var(--cr-cw, 11%); aspect-ratio: 63 / 88; border-radius: 6px;
+  border: 1.5px dashed rgba(170, 177, 216, .22); background: rgba(255, 255, 255, .02);
+}
+.cr-slot.is-grave { border-color: rgba(255, 93, 115, .3); }
+.cr-slot span {
+  position: absolute; left: 0; right: 0; bottom: -1.5em; text-align: center;
+  font: 600 clamp(9px, 1.5cqw, 12px) var(--font-display, 'Kanit'); color: rgba(255, 140, 150, .75);
+}
+.cr-side {
+  position: absolute; font: 700 clamp(9px, 1.6cqw, 12px) var(--font-display, 'Kanit'); letter-spacing: .04em;
+  padding: 1px 8px; border-radius: 999px;
+}
+.cr-side.is-opp { color: #ff9aa8; background: rgba(255, 93, 115, .12); }
+.cr-side.is-me { color: #8ff5bf; background: rgba(94, 242, 160, .1); }
+.cr-stage { container-type: inline-size; }
+
+.cr-card {
+  position: absolute; width: var(--cr-cw, 11%); aspect-ratio: 63 / 88; border-radius: 6px; z-index: 3;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, .5); will-change: transform;
+}
+.cr-inner { position: absolute; inset: 0; border-radius: inherit; }
+.cr-inner img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; border-radius: inherit; pointer-events: none; }
+.cr-hp {
+  position: absolute; right: -10%; top: -8%; min-width: 38%; padding: 0 5px; text-align: center; z-index: 2;
+  font: 700 clamp(10px, 2cqw, 15px)/1.35 var(--font-display, 'Kanit'); color: #fff;
+  background: linear-gradient(180deg, #ff6b7f, #b3203a); border: 1.5px solid #ffd0d6; border-radius: 999px;
+}
+.cr-hp::before { content: '♥ '; font-size: .8em; }
+.cr-slot.is-deck img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; opacity: .9; box-shadow: 3px 3px 0 rgba(0,0,0,.35), 6px 6px 0 rgba(0,0,0,.2); }
+.cr-slot.is-deck { border-style: solid; border-color: rgba(243, 201, 105, .3); }
+.cr-slot.is-deck span { color: var(--fx-text-soft); z-index: 1; }
+.cr-slot.is-void { border-color: rgba(184, 146, 255, .45); background: radial-gradient(circle, rgba(120, 70, 220, .25), transparent 70%); }
+.cr-slot.is-void span { color: #c9b3ff; }
+.cr-shield {
+  position: absolute; inset: -7%; border-radius: 10px; pointer-events: none; z-index: 1;
+  border: 2px solid rgba(140, 225, 255, .95); background: linear-gradient(135deg, rgba(140, 225, 255, .18), transparent 60%);
+  box-shadow: 0 0 14px rgba(120, 220, 255, .7), inset 0 0 10px rgba(120, 220, 255, .45);
+}
+.cr-banner {
+  position: absolute; left: 50%; top: 46%; z-index: 26; translate: -50% -50%; pointer-events: none; white-space: nowrap;
+  padding: .35em 1.1em; border-radius: 999px; font: 700 clamp(13px, 3.2cqw, 22px) var(--font-display, 'Kanit');
+  color: var(--fx-gold-hi); background: rgba(11, 14, 36, .92); border: 1.5px solid var(--fx-gold);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, .5), 0 0 20px rgba(243, 201, 105, .3);
+}
+.cr-banner.is-red { color: #ffd0d6; border-color: var(--fx-bad); box-shadow: 0 8px 26px rgba(0, 0, 0, .5), 0 0 22px rgba(255, 93, 115, .45); }
+.cr-meter {
+  position: relative; display: flex; align-items: baseline; gap: 6px;
+  padding: 6px 12px 12px; border-radius: 12px; background: rgba(11, 14, 36, .85); border: 1px solid rgba(184, 146, 255, .6);
+  font: 600 14px var(--font-display, 'Kanit'); color: #d9caff;
+}
+.cr-meter b { font-size: 1.35em; color: #fff; display: inline-block; }
+.cr-meter i { font-style: normal; opacity: .7; }
+.cr-meter b { margin-left: auto; }
+.cr-meter em { position: absolute; left: 12px; right: 12px; bottom: 5px; height: 4px; border-radius: 3px; background: rgba(255, 255, 255, .12); overflow: hidden; }
+.cr-meter s { display: block; height: 100%; background: linear-gradient(90deg, #8f5cff, #e7b4ff); }
+.cr-card.is-leader { box-shadow: 0 0 0 1.5px rgba(243, 201, 105, .8), 0 4px 10px rgba(0, 0, 0, .5); }
+.cr-pow {
+  position: absolute; left: 50%; bottom: -8%; transform: translateX(-50%); min-width: 34%; padding: 0 4px; text-align: center;
+  font: 700 clamp(10px, 2.2cqw, 16px)/1.35 var(--font-display, 'Kanit'); color: #fff;
+  background: radial-gradient(circle at 50% 30%, #3a2a6b, #140f2e); border: 1.5px solid var(--fx-gold); border-radius: 999px;
+}
+.cr-done {
+  position: absolute; left: 50%; top: 46%; z-index: 25; translate: -50% -50%; pointer-events: none;
+  padding: .5em 1.4em; border-radius: 999px; white-space: nowrap;
+  font: 700 clamp(16px, 4.2cqw, 30px) var(--font-display, 'Kanit'); color: #1a1405; background: var(--fx-gold-grad);
+  box-shadow: 0 0 0 3px rgba(11, 14, 36, .85), 0 0 0 4px rgba(243, 201, 105, .7), 0 10px 40px rgba(243, 201, 105, .45);
+}
+
+/* คำบรรยาย + ปุ่มควบคุม */
+.cr-caption {
+  display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 8px 12px; border-radius: 12px;
+  background: rgba(8, 10, 28, .7); border: 1px solid rgba(255, 255, 255, .06);
+  font: 500 15px/1.45 var(--font-body, 'IBM Plex Sans Thai', sans-serif); color: var(--fx-text);
+}
+.cr-caption b { color: var(--fx-gold-hi); font-weight: 600; }
+.cr-step-no {
+  flex: 0 0 auto; min-width: 40px; height: 28px; display: grid; place-items: center; border-radius: 999px;
+  font: 700 13px var(--font-display, 'Kanit'); color: var(--fx-ink); background: var(--deck-c, var(--fx-gold));
+}
+.cr-controls { display: flex; align-items: center; gap: 6px; }
+.cr-btn {
+  width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; cursor: pointer;
+  background: var(--fx-panel-hi); border: 1px solid rgba(255, 255, 255, .08); color: var(--fx-text);
+  transition: transform .15s, background .2s;
+}
+.cr-btn:active { transform: scale(.92); }
+.cr-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.cr-play { background: var(--fx-gold-grad); color: #1a1405; border: 0; }
+.cr-play svg { fill: currentColor; stroke: none; }
+.cr-play .i-again { fill: none; stroke: currentColor; }
+.cr-play .i-pause, .cr-play .i-again { display: none; }
+.cr-player.is-playing .cr-play .i-play { display: none; }
+.cr-player.is-playing .cr-play .i-pause { display: block; }
+.cr-player.is-ended .cr-play .i-play, .cr-player.is-ended .cr-play .i-pause { display: none; }
+.cr-player.is-ended .cr-play .i-again { display: block; }
+.cr-dots { flex: 1; display: flex; gap: 4px; margin-left: 6px; }
+.cr-dot {
+  flex: 1; height: 44px; border: 0; padding: 0; cursor: pointer; background: none; position: relative;
+}
+.cr-dot::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 6px; margin-top: -3px; border-radius: 999px;
+  background: rgba(255, 255, 255, .12); transition: background .25s;
+}
+.cr-dot.is-past::before { background: color-mix(in srgb, var(--deck-c, #f3c969) 55%, transparent); }
+.cr-dot.is-on::before { background: var(--deck-c, var(--fx-gold)); box-shadow: 0 0 10px var(--deck-c, var(--fx-gold)); }
+#lb-howto-dialog :focus-visible { outline: 2px solid var(--fx-gold-hi); outline-offset: 2px; }
+
+/* ---------- เปิดหน้าต่าง (PC) · มือถือใช้แผ่นเลื่อนขึ้นจาก mobile.css ---------- */
+html:not(.is-mobile) #lb-howto-dialog[open] { animation: howto-pop .38s cubic-bezier(.2, .9, .3, 1.15) both; }
+@keyframes howto-pop { from { opacity: 0; transform: translateY(18px) scale(.95); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { #lb-howto-dialog[open] { animation: none !important; } }
+
+/* ---------- แท็บหลัก: แถบทองเลื่อนตาม (js/howto-motion.js) ---------- */
+#lb-howto-dialog .lb-howto-tabs.has-thumb { position: relative; }
+.howto-tab-thumb {
+  position: absolute; left: 0; top: 5px; bottom: 5px; width: 0; border-radius: 10px; pointer-events: none;
+  background: var(--fx-gold-grad); box-shadow: 0 4px 14px rgba(243, 201, 105, .35), inset 0 1px 0 rgba(255, 255, 255, .6);
+}
+#lb-howto-dialog .lb-howto-tabs.has-thumb .lb-howto-tab { position: relative; z-index: 1; }
+#lb-howto-dialog .lb-howto-tabs.has-thumb .lb-howto-tab.is-active { background: transparent; box-shadow: none; }
+
+/* ---------- แถบเลือกเด็ค: ติดใต้หัว · ลูกศร + ขอบจางเฉพาะฝั่งที่ยังเลื่อนได้ ---------- */
+.howto-deckbar {
+  position: sticky; top: var(--howto-head, 70px); z-index: 25; margin: 0 -6px 10px; padding: 6px 6px 4px;
+  background: #151a3c; border-radius: 0 0 14px 14px;
+}
+.howto-deckbar #howto-combo-deck-tabs { margin: 0; padding: 2px 2px 6px; }
+.howto-deckbar #howto-combo-deck-tabs.is-dragging { cursor: grabbing; }
+.howto-deckbar #howto-combo-deck-tabs.is-dragging * { pointer-events: none; }
+.howto-deckbar::before, .howto-deckbar::after {
+  content: ''; position: absolute; top: 0; bottom: 0; width: 64px; pointer-events: none; z-index: 1; opacity: 0; transition: opacity .25s;
+}
+.howto-deckbar::before { left: 0; background: linear-gradient(90deg, #151a3c 30%, rgba(21, 26, 60, 0)); border-radius: 0 0 0 14px; }
+.howto-deckbar::after { right: 0; background: linear-gradient(-90deg, #151a3c 30%, rgba(21, 26, 60, 0)); border-radius: 0 0 14px 0; }
+.howto-deckbar.can-prev::before, .howto-deckbar.can-next::after { opacity: 1; }
+.howto-deck-arrow {
+  position: absolute; top: 50%; z-index: 2; width: 40px; height: 40px; margin-top: -22px; display: grid; place-items: center;
+  border-radius: 50%; cursor: pointer; color: var(--fx-gold-hi); background: var(--fx-panel-hi); border: 1px solid rgba(243, 201, 105, .5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .45); opacity: 0; pointer-events: none; transform: scale(.8);
+  transition: opacity .2s, transform .25s cubic-bezier(.2, .9, .3, 1.4), background .2s;
+}
+.howto-deck-arrow svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.howto-deck-arrow.is-prev { left: 4px; }
+.howto-deck-arrow.is-next { right: 4px; }
+.howto-deckbar.can-prev .is-prev, .howto-deckbar.can-next .is-next { opacity: 1; pointer-events: auto; transform: none; }
+.howto-deck-arrow:hover { background: #262d63; }
+.howto-deck-arrow:active { transform: scale(.9); }
+@media (hover: hover) { #lb-howto-dialog .lb-combo-deck-pill:hover { box-shadow: 0 6px 16px rgba(0, 0, 0, .35); } }

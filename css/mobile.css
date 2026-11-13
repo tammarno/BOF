@@ -404,3 +404,36 @@ html.is-mobile #lb-quests-dialog .qb-title { font-size: var(--m-fs-md); }
 html.is-mobile #lb-quests-dialog .qb-rew { font-size: var(--m-fs-sm); }
 html.is-mobile #lb-quests-dialog .qb-claim { min-width: 60px; min-height: var(--m-tap); font-size: var(--m-fs-md); }
 html.is-mobile #lb-quests-dialog .qb-claim-all { min-height: 50px; font-size: var(--m-fs-md); }
+
+/* ============================================================================
+   (9) หน้าวิธีเล่น + วิดีโอคอมโบ (css/howto.css)
+   ============================================================================ */
+html.is-mobile #lb-howto-dialog.lb-howto-wide { width: 100vw !important; border-radius: 20px 20px 0 0; border-bottom: 0; }
+html.is-mobile #lb-howto-dialog.lb-howto-wide { padding-left: 12px !important; padding-right: 12px !important; }
+html.is-mobile #lb-howto-dialog .lb-howto-header { margin: 0 -12px; padding: 14px 12px 8px; }
+html.is-mobile #lb-howto-dialog .lb-howto-tab { font-size: var(--m-fs-sm); padding: 6px 4px; }
+html.is-mobile #lb-howto-dialog .lb-combo-card { padding: 10px; border-radius: 14px; }
+html.is-mobile #lb-howto-dialog .cr-title { font-size: var(--m-fs-md); }
+html.is-mobile #lb-howto-dialog .cr-caption { font-size: var(--m-fs-md); min-height: 56px; }
+html.is-mobile #lb-howto-dialog .cr-stage { border-radius: 10px; }
+html.is-mobile #lb-howto-dialog .lb-howto-header { padding: 10px 12px 8px; }
+html.is-mobile #lb-howto-dialog .lb-howto-header h2 { font-size: 19px !important; }
+html.is-mobile #lb-howto-dialog .bof-auth-close-x { min-width: 40px; min-height: 40px; }
+html.is-mobile #lb-howto-dialog .lb-howto-tabs { margin-bottom: 10px; padding: 4px; }
+html.is-mobile #lb-howto-dialog .lb-howto-tab { min-height: 40px; }
+html.is-mobile .howto-deckbar { margin: 0 -12px 8px; padding: 4px 12px 2px; border-radius: 0; }
+html.is-mobile .howto-deckbar::before { border-radius: 0; }
+html.is-mobile .howto-deckbar::after { border-radius: 0; }
+html.is-mobile .howto-deck-arrow { width: 36px; height: 36px; margin-top: -20px; }
+html.is-mobile #lb-howto-dialog .lb-combo-deck-pill { min-height: 44px; padding: 3px 12px 3px 3px; font-size: 13px; gap: 6px; }
+html.is-mobile #lb-howto-dialog .lb-combo-deck-pill img { width: 34px; height: 34px; }
+html.is-mobile #lb-howto-dialog .lb-combo-content-box { gap: 10px; }
+html.is-mobile #lb-howto-dialog .lb-combo-overview { padding: 10px 12px; }
+html.is-mobile #lb-howto-dialog .lb-combo-overview strong { font-size: 15px; }
+html.is-mobile #lb-howto-dialog .lb-combo-overview p { font-size: 13px; line-height: 1.5; }
+html.is-mobile #lb-howto-dialog .lb-combo-card { gap: 8px; }
+html.is-mobile #lb-howto-dialog .cr-caption { font-size: 14px; min-height: 52px; padding: 8px 10px; }
+html.is-mobile #lb-howto-dialog .cr-controls { gap: 4px; }
+html.is-mobile #lb-howto-dialog .cr-dots { margin-left: 2px; gap: 3px; }
+html.is-mobile #lb-howto-dialog .lb-combo-practice-btn.cr-practice { min-height: 44px; font-size: 14px !important; }
+html.is-mobile #lb-howto-dialog .lb-steps li { font-size: 14px; line-height: 1.55; }
