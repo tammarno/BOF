@@ -183,15 +183,18 @@
       <div class="lb-dialog-panel lb-deck-picker-panel">
         <div class="lb-deck-picker-head">
           <div>
-            <h2 id="lb-deck-picker-title">🃏 เลือกเด็คสำหรับดวล</h2>
-            <p class="lb-deck-picker-desc">แตะเลือกเด็คที่ต้องการใช้เล่น (แสดงครบทุกเด็ค)</p>
+            <h2 id="lb-deck-picker-title">เลือกเด็คสำหรับดวล</h2>
+            <p class="lb-deck-picker-desc">เด็คที่เลือกจะใช้ในการดวลครั้งถัดไป</p>
           </div>
           <button type="button" class="lb-deck-picker-x" data-close aria-label="ปิด">✕</button>
         </div>
-        <div id="lb-deck-picker-slots" class="lb-deck-picker-slots"></div>
-        <div id="lb-deck-picker-grid" class="lb-deck-picker-grid" role="listbox" aria-label="เลือกเด็ค"></div>
+        <div class="lb-deck-picker-body">
+          <h3 class="lb-picker-section">เด็คหลัก</h3>
+          <div id="lb-deck-picker-grid" class="lb-deck-picker-grid" role="listbox" aria-label="เด็คหลัก"></div>
+          <div id="lb-deck-picker-slots" class="lb-deck-picker-slots"></div>
+        </div>
         <div class="lb-deck-picker-footer">
-          <button type="button" class="lb-deck-picker-builder-btn" id="lb-deck-picker-builder">🛠️ ไปหน้าจัดเด็คของฉัน</button>
+          <button type="button" class="lb-deck-picker-builder-btn" id="lb-deck-picker-builder">จัดเด็คของฉัน</button>
           <button type="button" class="lb-dialog-close" data-close>ปิดหน้าต่าง</button>
         </div>
       </div>
@@ -210,10 +213,7 @@
       if (!cardBtn) return;
       const key = cardBtn.dataset.deck;
       dlg.close();
-      if (key) {
-        selectDeck(key);
-        renderDeck(selected);
-      }
+      if (key) selectDeck(key); // selectDeck จัดการกำแพงเอง — renderDeck ซ้ำจะสร้างกำแพงใหม่ทับคลื่นพลิกไพ่
     });
     return dlg;
   }
@@ -227,47 +227,42 @@
       const st = window.BOFDeckSlots.getState();
       const activeIdx = st.activeSlot || 0;
       const isUsingMine = selected === 'mine';
-      slotsBox.innerHTML = `
-        <div class="lb-picker-slots-head">
-          <label for="lb-slot-choice-select" class="lb-picker-slots-label">🗂️ เลือกสล็อตเด็คจัดเองของฉัน:</label>
-          ${isUsingMine ? `<span class="lb-slot-active-pill">✓ กำลังใช้สล็อต #${activeIdx + 1}</span>` : ''}
-        </div>
-        <div class="lb-picker-slots-choice-row">
-          <select id="lb-slot-choice-select" class="lb-slot-choice-select">
-            ${st.slots.map((s, idx) => {
-              const lCard = byId(s.leaderId || 'L01');
-              const lName = lCard ? lCard.name : s.leaderId;
-              const sName = s.name || `เด็คจัดเอง #${idx + 1}`;
-              return `<option value="${idx}" ${idx === activeIdx ? 'selected' : ''}>สล็อต #${idx + 1}: ${sName} (👑 ${lName})</option>`;
-            }).join('')}
-          </select>
-          <button type="button" id="lb-slot-use-btn" class="lb-slot-use-btn ${isUsingMine ? 'is-active' : ''}">
-            ${isUsingMine ? '✓ ใช้สล็อตนี้' : '🃏 เลือกใช้สล็อตนี้'}
-          </button>
-        </div>
-      `;
+      // ปุ่มสล็อตเด็คจัดเอง: กดครั้งเดียวใช้ทันที (เดิมเป็น select + ปุ่มยืนยัน)
+      const head = document.createElement('h3');
+      head.className = 'lb-picker-section';
+      head.textContent = 'เด็คที่จัดเอง';
+      const row = document.createElement('div');
+      row.className = 'lb-slot-row';
+      row.setAttribute('role', 'listbox');
+      row.setAttribute('aria-label', 'เด็คที่จัดเอง');
+      st.slots.forEach((s, idx) => {
+        const leader = byId(s.leaderId || 'L01') || byId('L01');
+        const on = isUsingMine && idx === activeIdx;
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'lb-slot-chip' + (on ? ' is-selected' : '');
+        b.dataset.slot = idx;
+        b.setAttribute('role', 'option');
+        b.setAttribute('aria-selected', String(on));
+        b.style.setProperty('--item-accent', DECK_COLOURS[leader.id] || '#f3c969');
+        const num = document.createElement('span'); num.className = 'lb-slot-num'; num.textContent = idx + 1;
+        const name = document.createElement('span'); name.className = 'lb-slot-name'; name.textContent = s.name || `เด็คจัดเอง #${idx + 1}`;
+        b.append(thumbImg(leader), num, name);
+        row.appendChild(b);
+      });
+      slotsBox.replaceChildren(head, row);
 
       const applyChosenSlot = (idx) => {
         window.BOFDeckSlots.selectSlot(idx);
-        selected = 'mine';
-        try { localStorage.setItem(STORE, 'mine'); } catch (e) {}
         dlg.close();
         refreshMine();
-        renderDeck('mine');
+        selectDeck('mine', true); // force: สลับสล็อตแต่ยังเป็น 'mine' ก็ต้องพลิกกำแพง
       };
 
-      const selEl = slotsBox.querySelector('#lb-slot-choice-select');
-      const useBtn = slotsBox.querySelector('#lb-slot-use-btn');
-      if (selEl) {
-        selEl.onchange = () => {
-          applyChosenSlot(Number(selEl.value || 0));
-        };
-      }
-      if (useBtn && selEl) {
-        useBtn.onclick = () => {
-          applyChosenSlot(Number(selEl.value || 0));
-        };
-      }
+      row.onclick = e => {
+        const chip = e.target.closest('.lb-slot-chip');
+        if (chip) applyChosenSlot(Number(chip.dataset.slot));
+      };
     }
 
     const grid = dlg.querySelector('#lb-deck-picker-grid');
@@ -292,13 +287,6 @@
       const artWrap = document.createElement('div');
       artWrap.className = 'lb-picker-art';
       artWrap.appendChild(thumbImg(leader));
-      if (isSelected) {
-        const activeTag = document.createElement('span');
-        activeTag.className = 'lb-picker-tag lb-picker-tag-active';
-        activeTag.textContent = '✓ เลือกอยู่';
-        artWrap.appendChild(activeTag);
-      }
-
       const meta = document.createElement('div');
       meta.className = 'lb-picker-meta';
       const title = document.createElement('strong');
@@ -307,9 +295,18 @@
       const sub = document.createElement('span');
       sub.className = 'lb-picker-leader';
       sub.textContent = leader.name;
-      meta.append(title, sub);
+      const style = document.createElement('span');
+      style.className = 'lb-picker-style';
+      style.textContent = deck ? deck.style : '';
+      meta.append(title, sub, style);
 
       item.append(artWrap, meta);
+      if (isSelected) {
+        const activeTag = document.createElement('span');
+        activeTag.className = 'lb-picker-tag';
+        activeTag.textContent = 'กำลังใช้';
+        item.appendChild(activeTag);
+      }
       return item;
     }));
   }
@@ -433,8 +430,8 @@
     updateDeckPickerButton();
   }
 
-  function selectDeck(key) {
-    if (!validKey(key) || key === selected) return;
+  function selectDeck(key, force = false) {
+    if (!validKey(key) || (key === selected && !force)) return;
     const prev = selected;
     selected = key;
     try { localStorage.setItem(STORE, key); } catch (e) {}
@@ -480,7 +477,7 @@
     if (mql.addEventListener) mql.addEventListener('change', onResizeBp);
     else if (mql.addListener) mql.addListener(onResizeBp);
     // บันทึกในหน้าจัดเด็คแล้ว: แสดงและเลือก "เด็คของฉัน" (หลัง handler ของ game.js เขียน localStorage)
-    $('#btn-save-start')?.addEventListener('click', () => setTimeout(() => { refreshMine(); selectDeck('mine'); renderDeck(selected); }, 0));
+    $('#btn-save-start')?.addEventListener('click', () => setTimeout(() => { refreshMine(); selectDeck('mine', true); }, 0));
   }
 
   function render() {

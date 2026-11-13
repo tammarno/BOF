@@ -27,8 +27,11 @@
     <div class="lb-tint" aria-hidden="true"></div>
     <div class="lb-vignette" aria-hidden="true"></div>
 
+    <!-- คอลัมน์ซ้าย (จอใหญ่): โลโก้ → การ์ดผู้เล่น (โปรไฟล์ + เหรียญ) → เมนู · จอมือถือใช้ display:contents ให้ลูกเข้ากริดเดิม -->
+    <div class="lb-side">
     <h1 class="lb-logo">BATTLE OF FRIENDS</h1>
 
+    <div class="lb-plate">
     <!-- ปุ่มโปรไฟล์ / เข้าสู่ระบบ (Guest หรือชื่อผู้เล่นที่ล็อกอิน) -->
     <button type="button" id="lb-auth-bar" aria-label="โปรไฟล์และเข้าสู่ระบบ">
       <img class="lb-auth-avatar" src="images/เด็คจิต/1.png" alt="">
@@ -45,6 +48,7 @@
       <span id="lb-coin-val">2,000</span>
       <span class="lb-coin-plus">+ ร้านค้า</span>
     </button>
+    </div>
 
     <nav class="lb-menu" aria-label="เมนู">
       <a href="#" id="nav-shop" class="lb-menu-item">
@@ -72,6 +76,7 @@
         <span>รหัสห้อง</span>
       </button>
     </nav>
+    </div>
 
     <!-- เข้าห้องด้วยรหัส: desktop อยู่มุมขวาบน · มือถือย้ายเข้า #lb-join-dialog -->
     <div class="lb-join-slot">

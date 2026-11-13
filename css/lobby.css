@@ -52,6 +52,47 @@
 .lb-menu-item svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .lb-mobile-only { display: none; }
 
+/* ---------- คอลัมน์ซ้าย: โลโก้ → การ์ดผู้เล่น → เมนู (ไหลต่อกันจึงไม่ทับกันไม่ว่าฉายายาวแค่ไหน) ---------- */
+@media (min-width: 768px) {
+  .lb-side { position: absolute; left: 24px; top: 16px; z-index: 15; width: 236px; display: flex; flex-direction: column; gap: 12px; }
+  #lobby-screen .lb-side .lb-logo, #lobby-screen .lb-side .lb-menu { position: static; transform: none; }
+
+  /* การ์ดผู้เล่น: แผ่นป้ายแบบการ์ดสะสม มีแถบฟอยล์ทองด้านบน + ต้นขั้วเหรียญแบบตั๋วฉีก */
+  .lb-plate {
+    position: relative; border-radius: 16px; overflow: hidden;
+    background: linear-gradient(160deg, #1f2656 0%, #141834 70%);
+    border: 1px solid rgba(243, 201, 105, .5);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .5), inset 0 0 0 3px rgba(11, 13, 26, .55), inset 0 0 0 4px rgba(243, 201, 105, .14);
+  }
+  .lb-plate::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: linear-gradient(90deg, var(--lb-gold-lo), var(--lb-gold-hi) 45%, var(--deck) 100%); }
+  #lobby-screen .lb-plate #lb-auth-bar {
+    position: static; display: flex; align-items: center; width: 100%; gap: 12px; padding: 14px 12px 12px;
+    border: 0; border-radius: 0; background: none; box-shadow: none; transform: none; text-align: left;
+  }
+  #lobby-screen .lb-plate #lb-auth-bar:hover { background: rgba(255, 255, 255, .04); }
+  #lobby-screen .lb-plate .lb-auth-avatar { width: 54px; height: 54px; border-radius: 12px; }
+  #lobby-screen .lb-plate .lb-auth-meta { gap: 3px; min-width: 0; }
+  #lobby-screen .lb-plate .lb-auth-name { font-size: 15px; max-width: 146px; }
+  #lobby-screen .lb-plate .bof-user-title-pill { max-width: 146px; overflow: hidden; text-overflow: ellipsis; padding: 2px 8px; font-size: 10.5px; }
+  #lobby-screen .lb-plate #lb-coin-pill {
+    position: relative; left: auto; top: auto; display: flex; width: 100%; height: 44px; padding: 0 12px 0 14px;
+    border: 0; border-top: 1px dashed rgba(243, 201, 105, .35); border-radius: 0;
+    background: rgba(6, 8, 20, .35); box-shadow: none; transform: none; font-size: 17px;
+  }
+  #lobby-screen .lb-plate #lb-coin-pill:hover { background: rgba(243, 201, 105, .1); }
+  #lobby-screen .lb-plate #lb-coin-pill .lb-coin-plus { margin-left: auto; }
+  /* รอยเจาะสองข้างของรอยฉีก */
+  #lb-coin-pill::before, #lb-coin-pill::after { content: ''; position: absolute; top: -6px; width: 12px; height: 12px; border-radius: 50%; background: var(--lb-bg); border: 1px solid rgba(243, 201, 105, .35); }
+  #lb-coin-pill::before { left: -7px; }
+  #lb-coin-pill::after { right: -7px; }
+
+  /* เมนู: กริด 2 คอลัมน์ใต้การ์ดผู้เล่น */
+  #lobby-screen .lb-side .lb-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #lobby-screen .lb-side .lb-menu-item { width: auto; height: 50px; flex-direction: row; justify-content: flex-start; gap: 8px; padding: 0 12px; border-radius: 12px; font-size: 14px; }
+  #lobby-screen .lb-side .lb-menu-item svg { width: 20px; height: 20px; flex-shrink: 0; color: var(--lb-gold); }
+  #lobby-screen .lb-side #nav-settings { grid-column: span 2; }
+}
+
 /* ---------- เข้าห้องด้วยรหัส ---------- */
 .lb-join-slot { position: absolute; right: 24px; top: 14px; }
 .lb-join { display: grid; grid-template-columns: auto 96px auto; align-items: center; gap: 8px; padding: 6px 6px 6px 14px; border-radius: 14px; background: var(--lb-panel); border: 1px solid var(--lb-line); }
@@ -185,6 +226,7 @@
     overscroll-behavior: none;
     touch-action: manipulation;
   }
+  .lb-side, .lb-plate { display: contents; }
   #lb-wall { position: fixed; width: 200vw; opacity: .22; }
   .lb-wall-inner { grid-template-columns: repeat(6, 1fr); gap: 2vw; }
   .lb-logo {
@@ -228,6 +270,10 @@
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
   }
   .lb-auth-avatar { width: 30px; height: 30px; }
+  /* ฉายาอยู่แถวเดียวกับชื่อ — ซ้อนเป็น 3 บรรทัดแล้วล้นแถบสูง 38px ขึ้นไปทับโลโก้ */
+  #lb-auth-bar .lb-auth-meta { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 6px; align-items: center; min-width: 0; }
+  #lb-auth-bar .lb-auth-sub { grid-column: 1 / -1; }
+  #lb-auth-bar .bof-user-title-pill { padding: 1px 7px; font-size: 10px; }
   .lb-auth-name { font-size: 13px; max-width: 140px; }
   .lb-auth-sub { font-size: 10px; }
   .lb-join-slot, .lb-github, .lb-chips { display: none; }
@@ -394,178 +440,91 @@
   flex-shrink: 0;
 }
 
-/* หน้าต่างเลือกเด็ค */
-#lb-deck-picker-dialog {
-  width: min(640px, calc(100vw - 24px));
-}
-
+/* หน้าต่างเลือกเด็ค: "ชั้นวางเด็ค" — แถวละเด็ค ภาพลีดเดอร์เอียง + ชื่อสีประจำเด็ค + สไตล์การเล่น · เด็คจัดเองเป็นปุ่มสล็อตกดครั้งเดียว */
+#lb-deck-picker-dialog { width: min(720px, calc(100vw - 24px)); }
 .lb-deck-picker-panel {
-  display: flex;
-  flex-direction: column;
-  max-height: min(86vh, 86dvh);
-  padding: 20px;
+  display: flex; flex-direction: column; max-height: min(88vh, 88dvh); padding: 22px 22px 14px;
+  background: linear-gradient(180deg, #171c40 0%, #0f1229 60%);
 }
-
-.lb-deck-picker-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.lb-deck-picker-head h2 {
-  margin: 0 !important;
-  font-size: 24px !important;
-  color: var(--lb-gold-hi);
-}
-
-.lb-deck-picker-desc {
-  margin-top: 3px !important;
-  font-size: 13px;
-  color: var(--lb-ink-soft);
-}
-
+.lb-deck-picker-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.lb-deck-picker-head h2 { margin: 0 !important; font-size: 26px !important; color: var(--lb-gold-hi); }
+.lb-deck-picker-desc { margin-top: 2px !important; font-size: 13px; color: var(--lb-ink-soft); }
 .lb-deck-picker-x {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 1px solid rgba(160, 175, 255, 0.3);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--lb-ink);
-  font-size: 16px;
-  cursor: pointer;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  width: 44px; height: 44px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; border: 1px solid rgba(160, 175, 255, .3); background: rgba(255, 255, 255, .06);
+  color: var(--lb-ink); font-size: 16px; cursor: pointer;
 }
-
-.lb-deck-picker-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  overflow-y: auto;
-  padding: 4px 2px;
-  max-height: 60dvh;
-  -webkit-overflow-scrolling: touch;
+.lb-deck-picker-x:hover { border-color: var(--lb-gold); }
+.lb-deck-picker-body {
+  min-height: 0; overflow-y: auto; margin: 0 -8px; padding: 2px 8px 6px; -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin; scrollbar-color: rgba(243, 201, 105, .4) transparent;
 }
+#lobby-screen .lb-picker-section {
+  display: flex; align-items: center; gap: 10px; margin: 6px 0 8px;
+  font: 600 13px/1.2 var(--font-display); color: var(--lb-ink-soft);
+}
+.lb-picker-section::after { content: ''; flex: 1; height: 1px; background: rgba(160, 175, 255, .18); }
 
+.lb-deck-picker-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .lb-picker-item {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 7px;
-  padding: 10px 8px;
-  border-radius: 14px;
-  border: 1.5px solid rgba(160, 175, 255, 0.22);
-  background: linear-gradient(165deg, #1b224a, #111530);
-  color: var(--lb-ink);
-  cursor: pointer;
-  text-align: center;
-  transition: transform 0.16s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-  touch-action: manipulation;
+  position: relative; display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 14px;
+  padding: 12px 12px 12px 14px; border-radius: 14px; border: 1px solid rgba(160, 175, 255, .18);
+  background: #141834;
+  background: linear-gradient(100deg, color-mix(in srgb, var(--item-accent) 18%, #141834) 0%, #141834 60%);
+  color: var(--lb-ink); text-align: left; cursor: pointer; overflow: hidden; touch-action: manipulation;
+  transition: border-color .2s, transform .16s, box-shadow .2s;
 }
-
-.lb-picker-item:hover {
-  border-color: var(--lb-gold);
-  transform: translateY(-2px);
-}
-
-.lb-picker-item.is-selected {
-  border: 2px solid var(--lb-gold);
-  background: linear-gradient(165deg, #273069, #151a3d);
-  box-shadow: 0 0 18px rgba(243, 201, 105, 0.35);
-}
-
+.lb-picker-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--item-accent); opacity: .45; }
+.lb-picker-item:hover { border-color: var(--item-accent); transform: translateY(-2px); }
+.lb-picker-item.is-selected { border-color: var(--item-accent); box-shadow: 0 0 0 1px var(--item-accent), 0 10px 26px rgba(0, 0, 0, .45); }
+.lb-picker-item.is-selected::before { opacity: 1; }
 .lb-picker-art {
-  position: relative;
-  width: 100%;
-  max-width: 96px;
-  aspect-ratio: 750 / 1050;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+  width: 64px; aspect-ratio: 750 / 1050; border-radius: 6px; overflow: hidden;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, .6); transform: rotate(-4deg); transition: transform .2s;
 }
-
-.lb-picker-art img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.lb-picker-item:hover .lb-picker-art, .lb-picker-item.is-selected .lb-picker-art { transform: rotate(0) scale(1.04); }
+.lb-picker-art img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.lb-picker-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.lb-picker-item.is-selected .lb-picker-meta { padding-right: 58px; }
+.lb-picker-name { font: 700 18px/1.2 var(--font-display); color: var(--item-accent); }
+.lb-picker-leader { font-size: 12px; color: var(--lb-ink-soft); }
+.lb-picker-style {
+  margin-top: 5px; font-size: 12.5px; line-height: 1.4; color: var(--lb-ink); opacity: .85;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-
 .lb-picker-tag {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 2px 8px;
-  border-radius: 999px;
-  font: 700 10.5px/1.2 var(--font-display);
-  white-space: nowrap;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  position: absolute; top: 10px; right: 10px; padding: 2px 9px; border-radius: 999px;
+  background: var(--item-accent); color: var(--lb-ink-dark); font: 700 11px/1.4 var(--font-display);
 }
 
-.lb-picker-tag-active {
-  bottom: 5px;
-  background: var(--lb-gold);
-  color: var(--lb-ink-dark);
+/* เด็คที่จัดเอง: 5 สล็อต กดแล้วใช้ทันที */
+.lb-deck-picker-slots { margin-top: 14px; }
+.lb-slot-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.lb-slot-chip {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0;
+  padding: 10px 6px 8px; border-radius: 12px; border: 1px dashed rgba(160, 175, 255, .3);
+  background: rgba(255, 255, 255, .03); color: var(--lb-ink); cursor: pointer; touch-action: manipulation;
+  transition: border-color .2s, background-color .2s;
 }
-
-.lb-picker-tag-mine {
-  top: 5px;
-  background: #38bdf8;
-  color: #082f49;
-}
-
-.lb-picker-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 100%;
-  min-width: 0;
-}
-
-.lb-picker-name {
-  font: 700 14.5px/1.2 var(--font-display);
-  color: var(--item-accent, var(--lb-gold));
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.lb-picker-leader {
-  font-size: 11px;
-  color: var(--lb-ink-soft);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+.lb-slot-chip img { width: 40px; aspect-ratio: 750 / 1050; object-fit: cover; border-radius: 4px; box-shadow: 0 4px 10px rgba(0, 0, 0, .5); }
+.lb-slot-num { position: absolute; top: 6px; left: 8px; font: 700 13px/1 var(--font-display); color: var(--item-accent); }
+.lb-slot-name { max-width: 100%; font-size: 11.5px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-slot-chip:hover { border-style: solid; border-color: var(--item-accent); }
+.lb-slot-chip.is-selected { border: 1px solid var(--item-accent); background: rgba(255, 255, 255, .08); box-shadow: 0 0 0 1px var(--item-accent); }
 
 .lb-deck-picker-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(160, 175, 255, 0.18);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(160, 175, 255, .18);
 }
-
 .lb-deck-picker-builder-btn {
-  padding: 9px 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(56, 189, 248, 0.45);
-  background: rgba(14, 116, 144, 0.28);
-  color: #7dd3fc;
-  font: 600 13px/1.2 var(--font-display);
-  cursor: pointer;
+  min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid rgba(243, 201, 105, .55);
+  background: rgba(243, 201, 105, .08); color: var(--lb-gold-hi); font: 600 14px/1.2 var(--font-display); cursor: pointer;
 }
-
-.lb-deck-picker-footer .lb-dialog-close {
-  margin-top: 0;
-  min-height: 36px;
+.lb-deck-picker-builder-btn:hover { background: rgba(243, 201, 105, .16); }
+.lb-deck-picker-footer .lb-dialog-close { margin-top: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .lb-picker-item, .lb-picker-art { transition: none; }
+  .lb-picker-item:hover { transform: none; }
 }
 
 @media (max-width: 767px) {
@@ -582,56 +541,17 @@
     padding: 6px 10px 6px 8px;
   }
 
-  .lb-deck-picker-panel {
-    padding: 16px 14px;
-  }
 
-  .lb-deck-picker-head h2 {
-    font-size: 20px !important;
-  }
-
-  .lb-deck-picker-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    max-height: 64dvh;
-  }
-
-  .lb-picker-item {
-    flex-direction: row;
-    align-items: center;
-    text-align: left;
-    padding: 8px;
-    gap: 9px;
-  }
-
-  .lb-picker-art {
-    width: 48px;
-    max-width: 48px;
-    flex-shrink: 0;
-  }
-
-  .lb-picker-tag {
-    font-size: 9px;
-    padding: 1px 5px;
-  }
-
-  .lb-picker-meta {
-    align-items: flex-start;
-    text-align: left;
-    gap: 3px;
-  }
-
-  .lb-picker-name {
-    font-size: 14px;
-    white-space: normal;
-    line-height: 1.15;
-  }
-
-  .lb-picker-leader {
-    font-size: 10.5px;
-    white-space: normal;
-    line-height: 1.2;
-  }
+  #lb-deck-picker-dialog { width: calc(100vw - 16px); }
+  .lb-deck-picker-panel { padding: 16px 14px 10px; }
+  .lb-deck-picker-head h2 { font-size: 20px !important; }
+  .lb-deck-picker-grid { grid-template-columns: 1fr; gap: 8px; }
+  .lb-picker-item { grid-template-columns: 50px minmax(0, 1fr); gap: 12px; padding: 9px 10px 9px 12px; }
+  .lb-picker-art { width: 50px; }
+  .lb-picker-name { font-size: 16px; }
+  .lb-picker-style { margin-top: 3px; font-size: 12px; }
+  .lb-slot-row { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 4px; }
+  .lb-slot-chip { flex: 0 0 96px; scroll-snap-align: start; }
 }
 
 
@@ -660,124 +580,6 @@ dialog.bof-dialog-polyfilled[open] {
     .lb-deck-picker-panel {
       max-height: 86vh;
     }
-    .lb-deck-picker-grid {
-      max-height: 62vh;
-    }
-  }
-}
-
-/* ================= 🗂️ Deck Slots Switcher in Lobby Deck Picker ================= */
-.lb-deck-picker-slots {
-  background: linear-gradient(135deg, rgba(11, 16, 36, 0.92), rgba(20, 29, 64, 0.88));
-  border: 1.5px solid rgba(56, 189, 248, 0.45);
-  border-radius: 14px;
-  padding: 11px 14px;
-  margin-bottom: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-}
-
-.lb-picker-slots-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.lb-picker-slots-label {
-  font-size: 13px;
-  font-weight: 700;
-  color: #7dd3fc;
-}
-
-.lb-slot-active-pill {
-  font-size: 11px;
-  font-weight: 700;
-  color: #4ade80;
-  background: rgba(20, 83, 45, 0.65);
-  border: 1px solid rgba(74, 222, 128, 0.55);
-  border-radius: 999px;
-  padding: 2px 10px;
-}
-
-.lb-picker-slots-choice-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.lb-slot-choice-select {
-  flex: 1;
-  min-width: 0;
-  height: 38px;
-  background: #0d1328;
-  color: #f8fafc;
-  border: 1.5px solid #38bdf8;
-  border-radius: 10px;
-  padding: 0 12px;
-  font-size: 13.5px;
-  font-weight: 700;
-  font-family: 'Kanit', sans-serif;
-  cursor: pointer;
-  outline: none;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5);
-}
-
-.lb-slot-choice-select:focus {
-  border-color: #fde047;
-  box-shadow: 0 0 12px rgba(250, 204, 21, 0.35);
-}
-
-.lb-slot-use-btn {
-  height: 38px;
-  padding: 0 16px;
-  border-radius: 10px;
-  border: 1.5px solid #38bdf8;
-  background: linear-gradient(135deg, #0284c7, #2563eb);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  font-family: 'Kanit', sans-serif;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.16s ease;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
-}
-
-.lb-slot-use-btn:hover {
-  filter: brightness(1.12);
-  transform: translateY(-1px);
-}
-
-.lb-slot-use-btn.is-active {
-  background: linear-gradient(135deg, #16a34a, #059669);
-  border-color: #4ade80;
-  box-shadow: 0 0 14px rgba(34, 197, 94, 0.45);
-}
-
-@media (max-width: 767px) {
-  .lb-deck-picker-slots {
-    padding: 9px 10px;
-    margin-bottom: 8px;
-  }
-
-  .lb-picker-slots-choice-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
-  }
-
-  .lb-slot-choice-select {
-    width: 100%;
-    font-size: 14px;
-    height: 36px;
-  }
-
-  .lb-slot-use-btn {
-    width: 100%;
-    height: 34px;
-    font-size: 12.5px;
+    .lb-deck-picker-panel .lb-deck-picker-body { max-height: none; }
   }
 }
