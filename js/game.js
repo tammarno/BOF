@@ -6085,6 +6085,7 @@ function handlePlayerSurrender() {
         color: '#dc2626',
         onSelect: () => {
           gameState.player.leader.hp = 0;
+          gameState.player.surrendered = true; // ส่งไปกับ senderData ให้อีกฝั่งรู้ว่าแพ้เพราะยอมแพ้
           gameState.gameOver = true;
           gameState.pendingAction = null;
           disableControls();
@@ -8295,17 +8296,31 @@ function handleIncomingPvpData(data) {
       _originalRenderGame();
       checkBothPlayersMulliganReady();
     } else if (data.type === 'SYNC_BOARD') {
+      const wasGameOver = gameState.gameOver;
       gameState.turnCount = data.turnCount;
       gameState.activeTurn = data.activeTurnOnReceiver;
       gameState.phase = data.phase;
-      gameState.gameOver = data.gameOver;
       gameState.ai = data.senderData;
       gameState.player = data.receiverData;
       gameState.ai.name = 'ฝ่ายตรงข้าม';
       gameState.player.name = 'Player';
       if (data.logMessage) _originalSetLog(data.logMessage);
       _originalRenderGame();
-      checkGameOver();
+      if (!wasGameOver && gameState.ai.surrendered) {
+        // อีกฝั่งกดยอมแพ้ -> แจ้งเตือนและจบแมตช์ฝั่งนี้ทันที
+        gameState.gameOver = true;
+        gameState.pendingAction = null;
+        disableControls();
+        _originalSetLog('🏳️ ฝ่ายตรงข้ามประกาศยอมแพ้! คุณเป็นฝ่ายชนะ!');
+        if (window.BOF_AUDIO && typeof window.BOF_AUDIO.playVictory === 'function') window.BOF_AUDIO.playVictory();
+        setTimeout(() => showEndMatchModal('🏆 คุณชนะ! (ฝ่ายตรงข้ามยอมแพ้)', 'ฝ่ายตรงข้ามกดยอมแพ้ในแมตช์นี้'), 300);
+      } else if (!wasGameOver) {
+        // ห้ามตั้ง gameOver ก่อน checkGameOver ไม่งั้นจะ return ทันทีและไม่เด้งหน้าต่างผลแมตช์
+        if (!checkGameOver() && data.gameOver) {
+          gameState.gameOver = true;
+          disableControls();
+        }
+      }
     } else if (data.type === 'PASS_TURN') {
       pvpState.waitingForDefense = false;
       gameState.turnCount = data.nextTurnCount;
