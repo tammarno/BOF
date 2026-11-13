@@ -206,7 +206,7 @@
   }
   new MutationObserver(() => { watchModals(); checkModals(); }).observe(document.body, { childList: true });
   watchModals();
-  setInterval(() => { checkModals(); checkBoard(); }, 150);
+  setInterval(() => { if (!document.hidden) { checkModals(); checkBoard(); } }, 150);
   document.addEventListener('click', () => requestAnimationFrame(checkBoard), true);
 
   window.UIMotion = { ready: true, showTurnBanner, _check: () => { checkModals(); checkBoard(); } };

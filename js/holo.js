@@ -63,6 +63,13 @@
     cardOf.set(el, { card, owner });
     const art = el.querySelector('.card-art');
     if (art) { art.insertAdjacentHTML('beforeend', holoLayersHTML()); addStars(art, rarity); }
+    // มือถือ: การ์ดเล็กใช้ภาพย่อ WebP (~15KB) แทน PNG เต็ม (~1MB) · โหลดไม่ได้ก็กลับไปใช้ภาพเต็ม
+    const img = !canHover && el.querySelector('img');
+    if (img && /^images\/.+\.png$/.test(card.image || '')) {
+      img.onerror = () => { img.onerror = null; img.src = card.image; };
+      img.decoding = 'async';
+      img.src = card.image.replace(/^images\//, 'images/thumbs/').replace(/\.png$/, '.webp');
+    }
     return el;
   }
 

@@ -265,3 +265,12 @@ body.holo-inspecting .card .holo-foil > i, body.holo-inspecting .card .holo-shee
 #main-pool-list .card:not([data-rarity="SSR"]) .holo-foil > i { animation: none; }
 #main-pool-list .card:not([data-rarity="SSR"]) .holo-stars,
 #main-pool-list .card:not([data-rarity="SSR"]) .holo-sparkle { display: none; }
+
+/* ---------- อุปกรณ์สัมผัส (มือถือ/แท็บเล็ต): ลดงาน GPU ----------
+   blur พื้นหลังบนพื้นที่ใหญ่และโฮโลวนบนการ์ดเล็กหลายใบ ทำให้เฟรมตกบนมือถือ
+   การ์ดใบใหญ่ (.holo-bigcard) ยังเล่นโฮโลเต็มเหมือนเดิม */
+@media (hover: none), (pointer: coarse) {
+  .mat-half, .deck-count-badge, #bof-game-arena .player-mat-half .hand-row { backdrop-filter: none; }
+  #bof-game-arena .player-mat-half .hand-row { background: rgba(8, 10, 20, .55); }
+  .card .holo-foil > i, .card .holo-sheen::before, .card .holo-tw { animation: none !important; }
+}

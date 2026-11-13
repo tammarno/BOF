@@ -278,5 +278,5 @@
   if (visible(lobby)) start(); else unhide();
   // MutationObserver ทำงานก่อนเบราว์เซอร์วาดเฟรมถัดไป: กลับมาล็อบบี้แล้วไม่เห็นภาพนิ่งแวบก่อนฉากเปิด
   new MutationObserver(check).observe(lobby, { attributes: true, attributeFilter: ['style', 'class'] });
-  setInterval(check, 200); // สำรองสำหรับหน้าต่าง modal, dialog และแท็บ
+  setInterval(() => { if (!document.hidden) check(); }, 200); // สำรองสำหรับหน้าต่าง modal, dialog และแท็บ
 })();
