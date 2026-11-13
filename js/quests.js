@@ -166,11 +166,14 @@
 
   // ตัวเลขที่ต้องวิ่งขึ้น: ตัวนับในล็อบบี้ + กระเป๋าในแผง (โชว์เฉพาะในแผ่นมือถือ)
   const counters = kind => [document.getElementById(kind === 'coins' ? 'lb-coin-val' : 'lb-shard-val'), panel.querySelector(kind === 'coins' ? '.qb-w-coin b' : '.qb-w-shard b')].filter(Boolean);
-  function flyTarget(kind) {
+  function flyIcon(kind) {
     const inSheet = panel.closest('dialog[open]');
-    const el = inSheet
+    return inSheet
       ? panel.querySelector(kind === 'coins' ? '.qb-w-coin svg' : '.qb-w-shard svg')
       : document.querySelector(kind === 'coins' ? '#lb-coin-pill .lb-coin-icon' : '#lb-coin-pill .lb-shard svg');
+  }
+  function flyTarget(kind) {
+    const el = flyIcon(kind);
     return el && el.getBoundingClientRect();
   }
 
@@ -192,8 +195,18 @@
       started[kind] = true;
       if (kind === 'coins' && window.BOF_AUDIO) window.BOF_AUDIO.playCoinLand();
       const box = { v: before[kind] };
-      gsap.to(box, { v: after[kind], duration: .8, ease: 'power1.out', onUpdate: () => counters(kind).forEach(el => { el.textContent = fmt(Math.round(box.v)); }) });
-      counters(kind).forEach(el => gsap.fromTo(el.parentElement, { scale: 1.3 }, { scale: 1, duration: .55, ease: 'back.out(3)' }));
+      const els = counters(kind);
+      // data-counting: บอก flow-motion ว่าเลขกำลังวิ่ง ไม่ต้องเด้ง/จางทุกเฟรม (ไม่งั้นเลขซีดค้างและแถบสั่น)
+      els.forEach(el => { el.dataset.counting = '1'; });
+      gsap.to(box, {
+        v: after[kind], duration: .8, ease: 'power1.out',
+        onUpdate: () => els.forEach(el => { el.textContent = fmt(Math.round(box.v)); }),
+        onComplete: () => els.forEach(el => { delete el.dataset.counting; })
+      });
+      // เด้งเฉพาะไอคอนที่เหรียญ/ชาร์ดบินเข้า + ตัวเลข (เดิมขยายทั้งแถบเงิน ซึ่งในล็อบบี้ PC คือทั้งแผ่นกว้าง)
+      const icon = flyIcon(kind);
+      if (icon) gsap.fromTo(icon, { scale: 1.5 }, { scale: 1, duration: .55, ease: 'back.out(3)', transformOrigin: '50% 50%', overwrite: 'auto', clearProps: 'transform' });
+      els.forEach(el => gsap.fromTo(el, { scale: 1.18 }, { scale: 1, duration: .55, ease: 'back.out(3)', transformOrigin: '0% 50%', overwrite: 'auto', clearProps: 'transform' }));
     };
 
     fromRects.forEach((r, k) => {

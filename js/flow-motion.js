@@ -79,6 +79,7 @@
     let last = el.textContent;
     new MutationObserver(() => {
       if (el.textContent === last) return;
+      if (el.dataset.counting) { last = el.textContent; return; } // quests.js กำลังนับเลขวิ่งและเด้งเอง
       const up = parseInt(el.textContent.replace(/\D/g, ''), 10) > parseInt(last.replace(/\D/g, ''), 10);
       last = el.textContent;
       const chip = el.closest('.sh-wallet > span, #lb-coin-pill') || el;
