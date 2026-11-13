@@ -1,0 +1,111 @@
+/* =============================================================================
+   มือถือ (โหลดเป็นไฟล์สุดท้าย) — มีผลเฉพาะจอกว้าง ≤ 768px · คอมไม่เปลี่ยน
+   ใช้ #bof-game-arena นำหน้าเพื่อชนะกฎมือถือเก่าใน style.css (มี !important ซ้อนหลายชั้น)
+   ============================================================================= */
+@media (max-width: 768px) {
+  /* ---------- สนาม: ขนาดการ์ดคิดจากความสูงจอ (สัดส่วนการ์ดจริง 750×1050) ---------- */
+  #bof-game-arena {
+    --card-h: clamp(70px, 12.4dvh, 104px);
+    --card-w: calc(var(--card-h) * .714);
+    --hand-h: clamp(84px, 13.4dvh, 116px);
+    --hand-w: calc(var(--hand-h) * .714);
+    --tap: 44px;
+  }
+
+  /* ฝั่งคู่แข่งสูงเท่าที่ใช้จริง ฝั่งเรารับพื้นที่ที่เหลือ */
+  #bof-game-arena .ai-mat-half { flex: 0 0 auto; }
+  #bof-game-arena .player-mat-half { flex: 1 1 auto; justify-content: space-evenly; }
+  #bof-game-arena .mat-grid-row { grid-template-columns: 46px minmax(0, 1fr) 46px; flex: 0 0 auto; }
+  #bof-game-arena .mat-side-col .info-box { width: 46px !important; height: calc(var(--card-h) * .78) !important; }
+
+  #bof-game-arena .board-slots .slot,
+  #bof-game-arena .center-leader-stack .slot,
+  #bof-game-arena .leader-card-slot {
+    width: var(--card-w) !important;
+    max-width: var(--card-w) !important;
+    height: var(--card-h) !important;
+    min-height: var(--card-h) !important;
+  }
+  #bof-game-arena .slot .card .card-name,
+  #bof-game-arena .leader-card-slot .card .card-name { font-size: 9px !important; }
+  #bof-game-arena .slot .card .card-power,
+  #bof-game-arena .leader-card-slot .card .card-power { font-size: 10px !important; }
+  #bof-game-arena .leader-hp-badge { font-size: 11px; padding: 1px 6px; }
+
+  /* ---------- มือ: การ์ดใหญ่ขึ้น ใบที่เลือกยกขึ้นชัด ---------- */
+  #bof-game-arena .hand-row {
+    height: calc(var(--hand-h) + 14px) !important;
+    min-height: calc(var(--hand-h) + 14px) !important;
+    padding: 10px 6px 4px !important;
+    gap: 6px !important;
+    scroll-padding-inline: 6px;
+  }
+  #bof-game-arena .hand-row .card {
+    width: var(--hand-w) !important;
+    height: var(--hand-h) !important;
+  }
+  #bof-game-arena .hand-row .card .card-name { font-size: 9.5px !important; }
+  #bof-game-arena .hand-shuffle-btn { min-height: 28px; padding: 0 12px; font-size: 12px; }
+  #bof-game-arena .hand-dock-label { font-size: 11px; }
+
+  /* ---------- แถบควบคุมย้ายไปล่างสุด (ระยะนิ้วโป้ง) ---------- */
+  #bof-game-arena .mat-divider-zone { order: 3; }
+  #bof-game-arena .center-bar { padding: 6px !important; gap: 6px !important; }
+  #bof-game-arena .control-btn-group { gap: 6px; }
+  #bof-game-arena .control-btn-group .btn { height: var(--tap) !important; min-height: var(--tap); border-radius: 10px; }
+  #bof-game-arena #btn-toggle-sound { flex: 0 0 var(--tap) !important; width: var(--tap) !important; font-size: 18px !important; }
+
+  /* ปุ่มเฟส: ปุ่มหลัก กว้างที่สุด ข้อความเต็ม (ยาวเกินก็ขึ้นบรรทัดใหม่แทนการตัด) */
+  #bof-game-arena #btn-pass-turn-inline {
+    flex: 1 1 0 !important;
+    min-width: 0;
+    font-size: 13px !important;
+    font-weight: 700;
+    white-space: normal;
+    line-height: 1.15;
+    text-overflow: clip;
+  }
+
+  /* การ์ดล่าสุดของคู่แข่ง: เหลือแค่รูป (แตะเพื่อดูเหมือนเดิม) */
+  #bof-game-arena #btn-last-card-pill { flex: 0 0 var(--tap) !important; width: var(--tap); padding: 0 !important; justify-content: center; }
+  #bof-game-arena #btn-last-card-pill .last-card-pill-meta { display: none; }
+  #bof-game-arena #btn-last-card-pill .last-card-pill-img { width: 28px; height: 38px; border-radius: 4px; object-fit: cover; }
+
+  /* ยอมแพ้: ไอคอนอย่างเดียว สีไม่เด่น ไม่ให้แย่งสายตาจากปุ่มเฟส (ชื่อปุ่มยังอ่านได้ด้วย screen reader) */
+  #bof-game-arena #btn-surrender-match {
+    flex: 0 0 var(--tap) !important;
+    width: var(--tap);
+    padding: 0 !important;
+    font-size: 0 !important;
+    background: rgba(30, 41, 59, .9) !important;
+    border: 1px solid rgba(248, 113, 113, .55) !important;
+  }
+  #bof-game-arena #btn-surrender-match::before { content: '🏳️'; font-size: 18px; }
+
+  /* ---------- หน้าจัดเด็ค: หัวติดจอ (นับใบ + บันทึก) · การ์ด 4 คอลัมน์ ---------- */
+  #deck-builder-modal .deck-builder-box { padding: 0 10px 12px !important; max-height: 92dvh; }
+  #deck-builder-modal .deck-builder-header {
+    position: sticky; top: 0; z-index: 30;
+    margin: 0 -10px 10px; padding: 10px 10px 8px;
+    background: rgba(22, 24, 36, .97);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, .45);
+    gap: 6px; text-align: left;
+  }
+  #deck-builder-modal .deck-builder-header h2 { font-size: 16px; line-height: 1.25; margin: 0; }
+  #deck-builder-modal .deck-builder-header p { display: none; }
+  /* แถว 1: สถานะนับใบ (กว้าง 2 ช่อง) + บันทึก · แถว 2: ล้าง / อัตโนมัติ / ปิด */
+  #deck-builder-modal .deck-builder-header > div:last-child { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px !important; }
+  #deck-builder-modal #deck-status-text { grid-column: span 2; order: -2; margin: 0 !important; padding: 0 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1.2; text-align: center; }
+  #deck-builder-modal #btn-save-start { order: -1; }
+  #deck-builder-modal .deck-builder-header .btn { min-height: 40px; margin: 0 !important; padding: 0 6px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  #deck-builder-modal .deck-section-title { font-size: 13px; line-height: 1.35; }
+  #deck-builder-modal .card-pool-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 8px 6px; padding: 8px;
+  }
+  #deck-builder-modal .pool-item { min-width: 0; }
+  #deck-builder-modal .card-pool-grid .card { width: 100% !important; height: auto !important; aspect-ratio: 750 / 1050; }
+  #deck-builder-modal .card-pool-grid .card .card-name { font-size: 9px !important; }
+  #deck-builder-modal .count-badge { width: 100%; font-size: 10.5px; line-height: 1.25; padding: 3px 2px; text-align: center; text-wrap: balance; }
+}

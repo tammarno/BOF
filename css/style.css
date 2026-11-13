@@ -3202,6 +3202,15 @@ html[data-card-back="cosmic"] .player-mat-half .deck-packet {
   color: #12142a;
 }
 
+/* ปุ่มปิดเดิมเป็นสีอ่อนบนพื้นครีม แทบมองไม่เห็น */
+#lb-howto-dialog .bof-auth-close-x {
+  min-width: 40px;
+  min-height: 40px;
+  color: #12142a;
+  background: rgba(18, 20, 42, .08);
+  border-color: rgba(18, 20, 42, .25);
+}
+
 .lb-howto-header {
   display: flex;
   align-items: center;
