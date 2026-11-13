@@ -94,7 +94,7 @@
     let bottom = false;
     if (t && !t.closest('#custom-choice-modal')) {
       const r = t.getBoundingClientRect();
-      bottom = r.top < GAP + h + 6 && r.bottom > 0;
+      bottom = r.top < GAP + h + 24 && r.bottom > 0; // +24: ไอคอนนิ้วแตะลอยเหนือการ์ด ~17px
     }
     const ctrl = document.getElementById('btn-pass-turn-inline');
     // มือถือแถบควบคุมอยู่ล่างจอ: วางเหนือแถบนั้น · PC แถบควบคุมอยู่กลางจอ: ใช้ขอบล่างจอ
