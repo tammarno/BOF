@@ -7975,7 +7975,7 @@ function renderDeckBuilder() {
 
     const badge = document.createElement('div');
     badge.className = `count-badge ${countInDeck === maxAllowed ? 'maxed' : ''}`;
-    badge.textContent = `ใส่ในเด็ค: ${countInDeck} / ${maxAllowed} ใบ`;
+    badge.textContent = (window.isMobileUI && window.isMobileUI()) ? `${countInDeck}/${maxAllowed}` : `ใส่ในเด็ค: ${countInDeck} / ${maxAllowed} ใบ`;
     item.appendChild(cardEl);
     item.appendChild(badge);
     mainContainer.appendChild(item);
@@ -7983,7 +7983,7 @@ function renderDeckBuilder() {
 
   const count = currentDeckConfig.mainDeck.length;
   const statusEl = document.getElementById('deck-status-text');
-  statusEl.textContent = `Leader: 1/1 | Main Deck: ${count}/20 ใบ`;
+  statusEl.textContent = (window.isMobileUI && window.isMobileUI()) ? `🃏 ${count}/20 ใบ` : `Leader: 1/1 | Main Deck: ${count}/20 ใบ`;
   statusEl.style.color = (count === 20) ? '#4ade80' : '#f87171';
   if (saveBtn) saveBtn.disabled = (count !== 20);
 }

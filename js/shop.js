@@ -1876,7 +1876,7 @@
           const badge = item.querySelector('.count-badge');
           if (badge) {
             badge.className = `count-badge ${countInDeck >= allowedMax ? 'maxed' : ''}`;
-            badge.textContent = `ใส่ในเด็ค: ${countInDeck}/${allowedMax} (มีในคลัง ${ownedCount} ใบ)`;
+            badge.textContent = (window.isMobileUI && window.isMobileUI()) ? `${countInDeck}/${allowedMax} · มี ${ownedCount}` : `ใส่ในเด็ค: ${countInDeck}/${allowedMax} (มีในคลัง ${ownedCount} ใบ)`;
           }
 
           const cardEl = item.querySelector('.card');

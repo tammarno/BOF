@@ -55,6 +55,33 @@ html.is-mobile .btn:not(:disabled):active { transform: scale(.96); transition: t
 }
 
 /* =============================================================================
+   2.5 ล็อบบี้: โปรไฟล์อ่านง่าย · ชื่อเด็คแสดงครั้งเดียว · ปุ่มเปลี่ยนเด็คเรียบ ๆ เหนือปุ่มเล่น
+   ============================================================================= */
+html.is-mobile #lb-auth-bar { height: 52px !important; padding: 4px 14px 4px 6px !important; gap: 10px !important; border-radius: 16px; }
+html.is-mobile #lb-auth-bar .lb-auth-avatar { width: 40px; height: 40px; }
+html.is-mobile #lb-auth-bar .lb-auth-meta { display: flex !important; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; }
+html.is-mobile #lb-auth-bar .lb-auth-name { font-size: var(--m-fs-md); font-weight: 700; max-width: 220px; }
+html.is-mobile #lb-auth-bar .lb-auth-sub { font-size: 12px; color: var(--m-dim); }
+html.is-mobile #lb-auth-bar .bof-user-title-pill { display: none; } /* ฉายาดูได้ในหน้าโปรไฟล์ */
+html.is-mobile #lb-coin-pill { height: 36px; font-size: var(--m-fs-md); }
+
+html.is-mobile #lobby-screen .lb-deck-style { display: none; }
+html.is-mobile #lobby-screen .lb-deck-name { font-size: 24px; }
+html.is-mobile #lb-deck-picker-btn {
+  width: auto !important; min-width: 0; height: var(--m-tap); padding: 0 16px 0 6px !important; gap: 10px;
+  border-radius: 999px; background: rgba(255, 255, 255, .06) !important; border: 1px solid rgba(242, 201, 107, .35) !important;
+}
+html.is-mobile #lb-deck-picker-btn .lb-deck-picker-thumb { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; object-position: top; }
+html.is-mobile #lb-deck-picker-btn .lb-deck-picker-info { display: none; }
+html.is-mobile #lb-deck-picker-btn .lb-deck-picker-cta { font-size: 0; background: none; padding: 0; border: 0; box-shadow: none; }
+html.is-mobile #lb-deck-picker-btn .lb-deck-picker-cta::after { content: 'เปลี่ยนเด็ค ▾'; font: 700 var(--m-fs-sm) var(--font-display, 'Kanit', sans-serif); color: var(--m-gold); }
+html.is-mobile #lb-play { min-height: 64px; border-radius: 18px; }
+html.is-mobile #lb-play .lb-play-label { font-size: 22px; }
+html.is-mobile #lb-play small { font-size: 12px; }
+html.is-mobile .lb-menu-item { font-size: 11px !important; gap: 4px; }
+html.is-mobile .lb-menu-item svg { width: 22px; height: 22px; }
+
+/* =============================================================================
    3. สนามแข่ง
    ============================================================================= */
 html.is-mobile #bof-game-arena {
@@ -198,9 +225,27 @@ html.is-mobile #deck-builder-modal .deck-builder-header > div:last-child { displ
 html.is-mobile #deck-builder-modal #deck-status-text { grid-column: span 2; order: -2; margin: 0 !important; padding: 0 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1.2; text-align: center; }
 html.is-mobile #deck-builder-modal #btn-save-start { order: -1; }
 html.is-mobile #deck-builder-modal .deck-builder-header .btn { min-height: 40px; margin: 0 !important; padding: 0 6px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-html.is-mobile #deck-builder-modal .deck-section-title { font-size: 13px; line-height: 1.35; }
+html.is-mobile #deck-builder-modal .dbt-hint { display: none; }
+html.is-mobile #deck-builder-modal .deck-section-title { font-size: var(--m-fs-sm); line-height: 1.35; margin: 14px 0 8px; }
+html.is-mobile #deck-builder-modal #deck-status-text { font-size: var(--m-fs-md) !important; font-weight: 800; }
+
+/* แถบสล็อต/ชื่อ/โค้ด: เหลือ 2 แถว · แถว 1 ชื่อเด็ค + เปลี่ยนสล็อต · แถว 2 โค้ด + ปุ่มไอคอน (ตัวเลือกสล็อตซ้ำกับปุ่มเปลี่ยนสล็อต จึงซ่อน) */
+html.is-mobile #bof-deck-slots-toolbar { padding: 10px !important; margin-bottom: 4px; }
+html.is-mobile #bof-deck-slots-toolbar .deck-code-actions-row { display: grid !important; grid-template-columns: minmax(0, 1fr) auto; gap: 8px !important; padding: 0 !important; border: 0 !important; background: none !important; }
+html.is-mobile #bof-deck-slots-toolbar .deck-slot-choice-group { display: contents !important; }
+html.is-mobile #bof-deck-slots-toolbar .deck-slot-choice-group label,
+html.is-mobile #bof-deck-slots-toolbar #select-builder-deck-slot,
+html.is-mobile #bof-deck-slots-toolbar .deck-name-edit-group label { display: none !important; }
+html.is-mobile #bof-deck-slots-toolbar #btn-reopen-slot-picker { grid-column: 2; grid-row: 1; height: 44px; margin: 0 !important; padding: 0 12px; font-size: var(--m-fs-sm); white-space: nowrap; }
+html.is-mobile #bof-deck-slots-toolbar .deck-name-edit-group { grid-column: 1; grid-row: 1; margin: 0 !important; padding: 0 !important; min-width: 0; }
+html.is-mobile #bof-deck-slots-toolbar .deck-name-edit-group input { width: 100%; height: 44px; padding: 0 12px; border-radius: 12px; }
+html.is-mobile #bof-deck-slots-toolbar .deck-code-share-group { grid-column: 1 / -1; display: grid !important; grid-template-columns: minmax(0, 1fr) 44px 44px; gap: 8px; margin: 0 !important; }
+html.is-mobile #bof-deck-slots-toolbar .deck-code-share-group input { width: 100%; min-width: 0; height: 44px; font-size: 13px !important; border-radius: 12px; }
+html.is-mobile #bof-deck-slots-toolbar .deck-code-btn { width: 44px; height: 44px; padding: 0 !important; margin: 0 !important; font-size: 0 !important; border-radius: 12px; }
+html.is-mobile #bof-deck-slots-toolbar .deck-code-btn.is-copy::before { content: '📋'; font-size: 18px; }
+html.is-mobile #bof-deck-slots-toolbar .deck-code-btn.is-import::before { content: '📥'; font-size: 18px; }
 html.is-mobile #deck-builder-modal .card-pool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 8px 6px; padding: 8px; }
 html.is-mobile #deck-builder-modal .pool-item { min-width: 0; }
 html.is-mobile #deck-builder-modal .card-pool-grid .card { width: 100% !important; height: auto !important; aspect-ratio: 750 / 1050; }
 html.is-mobile #deck-builder-modal .card-pool-grid .card .card-name { font-size: 9px !important; }
-html.is-mobile #deck-builder-modal .count-badge { width: 100%; font-size: 10.5px; line-height: 1.25; padding: 3px 2px; text-align: center; text-wrap: balance; }
+html.is-mobile #deck-builder-modal .count-badge { width: 100%; font-size: 12px; font-weight: 800; line-height: 1.2; padding: 4px 2px; text-align: center; border-radius: 999px; }
