@@ -123,6 +123,7 @@
       }
 
       btn.style.display = 'none';
+      btn._umItem = item; // ตัวชี้เป้าโหมดฝึกใช้ชี้รูปการ์ดแทนปุ่มที่ถูกซ่อน
       grid.appendChild(item);
 
       if (!reduce) {
@@ -279,6 +280,9 @@
     if (!Array.isArray(cards) || cards.length === 0) return;
     const modal = document.getElementById('custom-choice-modal'); if (!modal) return;
     const buttons = modal.querySelector('#choice-modal-buttons'); if (!buttons) return;
+    // game.js วาดพรีวิวของตัวเองไว้ใน #choice-modal-preview ด้วย: ซ่อนไว้ ไม่งั้นการ์ดขึ้นซ้ำ 2 ชุด
+    const gamePreview = modal.querySelector('#choice-modal-preview');
+    if (gamePreview) gamePreview.style.display = 'none';
     modal.classList.add('um-choice', 'um-has-card-grid');
     // แสดงรูปการ์ดแทนวงแหวนไอคอน
     modal.querySelectorAll('.um-choice-icon').forEach(n => n.remove());
@@ -297,13 +301,19 @@
         cardEl.innerHTML = `<div class="card-art"><img src="${card.image}" alt="${card.name}"></div><div class="card-name">${card.name}</div>`;
       }
       item.appendChild(cardEl);
+      const tag = document.createElement('span');
+      tag.className = 'um-pick-caption is-peek';
+      tag.textContent = '👁 เปิดดู';
+      item.appendChild(tag);
       grid.appendChild(item);
       if (!reduce) {
         live.push(gsap.from(item, { y: 18, scale: 0.92, opacity: 0, duration: 0.32, delay: 0.06 + idx * 0.06, ease: 'back.out(1.6)', clearProps: 'transform,opacity' }));
       }
     });
     const pickGrid = modal.querySelector('.um-card-pick-grid:not(.um-card-preview-grid)');
-    buttons.parentNode.insertBefore(grid, pickGrid || buttons);
+    // มีทั้งการ์ดเปิดดูและการ์ดให้เลือก: รวมเป็นแถวเดียว (ใบที่เปิดดูอยู่ซ้าย) ให้หน้าต่างพอดีจอ ไม่ต้องเลื่อน
+    if (pickGrid) pickGrid.prepend(...grid.children);
+    else buttons.parentNode.insertBefore(grid, buttons);
     if (window.HoloTilt && typeof window.HoloTilt.bind === 'function') window.HoloTilt.bind(grid, 10);
   }
 

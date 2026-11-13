@@ -437,3 +437,24 @@ html.is-mobile #lb-howto-dialog .cr-controls { gap: 4px; }
 html.is-mobile #lb-howto-dialog .cr-dots { margin-left: 2px; gap: 3px; }
 html.is-mobile #lb-howto-dialog .lb-combo-practice-btn.cr-practice { min-height: 44px; font-size: 14px !important; }
 html.is-mobile #lb-howto-dialog .lb-steps li { font-size: 14px; line-height: 1.55; }
+
+/* ============================================================================
+   10. แถบโค้ชโหมดฝึก (#bof-tutorial-coach-bar) — ย่อเหลือป้ายขั้น + หัวข้อ แตะเพื่อกาง (js/tutorial-coach.js)
+   ============================================================================ */
+html.is-mobile #bof-tutorial-coach-bar {
+  width: calc(100vw - 16px);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 8px 10px 9px;
+  border-radius: 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+html.is-mobile .bof-coach-step-badge { font-size: 11px; }
+html.is-mobile .bof-coach-prog { margin: 6px 0 4px; }
+html.is-mobile .bof-coach-title { font-size: 13.5px; }
+html.is-mobile .bof-coach-desc { font-size: 13px; line-height: 1.5; margin-top: 4px; }
+html.is-mobile .bof-coach-actions { flex-direction: row; gap: 6px; }
+html.is-mobile .bof-coach-btn { flex: 1; min-height: 38px; font-size: 12.5px !important; padding: 6px 4px !important; }
+html.is-mobile .bof-guided-pointer-badge { font-size: 10.5px; }

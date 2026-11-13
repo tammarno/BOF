@@ -3481,7 +3481,8 @@ html[data-card-back="cosmic"] .player-mat-half .deck-packet {
   gap: 3px;
 }
 
-/* แถบโค้ชสอนเล่นบนกระดานจริง (Interactive Tutorial Coach Bar) */
+/* แถบโค้ชสอนเล่นบนกระดานจริง (Interactive Tutorial Coach Bar) — ธีม "ตราทอง"
+   หลบเป้าหมายอัตโนมัติ: js/tutorial-coach.js ใส่ .is-dock-bottom เมื่อเป้าที่ต้องกดอยู่ครึ่งบนของจอ */
 #bof-tutorial-coach-bar {
   position: fixed;
   top: 8px;
@@ -3489,53 +3490,104 @@ html[data-card-back="cosmic"] .player-mat-half .deck-packet {
   transform: translateX(-50%);
   z-index: 240;
   width: min(640px, 95vw);
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.97), rgba(30, 41, 59, 0.97));
-  border: 2px solid #facc15;
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(255, 214, 120, 0.14), transparent 55%),
+    linear-gradient(160deg, rgba(14, 20, 38, 0.97), rgba(8, 12, 24, 0.97));
+  border: 1px solid rgba(255, 214, 120, 0.55);
   border-radius: 14px;
   padding: 10px 14px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8), 0 0 20px rgba(250, 204, 21, 0.35);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(0, 0, 0, 0.4) inset, 0 0 22px rgba(255, 196, 80, 0.22);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
   color: #f8fafc;
+  transition: top .38s cubic-bezier(.2, .8, .2, 1), bottom .38s cubic-bezier(.2, .8, .2, 1), border-color .3s;
 }
+#bof-tutorial-coach-bar.is-complete { border-color: #4ade80; box-shadow: 0 14px 34px rgba(0, 0, 0, 0.7), 0 0 26px rgba(74, 222, 128, 0.35); }
 
-.bof-coach-main {
-  flex: 1;
-  min-width: 0;
-}
+.bof-coach-main { flex: 1; min-width: 0; }
+.bof-coach-head { display: flex; align-items: center; gap: 8px; }
 
 .bof-coach-step-badge {
   display: inline-block;
-  background: #f59e0b;
-  color: #090d16;
-  font-size: 10.5px;
+  background: linear-gradient(135deg, #ffe39a, #f5b43c);
+  color: #1a1204;
+  font-size: 11px;
   font-weight: 800;
-  padding: 1px 8px;
+  padding: 2px 9px;
   border-radius: 999px;
-  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
+.is-complete .bof-coach-step-badge { background: linear-gradient(135deg, #bbf7d0, #4ade80); }
+
+/* ปุ่มย่อ/ขยาย (PC + มือถือ) — js/tutorial-coach.js สลับ .is-collapsed */
+.bof-coach-toggle {
+  display: grid; place-items: center;
+  margin-left: auto; width: 30px; height: 26px; flex-shrink: 0;
+  border: 1px solid rgba(255, 214, 120, .35); border-radius: 8px;
+  background: rgba(255, 255, 255, .06); color: #ffe39a; padding: 0; cursor: pointer;
+  transition: background .2s, border-color .2s;
+}
+.bof-coach-toggle:hover { background: rgba(255, 214, 120, .16); border-color: rgba(255, 214, 120, .7); }
+.bof-coach-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; transition: transform .3s; transform: rotate(180deg); }
+.is-collapsed .bof-coach-toggle svg { transform: none; }
+.is-collapsed .bof-coach-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 0; }
+.is-collapsed .bof-coach-desc,
+.is-collapsed .bof-coach-actions { display: none; }
+
+.bof-coach-prog {
+  height: 3px;
+  margin: 6px 0 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.bof-coach-prog i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #f5b43c, #ffe39a);
+  box-shadow: 0 0 8px rgba(255, 214, 120, 0.8);
+  transition: width .5s cubic-bezier(.2, .8, .2, 1);
+}
+.is-complete .bof-coach-prog i { background: linear-gradient(90deg, #22c55e, #bbf7d0); }
 
 .bof-coach-title {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 800;
-  color: #fde047;
+  color: #ffe39a;
+  line-height: 1.35;
   margin-bottom: 2px;
 }
 
 .bof-coach-desc {
-  font-size: 12px;
-  color: #e2e8f0;
-  line-height: 1.4;
+  font-size: 12.5px;
+  color: #cbd5e1;
+  line-height: 1.45;
 }
 
 .bof-coach-actions {
   display: flex;
+  flex-direction: column;
   gap: 6px;
   flex-shrink: 0;
-  flex-wrap: wrap;
 }
+.bof-coach-btn {
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  border-radius: 9px !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: #f1f5f9 !important;
+  box-shadow: none !important;
+  white-space: nowrap;
+}
+.bof-coach-btn:hover { background: rgba(255, 214, 120, 0.16) !important; border-color: rgba(255, 214, 120, 0.5) !important; }
+.bof-coach-btn.is-exit { color: #fca5a5 !important; }
 
 /* ไฮไลต์ชี้เป้าแบบจับมือสอน (Hand-Holding Pointer Highlight) */
 @keyframes bofGuidePulse {
@@ -3575,6 +3627,67 @@ html[data-card-back="cosmic"] .player-mat-half .deck-packet {
   z-index: 90;
   border: 1.5px solid #ffffff;
 }
+/* ไอคอนนิ้วแตะชี้การ์ด/ช่อง/Leader: วงทองเล็ก + วงคลื่นกระจาย ไม่บังรูปการ์ด */
+.bof-guided-pointer-badge.is-icon {
+  top: -17px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: radial-gradient(circle at 35% 30%, #fff6d6, #f5b43c 58%, #b7791f);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .65), 0 0 14px rgba(255, 214, 120, .8);
+  animation: bofTapBob 1.15s ease-in-out infinite;
+}
+.bof-guided-pointer-badge.is-icon svg {
+  width: 19px; height: 19px;
+  fill: none; stroke: #1a1204; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+  transform: translate(1px, 1px);
+}
+.bof-guided-pointer-badge.is-icon::before,
+.bof-guided-pointer-badge.is-icon::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid #ffe39a;
+  animation: bofTapRipple 1.15s ease-out infinite;
+  pointer-events: none;
+}
+.bof-guided-pointer-badge.is-icon::after { animation-delay: .38s; }
+.bof-guided-pointer-badge.is-icon.is-inside { top: 6px; }
+@keyframes bofTapBob {
+  0%, 100% { transform: translateX(-50%) translateY(0) scale(1); }
+  35% { transform: translateX(-50%) translateY(3px) scale(.88); }
+  55% { transform: translateX(-50%) translateY(0) scale(1.04); }
+}
+@keyframes bofTapRipple {
+  0% { transform: scale(.8); opacity: .95; }
+  100% { transform: scale(2); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bof-guided-pointer-badge.is-icon, .bof-guided-pointer-badge.is-icon::before, .bof-guided-pointer-badge.is-icon::after { animation: none; }
+}
+/* ป้ายเกาะขอบบนขวาของปุ่มตัวเลือก: ไม่ทับข้อความในปุ่ม */
+.bof-guided-pointer-badge.is-chip {
+  top: 0;
+  left: auto;
+  right: 10px;
+  transform: translateY(-60%);
+  max-width: 80%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 10.5px;
+  padding: 1px 8px;
+}
+#choice-modal-buttons button.bof-guided-highlight { overflow: visible !important; animation-name: bofGuidePulseFlat !important; }
+#choice-modal-buttons { overflow: visible; padding-top: 6px; }
+@keyframes bofGuidePulseFlat {
+  0%, 100% { box-shadow: 0 0 0 2px #ffe39a, 0 0 16px rgba(255, 214, 120, 0.7); }
+  50% { box-shadow: 0 0 0 3px #4ade80, 0 0 24px rgba(74, 222, 128, 0.85); }
+}
 
 @media (max-width: 767px) {
   .lb-zones-guide-grid {
@@ -3590,6 +3703,7 @@ html[data-card-back="cosmic"] .player-mat-half .deck-packet {
     padding: 8px 11px;
   }
   .bof-coach-actions {
+    flex-direction: row;
     justify-content: flex-end;
   }
 }

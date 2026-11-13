@@ -708,6 +708,9 @@ function checkGameOver() {
 }
 
 function showEndMatchModal(title, desc) {
+  // โหมดฝึก: ปุ่ม "เริ่มเล่นใหม่" ของหน้านี้จะเริ่มเกมจริงทับการซ้อม · แถบโค้ชมีปุ่มเริ่มใหม่/ออกให้แล้ว
+  // วาดกระดานใหม่ด้วย: ชนะแบบ "ดินแดนปีศาจ" ไม่มีการวาดหลังจบ แถบโค้ชเลยไม่ขึ้นว่าสำเร็จ
+  if (window.BOFTutorial && window.BOFTutorial.isTutorialActive()) { renderGame(); return; }
   showChoiceModal(title, desc, [
     {
       label: '🔄 เริ่มเล่นใหม่อีกครั้ง',
@@ -4146,7 +4149,7 @@ function triggerOatLeaderStartTurn(contestant, onComplete) {
   showChoiceModal(
     '👑 ออโต้เมื่อเข้าเทิร์น: ไอโอ๊ตบ้าทุกสิ่ง',
     nonSpellsInTop2.length
-      ? `เปิดการ์ด 2 ใบบนสุดของกอง — การ์ดที่ไม่ใช่เวทมนตร์แสดงด้านบน\nคลิกรูปการ์ดเวทมนตร์ด้านล่างเพื่อนำขึ้นมือ (ไม่เกิน 1 ใบ):`
+      ? `เปิดการ์ด 2 ใบบนสุดของกอง (ใบที่ไม่ใช่เวทมนตร์มีป้าย "👁 เปิดดู")\nคลิกรูปการ์ดเวทมนตร์เพื่อนำขึ้นมือ (ไม่เกิน 1 ใบ):`
       : `เปิดการ์ด 2 ใบบนสุดของกอง\nคลิกรูปการ์ดเวทมนตร์เพื่อนำขึ้นมือ (ไม่เกิน 1 ใบ):`,
     options,
     { previewCards: nonSpellsInTop2 }
@@ -8936,10 +8939,11 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     return 'OTHER';
   }
 
+  let sandboxCardSeq = 0;
   function makeSandboxCard(cardId) {
     const tpl = CARD_DATABASE.find(c => c.id === cardId);
     if (!tpl) return null;
-    const inst = createCardInstance(tpl);
+    const inst = createCardInstance(tpl, `SBX-${cardId}-${++sandboxCardSeq}`);
     resetCardStateForZoneChange(inst);
     return inst;
   }
@@ -10196,7 +10200,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     resetQuotasAndSkills,
     isAdminUnlocked,
     setAdminUnlocked,
-    isDummyAIEnabled: () => (isAdminUnlocked() && dummyAIEnabled) || (window.BOFTutorial && window.BOFTutorial.isTutorialActive()),
+    isDummyAIEnabled: () => (isAdminUnlocked() && dummyAIEnabled) || (window.BOFTutorial && window.BOFTutorial.wantsDummyAI()),
     setDummyAIEnabled: (val) => {
       dummyAIEnabled = !!val;
       syncDummyAIButtonUI();
@@ -10385,12 +10389,12 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
         },
         {
           id: 'oat_arm_triple',
-          title: '🃏 คอมโบ 2: รวมแก๊ง 3 ใบ (โอ๊ต + แบงค์ + จิต) ปลดล็อกไออาร์มครบ 3 ขั้น!',
-          cards: ['OM01', 'OM02', 'OM03', 'OM04'],
+          title: '🃏 คอมโบ 2: โอ๊ต + จิต ปลดล็อกไออาร์ม แล้วไอจิตลดพลังศัตรูทั้งแผง!',
+          cards: ['OM01', 'OM03', 'OM04', 'OM03'],
           steps: [
-            '1. บนสนามมี โอ๊ต (OM01) + แบงค์ (OM02) + จิต (OM03) ครบ 3 ใบแล้ว → คลิกเลือก "ไออาร์มบ้าการ์ดเกม (OM04)" บนมือ แล้วคลิกวางทับลงบนช่องสนามเรา!',
-            '2. สกิลของไออาร์มจะทำงานครบทั้ง 3 ข้อทันที: เลือกเก็บการ์ดจากนรกขึ้นมือ 1 ใบ + ไออาร์มได้รับพลัง +2 + อัปเกรดสกิลลดพลังของไอจิตบ้ากามให้ลดพลังศัตรูทุกใบทั้งสนาม!',
-            '3. ลองอัญเชิญ "ไอจิตบ้ากาม (OM03)" อีกใบบนมือลงสนาม เพื่อดูผลสกิลที่ถูกอัปเกรดแล้วลดพลังมอนสเตอร์อีกฝ่ายยกแผง!'
+            '1. บนสนามมี โอ๊ต (OM01) + จิต (OM03) และเว้นช่องว่างไว้ 1 ช่อง → ลง "ไออาร์มบ้าการ์ดเกม (OM04)" ในช่องว่าง (ถ้าวางทับใบไหน ใบนั้นจะหายก่อนเช็กเงื่อนไข สนาม 3 ช่องจึงปลดได้ 2 ใน 3 ผล)',
+            '2. ผล 1 (มีไอโอ๊ต): เลือกเก็บการ์ดจากนรกขึ้นมือ 1 ใบ · ผล 3 (มีไอจิต): ศัตรูทุกใบพลัง -1 และสกิลไอจิตบ้ากามอัปเกรดเป็นลดพลังทุกใบ',
+            '3. ลง "ไอจิตบ้ากาม (OM03)" ใบที่ 2 วางทับใบเดิม → สกิลที่อัปเกรดแล้วลดพลังศัตรูทุกใบอีก -1!'
           ]
         },
         {
@@ -10412,9 +10416,11 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
   // สถานะของระบบจับมือสอน (Guided Session)
   let guidedSession = null; // { mode: 'tutorial'|'combo', id: string, title: string, stepIndex: number, steps: Array }
 
+  let makeCardSeq = 0;
   function makeCard(cid) {
     const tpl = CARD_DATABASE.find(c => c.id === cid);
-    return tpl ? createCardInstance(tpl) : null;
+    // uid ต้องไม่ซ้ำ (ไฮบริด/ซาตาน/แอสโมดิวส์ ฯลฯ หาการ์ดด้วย uid) · ไม่มี "_" = เจ้าของตามโซนที่อยู่
+    return tpl ? createCardInstance(tpl, `TUT-${cid}-${++makeCardSeq}`) : null;
   }
 
   function clearGuidedHighlights() {
@@ -10426,20 +10432,29 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     });
   }
 
+  // ไอคอนนิ้วแตะ (เส้นแบบ lucide "pointer") ใช้ชี้การ์ด/ช่อง/Leader แทนป้ายข้อความที่บังรูปการ์ด
+  const GUIDE_TAP_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-4 0"/><path d="M14 10V9a2 2 0 0 0-4 0v1"/><path d="M10 9.5V4a2 2 0 0 0-4 0v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>';
+
   function attachGuidedPointer(targetEl, labelText, placeInside = false) {
     if (!targetEl) return;
     targetEl.classList.add('bof-guided-highlight');
     const badge = document.createElement('div');
     badge.className = 'bof-guided-pointer-badge';
-    badge.textContent = labelText || '👆 กดตรงนี้!';
-    if (placeInside) {
-      // วางป้ายไว้ด้านในกรอบ เพื่อไม่ให้ถูกตัดขอบในแถบการ์ดบนมือ / กล่องหน้าต่างตัวเลือก
-      badge.style.top = '4px';
-      badge.style.whiteSpace = 'normal';
-      badge.style.maxWidth = '92%';
-      badge.style.textAlign = 'center';
+    if (targetEl.tagName === 'BUTTON') {
+      // ปุ่ม: ป้ายข้อความ · 'chip' = เกาะขอบบนขวาของปุ่มตัวเลือก ไม่ทับข้อความปุ่ม
+      badge.textContent = labelText || '👆 กดตรงนี้!';
+      if (placeInside === 'chip') badge.classList.add('is-chip');
+    } else {
+      // การ์ด/ช่อง/Leader: ไอคอนนิ้วแตะ + วงคลื่น (คำอธิบายเต็มอยู่ในแถบโค้ช) · inside = การ์ดบนมือที่ขอบบนถูกตัด
+      badge.classList.add('is-icon');
+      if (placeInside) badge.classList.add('is-inside');
+      badge.setAttribute('role', 'img');
+      badge.setAttribute('aria-label', labelText || 'กดตรงนี้');
+      badge.innerHTML = GUIDE_TAP_ICON;
     }
     targetEl.appendChild(badge);
+    // แจ้ง js/tutorial-coach.js ให้หลบเป้าทันที (ไม่ต้องรอรอบตรวจ)
+    document.dispatchEvent(new CustomEvent('bof:guide-target'));
   }
 
   // หาปุ่มในหน้าต่างตัวเลือกที่ต้องกด: เทียบคำสำคัญตามลำดับ ถ้าไม่เจอให้เลือกปุ่มแรกที่ไม่ใช่ "ยกเลิก/ไม่ใช้/ดูรายละเอียด"
@@ -10499,7 +10514,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     if (isChoiceModalOpen()) {
       const targetBtn = findGuidedChoiceButton(step);
       if (targetBtn) {
-        attachGuidedPointer(targetBtn, step.choicePointerText || '👆 คลิกเลือกหัวข้อนี้!', true);
+        // ปุ่มที่ choice-ui แปลงเป็นรูปการ์ดถูกซ่อน: ชี้ที่รูปการ์ดแทน
+        attachGuidedPointer(targetBtn._umItem || targetBtn, step.choicePointerText || '👆 คลิกเลือกหัวข้อนี้!', targetBtn._umItem ? true : 'chip');
       }
       return;
     }
@@ -10653,19 +10669,30 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
       ? `ยอดเยี่ยมมาก! คุณทำตามขั้นตอน "${guidedSession.title}" สำเร็จครบถ้วนแล้ว!`
       : step.title;
     const descText = isCompleted
-      ? 'คุณสามารถลองเล่นต่อบนกระดานนี้ กด "🔄 เริ่มซ้อมใหม่" หรือกด "📚 เลือกคอมโบอื่น" ได้เลย!'
+      ? (guidedSession.mode === 'combo'
+        ? 'ลองเล่นต่อบนกระดานนี้ได้ หรือกด "🔄 เริ่มใหม่" / "📚 คอมโบอื่น" ด้านล่าง'
+        : 'ลองเล่นต่อบนกระดานนี้ได้ หรือกด "🔄 เริ่มใหม่" เพื่อฝึกอีกรอบ')
       : step.desc;
 
+    // หัวข้อสั้น: ตัด "สเต็ป 1/3:" / "ขั้นที่ 1:" ออก เพราะป้ายบอกขั้นอยู่แล้ว
+    const shortTitle = String(titleText).replace(/^(สเต็ป|ขั้นที่)\s*[\d\s/]+:\s*/, '');
+    const pct = Math.round((Math.min(idx, total) / total) * 100);
+    bar.classList.toggle('is-complete', isCompleted);
+    bar.dataset.step = String(idx);
     bar.innerHTML = `
       <div class="bof-coach-main">
-        <span class="bof-coach-step-badge">${badgeText}</span>
-        <div class="bof-coach-title">${titleText}</div>
+        <div class="bof-coach-head">
+          <span class="bof-coach-step-badge">${badgeText}</span>
+          <button type="button" class="bof-coach-toggle" aria-label="ย่อ/ขยายคำอธิบาย"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        </div>
+        <div class="bof-coach-prog" aria-hidden="true"><i style="width:${pct}%"></i></div>
+        <div class="bof-coach-title">${shortTitle}</div>
         <div class="bof-coach-desc">${descText}</div>
       </div>
       <div class="bof-coach-actions">
-        <button type="button" class="btn" id="btn-coach-restart" style="background:#0284c7;padding:6px 11px;font-size:12px;">🔄 เริ่มซ้อมใหม่</button>
-        ${guidedSession.mode === 'combo' ? `<button type="button" class="btn" id="btn-coach-pick-combo" style="background:#7c3aed;padding:6px 11px;font-size:12px;">📚 เลือกคอมโบอื่น</button>` : ''}
-        <button type="button" class="btn" id="btn-coach-exit" style="background:#dc2626;padding:6px 11px;font-size:12px;">✕ ออกจากการฝึก</button>
+        <button type="button" class="btn bof-coach-btn is-restart" id="btn-coach-restart">🔄 เริ่มใหม่</button>
+        ${guidedSession.mode === 'combo' ? `<button type="button" class="btn bof-coach-btn is-pick" id="btn-coach-pick-combo">📚 คอมโบอื่น</button>` : ''}
+        <button type="button" class="btn bof-coach-btn is-exit" id="btn-coach-exit">✕ ออก</button>
       </div>
     `;
     bar.style.display = 'flex';
@@ -10736,6 +10763,9 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     if (lobbyScreen) lobbyScreen.style.display = 'none';
     if (gameBoard) gameBoard.style.display = 'flex';
     if (mullModal) mullModal.style.display = 'none';
+    // ปิดหน้าต่างตัวเลือก/ผลแมตช์ที่ค้างจากรอบก่อน (กด "เริ่มใหม่" ตอนจบคอมโบ)
+    const choiceModal = document.getElementById('custom-choice-modal');
+    if (choiceModal) choiceModal.style.display = 'none';
 
     if (window.BOFSandbox && typeof window.BOFSandbox.setDummyAIEnabled === 'function') {
       window.BOFSandbox.setDummyAIEnabled(useDummyAI);
@@ -10989,7 +11019,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           {
             action: 'CLICK_HAND',
             cardId: 'NM01',
-            choiceOptionIndex: 0, // 1) อัญเชิญสายลับไพร่เหนือลงสนามอีกฝ่าย
+            choiceKeywords: ['สั่งใช้ 1'], // ปุ่มแรกคือ "อัญเชิญปกติ" จึงต้องหาจากข้อความ
             pointerText: '👆 1. คลิกที่ "ไพร่ชาวนาเหนือ" บนมือ',
             choicePointerText: '👆 2. เลือกข้อ 1: ส่งสายลับไปยึดช่องสนามอีกฝ่าย!',
             title: 'สเต็ป 1/3: ใช้สกิลไพร่ชาวนาเหนือ ส่ง "สายลับไพร่เหนือ" ไปยึดสนาม AI',
@@ -11009,7 +11039,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           {
             action: 'CLICK_HAND',
             cardId: 'NM01',
-            choiceOptionIndex: 1, // 2) ค้นหาทหารจากกองขึ้นมือ
+            choiceKeywords: ['สั่งใช้ 2'],
             pointerText: '👆 1. คลิกที่ "ไพร่ชาวนาเหนือ" บนมืออีกครั้ง',
             choicePointerText: '👆 2. เลือกข้อ 2: ค้นหาการ์ด "ทหาร" จากกองขึ้นมือ!',
             title: 'สเต็ป 3/3: ใช้ไพร่ชาวนาเหนือใบเดิมค้นหา "ทหารหลวงเหนือ" จากกองขึ้นมือ!',
@@ -11037,7 +11067,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           {
             action: 'CLICK_HAND',
             cardId: 'NM02',
-            choiceOptionIndex: 0, // สั่งใช้จากบนมือ (อัญเชิญจุติ)
+            choiceKeywords: ['จุติ', 'ทหารพราน'],
             pointerText: '👆 1. คลิกที่ "ทหารหลวงเหนือ" บนมือ',
             choicePointerText: '👆 2. เลือกอัญเชิญจุติ / เลือกทหารจากนรกลงสนาม!',
             title: 'สเต็ป 2/2: อัญเชิญจุติ "ทหารหลวงเหนือ" เรียกพรรคพวกฟรีครบ 3 ช่อง!',
@@ -11337,7 +11367,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           {
             action: 'SUMMON_HAND',
             cardId: 'DMM05',
-            choiceOptionIndex: 0,
+            choiceKeywords: ['สัญญาปีศาจ', 'ยืนยัน'], // เวทที่เปิดได้เรียงไม่แน่นอน: หาจากชื่อ
             pointerText: '👆 1. คลิกเลือก "แอสโมดิวส์ บาปราคะ" บนมือ',
             slotPointerText: '👆 2. คลิกวางลงช่องว่างบนสนามเรา!',
             choicePointerText: '👆 3. คลิกเลือก "สัญญาปีศาจ" เพื่อส่งเข้ามิติมืด!',
@@ -11381,7 +11411,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             choicePointerText: '👆 2. กดใช้สกิล [1 เกม] ล้างสนามและทำลายมือคู่แข่ง!',
             title: 'สเต็ป 1/3: กดสกิล [1 เกม] ของ "ซาตาน บาปโทสะ (DMM04)" กวาดเรียบทั้งสนามและมือ AI!',
             desc: 'เมื่อเลือดเราเหลือ 1 HP ให้คลิกที่ "ซาตาน บาปโทสะ (DMM04)" บนสนาม -> กดยืนยันทิ้งมือ 5 ใบเพื่อทำลายมอนสเตอร์ใบอื่นทุกใบบนสนาม และบังคับ AI ทิ้งมือ 3 ใบจนหมดมือ!',
-            isDone: () => !!p.satanSkillUsed && ai.board.every(m => m === null)
+            isDone: () => !!p.satanOncePerGameUsed && ai.board.every(m => m === null)
           },
           {
             action: 'NEXT_PHASE',
@@ -11441,16 +11471,22 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           steps
         };
         renderGuidedCoachBar();
-        triggerOatLeaderStartOfTurn(p, () => {
-          renderGame();
-          checkAndAdvanceGuidedStep();
-        });
+        // รอป้าย "เทิร์นของคุณ" หายก่อน ไม่งั้นป้ายทับหน้าต่างเลือกการ์ด
+        const oatSession = guidedSession;
+        setTimeout(() => {
+          if (guidedSession !== oatSession) return; // ออก/เริ่มคอมโบอื่นไปแล้ว
+          triggerOatLeaderStartTurn(p, () => {
+            renderGame();
+            checkAndAdvanceGuidedStep();
+          });
+        }, 1300);
         updateGuidedVisualPointer();
         return;
       }
 
       case 'oat_arm_triple': {
-        p.board = [makeCard('OM01'), makeCard('OM02'), makeCard('OM03')]; // โอ๊ต + แบงค์ + จิต ครบ 3 ใบ!
+        // สนามมี 3 ช่อง: ไออาร์ม + อีก 2 ใบ จึงปลดผลได้มากสุด 2 ข้อ (ถ้าวางทับไอโอ๊ต/แบงค์/จิต ใบนั้นจะหายก่อนเช็กเงื่อนไข)
+        p.board = [makeCard('OM01'), makeCard('OM03'), null]; // โอ๊ต + จิต + ช่องว่างไว้ลงไออาร์ม
         p.hand = [makeCard('OM04'), makeCard('OM03')]; // ไออาร์ม + ไอจิตบ้ากามใบที่ 2
         p.graveyard = [makeCard('OS02')]; // การ์ดในนรกให้ไออาร์มเก็บขึ้นมือ
         ai.board = [makeCard('M01'), makeCard('M05'), makeCard('M06')]; // มอนสเตอร์ AI 3 ใบไว้ดูผลลดพลังหมู่
@@ -11458,24 +11494,24 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           {
             action: 'SUMMON_HAND',
             cardId: 'OM04',
-            targetSlot: 0,
+            targetSlot: 2,
             choiceOptionIndex: 0,
             pointerText: '👆 1. คลิกเลือก "ไออาร์มบ้าการ์ดเกม" บนมือ',
-            slotPointerText: '👆 2. คลิกวางทับลงช่องที่ 1 บนสนามเรา!',
+            slotPointerText: '👆 2. คลิกวางลงช่องว่าง (ช่องที่ 3)!',
             choicePointerText: '👆 3. กดเลือกเก็บการ์ดจากนรกขึ้นมือ!',
-            title: 'สเต็ป 1/2: อัญเชิญ "ไออาร์มบ้าการ์ดเกม (OM04)" ปลดล็อกโบนัสครบทั้ง 3 ข้อ!',
-            desc: 'บนสนามเรามี โอ๊ต + แบงค์ + จิต ครบ 3 ใบแล้ว! คลิกเลือก "ไออาร์มบ้าการ์ดเกม (OM04)" บนมือ แล้วคลิกวางทับช่องที่ 1 -> เลือกเก็บการ์ดจากนรกขึ้นมือ 1 ใบ + รับพลังโจมตี +2 + อัปเกรดสกิลของไอจิตบ้ากามให้ลดพลังหมู่!',
-            isDone: () => p.board.some(m => m && m.id === 'OM04') && !!p.jitCrazyGlobalActive && !isChoiceModalOpen()
+            title: 'สเต็ป 1/2: อัญเชิญ "ไออาร์มบ้าการ์ดเกม (OM04)" ปลดล็อกผลของโอ๊ต + จิต!',
+            desc: 'บนสนามมี "ไอโอ๊ตบ้าการ์ตูน" + "ไอจิตบ้ากาม" -> ลง "ไออาร์มบ้าการ์ดเกม (OM04)" ในช่องว่าง: ผล 1 เก็บการ์ดจากนรกขึ้นมือ 1 ใบ + ผล 3 ศัตรูทุกใบพลัง -1 และอัปเกรดสกิลไอจิตให้ลดพลังทุกใบ (สนามมี 3 ช่อง จึงปลดได้ 2 ใน 3 ผล)',
+            isDone: () => p.board.some(m => m && m.id === 'OM04') && !!p.jitCrazyUpgraded && !isChoiceModalOpen()
           },
           {
             action: 'SUMMON_HAND',
             cardId: 'OM03',
             targetSlot: 1,
             pointerText: '👆 1. คลิกเลือก "ไอจิตบ้ากาม" บนมือ',
-            slotPointerText: '👆 2. คลิกวางทับลงช่องที่ 2 เพื่อดูผลสกิลอัปเกรด!',
-            title: 'สเต็ป 2/2: อัญเชิญ "ไอจิตบ้ากาม (OM03)" เพื่อใช้สกิลที่อัปเกรดแล้ว ลดพลังศัตรูทุกใบทั้งสนาม!',
-            desc: 'คลิกเลือก "ไอจิตบ้ากาม (OM03)" บนมือ แล้วคลิกวางลงช่องที่ 2 -> สังเกตว่าสกิลของไอจิตบ้ากามจะลดพลังโจมตีของมอนสเตอร์ AI ทุกใบบนสนามพร้อมกันทันที!',
-            isDone: () => ai.board.some(m => m && m.tempPowerMod < 0)
+            slotPointerText: '👆 2. คลิกวางทับไอจิตใบเดิม (ช่องที่ 2)!',
+            title: 'สเต็ป 2/2: ลง "ไอจิตบ้ากาม (OM03)" ใบที่ 2 ใช้สกิลที่อัปเกรดแล้ว ลดพลังศัตรูทุกใบ!',
+            desc: 'คลิกเลือก "ไอจิตบ้ากาม (OM03)" บนมือ แล้ววางทับไอจิตใบเดิมในช่องที่ 2 -> สกิลที่อัปเกรดแล้วจะลดพลังมอนสเตอร์ AI ทุกใบอีก -1 พร้อมกัน!',
+            isDone: () => ai.board.filter(Boolean).every(m => (m.tempPowerMod || 0) <= -2)
           }
         ];
         break;
@@ -11502,7 +11538,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
           {
             action: 'CLICK_BOARD_UNIT',
             cardId: 'OM05',
-            choiceOptionIndex: 0,
+            choiceKeywords: ['ยืนยัน', 'สงครามความบ้า'], // หน้าต่างที่ 2 เรียงเวทตามมือ: หาเวทจากชื่อ
             pointerText: '👆 1. คลิกที่ "ไอเหนือผู้มีคลิปแปลก" บนสนาม',
             choicePointerText: '👆 2. กดใช้สกิลร่ายเวทฟรีไม่เสียโควต้า!',
             pendingHandCardId: 'OS02',
@@ -11532,6 +11568,7 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
       mode: 'combo',
       id: comboId,
       badgePrefix: `🎮 ซ้อมคอมโบ (${foundDeck.deckName})`,
+      liveAI: needsAIAttack,
       title: foundCombo.title,
       stepIndex: 0,
       steps
@@ -11696,6 +11733,8 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     startInteractiveTutorial,
     startComboPracticeSession,
     hideTutorialCoachBar,
-    isTutorialActive: () => !!guidedSession
+    isTutorialActive: () => !!guidedSession,
+    // คอมโบที่ต้องให้ AI ตีสวน (liveAI) ต้องปล่อยให้ AI เล่นเทิร์นจริง
+    wantsDummyAI: () => !!guidedSession && !guidedSession.liveAI
   };
 })();

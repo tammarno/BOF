@@ -218,3 +218,7 @@
   }
 }
 @media (prefers-reduced-motion: reduce) { .um-choice-icon::after { animation: none; } }
+/* ป้ายใต้การ์ดที่เปิดให้ดูอย่างเดียว (ไม่ใช่ตัวเลือก) */
+.um-pick-caption.is-peek { background: rgba(255, 255, 255, .08); color: #cbd5e1; box-shadow: none; }
+/* รูปการ์ดที่ตัวชี้เป้าโหมดฝึกเลือก: เรืองทองแทนกรอบปุ่ม */
+.um-card-pick-item.bof-guided-highlight { overflow: visible !important; border-color: #ffe39a !important; animation-name: bofGuidePulseFlat !important; }
