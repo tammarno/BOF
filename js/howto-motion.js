@@ -152,6 +152,28 @@
     }).observe(content, { childList: true });
   }
 
+  // ---------- กลับมาจากโหมดฝึก: เลื่อนไปที่คอมโบที่เพิ่งซ้อม + ไฮไลต์ทอง ----------
+  // (เรียกจากปุ่ม "คอมโบอื่น" ในแถบโค้ช หลัง game.js เปิดแท็บคอมโบของเด็คนั้นแล้ว)
+  function focusCombo(id) {
+    const btn = id && dlg.querySelector(`[data-practice-combo="${id}"]`);
+    const card = btn && btn.closest('.lb-combo-card');
+    if (!card) return;
+    // รอให้หน้าต่างเปิดและโมชั่นเปิดหน้าต่างเริ่มก่อน แล้วค่อยเลื่อน (ไม่งั้นตำแหน่งยังไม่นิ่ง)
+    setTimeout(() => {
+      const bar = dlg.querySelector('.howto-deckbar');
+      const offset = (head ? head.offsetHeight : 0) + (bar ? bar.offsetHeight : 0) + 12;
+      const top = Math.max(0, dlg.scrollTop + card.getBoundingClientRect().top - dlg.getBoundingClientRect().top - offset);
+      const spot = () => {
+        card.classList.remove('is-spotlight'); void card.offsetWidth; card.classList.add('is-spotlight');
+        setTimeout(() => card.classList.remove('is-spotlight'), 2400);
+        if (!reduce && window.BOFFX) BOFFX.sparks(card, { count: 22, speed: 260, rings: 2 });
+      };
+      if (reduce) { dlg.scrollTop = top; spot(); return; }
+      gsap.to(dlg, { scrollTop: top, duration: .7, ease: E.fly || 'power3.inOut', overwrite: 'auto', onComplete: spot });
+    }, 380);
+  }
+  window.BOFHowto = { focusCombo };
+
   // ---------- เลื่อนลง: การ์ดคอมโบลอยขึ้นตอนเข้ามาในจอครั้งแรก ----------
   if (!reduce && 'IntersectionObserver' in window && content) {
     const seen = new WeakSet();

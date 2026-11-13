@@ -10690,9 +10690,9 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
         <div class="bof-coach-desc">${descText}</div>
       </div>
       <div class="bof-coach-actions">
-        <button type="button" class="btn bof-coach-btn is-restart" id="btn-coach-restart">🔄 เริ่มใหม่</button>
-        ${guidedSession.mode === 'combo' ? `<button type="button" class="btn bof-coach-btn is-pick" id="btn-coach-pick-combo">📚 คอมโบอื่น</button>` : ''}
-        <button type="button" class="btn bof-coach-btn is-exit" id="btn-coach-exit">✕ ออก</button>
+        <button type="button" class="btn bof-coach-btn is-restart" id="btn-coach-restart">${COACH_ICONS.restart}<span>เริ่มใหม่</span></button>
+        ${guidedSession.mode === 'combo' ? `<button type="button" class="btn bof-coach-btn is-pick" id="btn-coach-pick-combo">${COACH_ICONS.pick}<span>คอมโบอื่น</span></button>` : ''}
+        <button type="button" class="btn bof-coach-btn is-exit" id="btn-coach-exit">${COACH_ICONS.exit}<span>ออก</span></button>
       </div>
     `;
     bar.style.display = 'flex';
@@ -10706,17 +10706,23 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
       }
     });
 
+    // กลับไปหน้าคอมโบ (ล็อบบี้ > วิธีเล่น > แท็บคอมโบ) ที่เด็คเดิม แล้วเลื่อนไปที่คอมโบที่เพิ่งซ้อม
     bar.querySelector('#btn-coach-pick-combo')?.addEventListener('click', () => {
+      const comboId = guidedSession && guidedSession.id;
+      const deck = DECK_COMBO_GUIDES.find(d => d.combos.some(c => c.id === comboId));
+      guidedSession = null;
+      hideTutorialCoachBar();
+      returnToLobbyScreen();
+      if (deck) selectedComboLeaderId = deck.leaderId;
       const howtoDlg = document.getElementById('lb-howto-dialog');
-      if (howtoDlg) {
-        const comboTab = howtoDlg.querySelector('[data-howto-tab="combos"]');
-        if (comboTab) comboTab.click();
-        if (typeof howtoDlg.showModal === 'function' && !howtoDlg.open) {
-          howtoDlg.showModal();
-        } else {
-          howtoDlg.setAttribute('open', '');
-        }
+      if (!howtoDlg) return;
+      const comboTab = howtoDlg.querySelector('[data-howto-tab="combos"]');
+      if (comboTab) comboTab.click(); // วาดแท็บคอมโบใหม่ตามเด็คที่เลือก
+      if (!howtoDlg.open) {
+        if (typeof howtoDlg.showModal === 'function') howtoDlg.showModal();
+        else howtoDlg.setAttribute('open', '');
       }
+      if (window.BOFHowto && typeof window.BOFHowto.focusCombo === 'function') window.BOFHowto.focusCombo(comboId);
     });
 
     bar.querySelector('#btn-coach-exit')?.addEventListener('click', () => {
@@ -10725,6 +10731,13 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
       returnToLobbyScreen();
     });
   }
+
+  // ไอคอนปุ่มแถบโค้ช (วาดเอง เส้นทอง) · แต่ละส่วนมี class ให้ css ขยับตอนชี้/กด
+  const COACH_ICONS = {
+    restart: '<svg class="bof-ci" viewBox="0 0 24 24" aria-hidden="true"><g class="ci-spin"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></g><circle class="ci-dot" cx="12" cy="12" r="1.6"/></svg>',
+    pick: '<svg class="bof-ci" viewBox="0 0 24 24" aria-hidden="true"><g class="ci-card ci-back"><rect x="3" y="6" width="10" height="14" rx="2" transform="rotate(-14 8 13)"/></g><g class="ci-card ci-front"><rect x="10" y="4" width="10" height="14" rx="2" transform="rotate(8 15 11)"/><path class="ci-star" d="M15 7.6l1 2.1 2.3.3-1.7 1.6.4 2.3-2-1.1-2 1.1.4-2.3-1.7-1.6 2.3-.3z" transform="rotate(8 15 11)"/></g></svg>',
+    exit: '<svg class="bof-ci" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4"/><g class="ci-arrow"><path d="M14 8l4 4-4 4"/><path d="M18 12H9"/></g></svg>'
+  };
 
   function checkAndAdvanceGuidedStep() {
     if (!guidedSession || !gameState.player) return;

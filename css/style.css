@@ -3627,9 +3627,10 @@ html[data-card-back="cosmic"] .player-mat-half .deck-packet {
   z-index: 90;
   border: 1.5px solid #ffffff;
 }
-/* ไอคอนนิ้วแตะชี้การ์ด/ช่อง/Leader: วงทองเล็ก + วงคลื่นกระจาย ไม่บังรูปการ์ด */
+/* ไอคอนนิ้วแตะชี้การ์ด/ช่อง/Leader: วงทองกลางเป้า + วงคลื่นกระจาย (ตรงกับประกายที่ยิงจากกลางเป้า) */
 .bof-guided-pointer-badge.is-icon {
-  top: -17px;
+  top: 50%;
+  transform: translate(-50%, -50%);
   width: 34px;
   height: 34px;
   padding: 0;
@@ -3657,11 +3658,10 @@ html[data-card-back="cosmic"] .player-mat-half .deck-packet {
   pointer-events: none;
 }
 .bof-guided-pointer-badge.is-icon::after { animation-delay: .38s; }
-.bof-guided-pointer-badge.is-icon.is-inside { top: 6px; }
 @keyframes bofTapBob {
-  0%, 100% { transform: translateX(-50%) translateY(0) scale(1); }
-  35% { transform: translateX(-50%) translateY(3px) scale(.88); }
-  55% { transform: translateX(-50%) translateY(0) scale(1.04); }
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  35% { transform: translate(-50%, calc(-50% + 3px)) scale(.86); }
+  55% { transform: translate(-50%, -50%) scale(1.05); }
 }
 @keyframes bofTapRipple {
   0% { transform: scale(.8); opacity: .95; }
@@ -3707,3 +3707,23 @@ html[data-card-back="cosmic"] .player-mat-half .deck-packet {
     justify-content: flex-end;
   }
 }
+
+/* ไอคอนปุ่มแถบโค้ช (เส้นทอง วาดเองใน game.js COACH_ICONS) + โมชั่นตอนชี้/กด */
+.bof-coach-btn { display: inline-flex !important; align-items: center; justify-content: flex-start; gap: 8px; }
+.bof-ci {
+  width: 18px; height: 18px; flex-shrink: 0; overflow: visible;
+  fill: none; stroke: #ffe39a; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+.bof-ci .ci-dot, .bof-ci .ci-star { fill: #ffe39a; stroke: none; }
+.bof-ci .ci-spin, .bof-ci .ci-card, .bof-ci .ci-star, .bof-ci .ci-arrow { transform-box: fill-box; transform-origin: center; transition: transform .45s cubic-bezier(.2, .9, .3, 1.3); }
+.bof-ci .ci-back { transform-origin: 50% 100%; }
+.bof-ci .ci-front { fill: rgba(14, 20, 38, .95); }
+.is-exit .bof-ci { stroke: #fca5a5; }
+/* เริ่มใหม่: ลูกศรหมุนย้อนครบรอบ · คอมโบอื่น: การ์ดใบหลังกางออก ดาวหมุน · ออก: ลูกศรพุ่งออกจากประตู */
+.bof-coach-btn.is-restart:hover .ci-spin, .bof-coach-btn.is-restart:focus-visible .ci-spin { transform: rotate(-360deg); transition-duration: .6s; }
+.bof-coach-btn.is-pick:hover .ci-back, .bof-coach-btn.is-pick:focus-visible .ci-back { transform: rotate(-14deg) translateX(-1px); }
+.bof-coach-btn.is-pick:hover .ci-front, .bof-coach-btn.is-pick:focus-visible .ci-front { transform: translateY(-1.5px) rotate(4deg); }
+.bof-coach-btn.is-pick:hover .ci-star, .bof-coach-btn.is-pick:focus-visible .ci-star { transform: rotate(72deg) scale(1.25); }
+.bof-coach-btn.is-exit:hover .ci-arrow, .bof-coach-btn.is-exit:focus-visible .ci-arrow { transform: translateX(3px); }
+.bof-coach-btn:active .bof-ci { transform: scale(.88); }
+@media (prefers-reduced-motion: reduce) { .bof-ci * { transition: none !important; } }

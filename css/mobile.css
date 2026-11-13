@@ -456,5 +456,5 @@ html.is-mobile .bof-coach-prog { margin: 6px 0 4px; }
 html.is-mobile .bof-coach-title { font-size: 13.5px; }
 html.is-mobile .bof-coach-desc { font-size: 13px; line-height: 1.5; margin-top: 4px; }
 html.is-mobile .bof-coach-actions { flex-direction: row; gap: 6px; }
-html.is-mobile .bof-coach-btn { flex: 1; min-height: 38px; font-size: 12.5px !important; padding: 6px 4px !important; }
+html.is-mobile .bof-coach-btn { flex: 1; min-height: 38px; font-size: 12.5px !important; padding: 6px 4px !important; justify-content: center; gap: 6px; }
 html.is-mobile .bof-guided-pointer-badge { font-size: 10.5px; }

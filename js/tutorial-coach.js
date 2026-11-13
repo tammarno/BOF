@@ -85,7 +85,8 @@
     const h = bar.offsetHeight;
     // เป้าหมายใหม่ (ตำแหน่งเปลี่ยน) → ประกายทองเล็กๆ ที่เป้า ให้ตาวิ่งไปหา
     if (t && !t.closest('#custom-choice-modal')) {
-      const r = t.getBoundingClientRect(), key = Math.round(r.left) + ',' + Math.round(r.top);
+      // จำเป้าจากตัวตน (ไม่ใช่พิกัด) ไม่งั้นกระดานขยับนิดเดียวก็ยิงประกายซ้ำ
+      const r = t.getBoundingClientRect(), key = (t.id || '') + '|' + (t.textContent || '').trim().slice(0, 24) + '|' + bar.dataset.step;
       if (key !== lastTarget) {
         lastTarget = key;
         if (!reduce && window.BOFFX && r.width) BOFFX.sparks(t, { count: 10, speed: 150, size: 10, rings: 1 });
@@ -94,7 +95,7 @@
     let bottom = false;
     if (t && !t.closest('#custom-choice-modal')) {
       const r = t.getBoundingClientRect();
-      bottom = r.top < GAP + h + 24 && r.bottom > 0; // +24: ไอคอนนิ้วแตะลอยเหนือการ์ด ~17px
+      bottom = r.top < GAP + h + 6 && r.bottom > 0;
     }
     const ctrl = document.getElementById('btn-pass-turn-inline');
     // มือถือแถบควบคุมอยู่ล่างจอ: วางเหนือแถบนั้น · PC แถบควบคุมอยู่กลางจอ: ใช้ขอบล่างจอ

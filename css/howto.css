@@ -293,3 +293,11 @@ html:not(.is-mobile) #lb-howto-dialog[open] { animation: howto-pop .38s cubic-be
 .howto-deck-arrow:hover { background: #262d63; }
 .howto-deck-arrow:active { transform: scale(.9); }
 @media (hover: hover) { #lb-howto-dialog .lb-combo-deck-pill:hover { box-shadow: 0 6px 16px rgba(0, 0, 0, .35); } }
+
+/* คอมโบที่เพิ่งกลับมาจากโหมดฝึก (js/howto-motion.js focusCombo): ขอบทองเต้น 2 จังหวะ */
+.lb-combo-card.is-spotlight { animation: cr-spotlight 1.1s ease-in-out 2; }
+@keyframes cr-spotlight {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 214, 120, 0); }
+  45% { box-shadow: 0 0 0 3px rgba(255, 214, 120, .95), 0 0 34px rgba(255, 196, 80, .55); }
+}
+@media (prefers-reduced-motion: reduce) { .lb-combo-card.is-spotlight { animation: none; box-shadow: 0 0 0 3px rgba(255, 214, 120, .95); } }
