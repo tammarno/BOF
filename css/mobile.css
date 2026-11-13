@@ -328,3 +328,79 @@ html.is-mobile #ai-setup-modal .ai-setup-footer {
 }
 html.is-mobile #ai-setup-modal .ai-start-btn { order: 2; min-height: 48px; font-size: var(--m-fs-md); margin: 0 !important; }
 html.is-mobile #ai-setup-modal .ai-cancel-btn { order: 1; min-height: 48px; margin: 0 !important; }
+
+/* =============================================================================
+   8. ภารกิจ (js/quests.js): ปุ่มข้างโปรไฟล์ → แผ่นล่าง · ชาร์ดข้างเหรียญ
+   ============================================================================= */
+html.is-mobile .lb-side > #lb-quests { display: none; }
+html.is-mobile #lb-auth-bar { grid-column: 1 / -1 !important; justify-self: stretch; margin-right: 72px; min-width: 0; }
+html.is-mobile .lb-quest-btn {
+  grid-column: 2; grid-row: 2; justify-self: end; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  width: 64px; height: 52px; border-radius: 16px; border: 1px solid rgba(243, 201, 105, .55);
+  background: linear-gradient(160deg, rgba(60, 50, 20, .9), rgba(18, 22, 50, .92)); color: #ffe39a;
+  font: 600 11px var(--font-display, 'Kanit', sans-serif); box-shadow: 0 4px 14px rgba(0, 0, 0, .35); touch-action: manipulation;
+}
+html.is-mobile .lb-quest-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+html.is-mobile .lb-quest-btn:active { transform: scale(.95); }
+html.is-mobile .lb-quest-btn .qb-count {
+  position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 99px;
+  background: #ff5d73; color: #fff; font: 700 11px/20px var(--font-display, 'Kanit', sans-serif); box-shadow: 0 0 0 2px #0b0d1a;
+  animation: m-badge-pop 2s ease-in-out infinite;
+}
+html.is-mobile .lb-quest-btn .qb-count[hidden] { display: none; }
+@keyframes m-badge-pop { 0%, 80%, 100% { transform: scale(1); } 88% { transform: scale(1.25); } }
+html.is-mobile #lb-coin-pill { padding: 0 10px !important; gap: 4px !important; font-size: 14px !important; }
+html.is-mobile #lb-coin-pill .lb-shard { margin-left: 4px; padding-left: 6px; }
+
+/* ปุ่มภารกิจเรืองแสงเมื่อมีของให้รับ (วงแสงเป็น pseudo: animate แค่ transform/opacity) */
+html.is-mobile .lb-quest-btn.is-hot::before {
+  content: ''; position: absolute; inset: -3px; border-radius: 18px; border: 2px solid rgba(255, 227, 154, .85);
+  box-shadow: 0 0 14px rgba(243, 201, 105, .55); animation: m-hot 1.8s ease-out infinite; pointer-events: none;
+}
+@keyframes m-hot { 0% { opacity: 1; transform: scale(.96); } 100% { opacity: 0; transform: scale(1.15); } }
+
+/* แผ่นภารกิจ: หัว (ที่จับ · ตรา · ปิด) กับแท็บอยู่กับที่ · เลื่อนเฉพาะรายการ */
+html.is-mobile #lobby-screen #lb-quests-dialog > .lb-dialog-panel {
+  display: flex; flex-direction: column; max-height: 88dvh; overflow: hidden; padding: 0 14px calc(14px + env(safe-area-inset-bottom, 0px)) !important;
+  background:
+    radial-gradient(120% 40% at 0% 0%, rgba(243, 201, 105, .16), transparent 60%),
+    radial-gradient(90% 40% at 100% 100%, rgba(140, 110, 255, .14), transparent 60%),
+    linear-gradient(175deg, #1c2250, #0f1229 70%);
+  border-color: rgba(243, 201, 105, .6);
+  touch-action: pan-y;
+}
+html.is-mobile #lb-quests-dialog .qb-dialog-slot { flex: 1 1 auto; min-height: 0; display: flex; }
+html.is-mobile #lb-quests-dialog #lb-quests { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; width: 100%; }
+html.is-mobile #lb-quests-dialog #lb-quests > * { flex-shrink: 0; }
+html.is-mobile #lb-quests-dialog #lb-quests > .qb-list { flex: 1 1 auto; min-height: 0; }
+html.is-mobile #lb-quests-dialog .qb-grab { display: block; width: 44px; height: 5px; margin: 8px auto 6px; border-radius: 99px; background: rgba(255, 255, 255, .28); }
+html.is-mobile #lb-quests-dialog .qb-head { padding-bottom: 2px; touch-action: none; cursor: grab; }
+html.is-mobile #lb-quests-dialog .qb-head h3 { font-size: 22px; }
+html.is-mobile #lb-quests-dialog .qb-emblem { width: 44px; height: 44px; }
+html.is-mobile #lb-quests-dialog .qb-timer { font-size: var(--m-fs-sm); }
+html.is-mobile #lb-quests-dialog .qb-close {
+  display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; padding: 0; border-radius: 50%; cursor: pointer;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, .14), rgba(255, 255, 255, .03) 70%);
+  border: 1px solid rgba(243, 201, 105, .45); color: #ffe39a;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .12);
+  transition: transform .2s cubic-bezier(.3, 1.4, .5, 1), background-color .2s; touch-action: manipulation;
+}
+html.is-mobile #lb-quests-dialog .qb-close svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
+html.is-mobile #lb-quests-dialog .qb-close:active { transform: scale(.88) rotate(90deg); background-color: rgba(243, 201, 105, .18); }
+html.is-mobile #lb-quests-dialog .qb-wallet {
+  display: flex; gap: 10px; margin: 10px 0 0; touch-action: none;
+  font: 700 var(--m-fs-md) var(--font-display, 'Kanit', sans-serif);
+}
+html.is-mobile #lb-quests-dialog .qb-wallet span { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; border-radius: 12px; background: rgba(6, 8, 20, .5); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .5); }
+html.is-mobile #lb-quests-dialog .qb-wallet svg { width: 18px; height: 18px; }
+html.is-mobile #lb-quests-dialog .qb-w-coin { color: #ffe39a; }
+html.is-mobile #lb-quests-dialog .qb-w-shard { color: #d9c8ff; }
+html.is-mobile #lb-quests-dialog .qb-tabs button { min-height: var(--m-tap); font-size: var(--m-fs-md); }
+html.is-mobile #lb-quests-dialog .qb-bonus { font-size: var(--m-fs-sm); padding: 6px 10px; }
+html.is-mobile #lb-quests-dialog .qb-row { grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; padding: 10px; }
+html.is-mobile #lb-quests-dialog .qb-ico { width: 40px; height: 40px; }
+html.is-mobile #lb-quests-dialog .qb-ico svg { width: 22px; height: 22px; }
+html.is-mobile #lb-quests-dialog .qb-title { font-size: var(--m-fs-md); }
+html.is-mobile #lb-quests-dialog .qb-rew { font-size: var(--m-fs-sm); }
+html.is-mobile #lb-quests-dialog .qb-claim { min-width: 60px; min-height: var(--m-tap); font-size: var(--m-fs-md); }
+html.is-mobile #lb-quests-dialog .qb-claim-all { min-height: 50px; font-size: var(--m-fs-md); }

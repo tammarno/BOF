@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="css/shop.css">
   <link rel="stylesheet" href="css/collection.css">
   <link rel="stylesheet" href="css/deck-themes.css">
+  <link rel="stylesheet" href="css/quests.css">
   <link rel="stylesheet" href="css/mobile.css">
   <script>document.documentElement.classList.add('lm-pre');setTimeout(function(){document.documentElement.classList.remove('lm-pre')},900);window.addEventListener('pageshow',function(){document.documentElement.classList.remove('lm-pre')});</script>
 </head>
@@ -50,7 +51,13 @@
     <button type="button" id="lb-coin-pill" aria-label="ร้านค้าเปิดซองการ์ด">
       <span class="lb-coin-icon">🪙</span>
       <span id="lb-coin-val">2,000</span>
+      <span class="lb-shard" title="ชาร์ด"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l7 7-7 13-7-13z" fill="#c4a7ff"/><path d="M5 9h14M12 2l-3 7 3 13 3-13z" stroke="#7d5cd6" stroke-width="1" fill="none"/></svg><span id="lb-shard-val">0</span></span>
       <span class="lb-coin-plus">+ ร้านค้า</span>
+    </button>
+    <!-- มือถือ: ปุ่มเปิดแผงภารกิจ (จอใหญ่แสดงแผงใต้เมนูเลย) -->
+    <button type="button" id="lb-quest-btn" class="lb-quest-btn" aria-label="ภารกิจ">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h11a2 2 0 0 1 2 2v12H9v2a2 2 0 0 1-4 0V6a3 3 0 0 0-3-3"/><path d="M9 8h7M9 12h5"/></svg>
+      <span>ภารกิจ</span><b class="qb-count" hidden></b>
     </button>
     </div>
 
@@ -80,6 +87,9 @@
         <span>รหัสห้อง</span>
       </button>
     </nav>
+
+    <!-- แผงภารกิจ (quests.js เติมเนื้อหา) · มือถือย้ายเข้า #lb-quests-dialog -->
+    <section id="lb-quests" class="qb" aria-label="ภารกิจ"></section>
     </div>
 
     <!-- เข้าห้องด้วยรหัส: desktop อยู่มุมขวาบน · มือถือย้ายเข้า #lb-join-dialog -->
@@ -301,6 +311,9 @@
     </dialog>
 
     <!-- หน้าต่าง (มือถือ): เข้าห้องด้วยรหัส -->
+    <dialog id="lb-quests-dialog" class="lb-dialog lb-dialog-dark qb-dialog" aria-labelledby="qb-title">
+      <div class="lb-dialog-panel"><div class="qb-dialog-slot"></div></div>
+    </dialog>
     <dialog id="lb-join-dialog" class="lb-dialog" aria-label="เข้าห้องด้วยรหัส">
       <div class="lb-join-dialog-slot"></div>
       <button type="button" class="lb-dialog-close" data-close>ปิด</button>
@@ -748,6 +761,8 @@
   <script src="js/choice-ui.js"></script>
   <script src="js/panel-motion.js"></script>
   <script src="js/flow-motion.js"></script>
+  <script src="js/fx-particles.js"></script>
+  <script src="js/quests.js"></script>
   <script src="js/mobile.js"></script>
 </body>
 </html>

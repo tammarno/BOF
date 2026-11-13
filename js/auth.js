@@ -107,6 +107,8 @@
       lastDailyClaimDate: profile.lastDailyClaimDate || '',
       dailyProgress: profile.dailyProgress || null,
       claimedQuests: profile.claimedQuests || {},
+      weeklyProgress: profile.weeklyProgress || null,
+      claimedWeekly: profile.claimedWeekly || {},
       ownedCosmetics: profile.ownedCosmetics || null,
       equippedCosmetics: profile.equippedCosmetics || null,
       exportedAt: Date.now()
@@ -840,6 +842,8 @@
       currentUser.lastDailyClaimDate = eco.lastDailyClaimDate;
       currentUser.dailyProgress = eco.dailyProgress;
       currentUser.claimedQuests = eco.claimedQuests;
+      currentUser.weeklyProgress = eco.weeklyProgress;
+      currentUser.claimedWeekly = eco.claimedWeekly;
       currentUser.ownedCosmetics = eco.ownedCosmetics;
       currentUser.equippedCosmetics = eco.equippedCosmetics;
       persistCurrentUserProfile();

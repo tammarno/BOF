@@ -118,21 +118,52 @@
     return `${y}-${m}-${d}`;
   }
 
-  function getThaiQuestCountdown() {
-    const now = new Date();
-    const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const thaiNow = new Date(utcMs + (7 * 3600000));
-    const nextReset = new Date(thaiNow);
-    if (thaiNow.getHours() >= 6) {
-      nextReset.setDate(nextReset.getDate() + 1);
-    }
-    nextReset.setHours(6, 0, 0, 0);
-    const diff = Math.max(0, nextReset.getTime() - thaiNow.getTime());
-    const h = Math.floor(diff / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    const s = Math.floor((diff % 60000) / 1000);
-    return `${String(h).padStart(2, '0')} ชม. ${String(m).padStart(2, '0')} นาที ${String(s).padStart(2, '0')} วินาที`;
+  // เวลาไทยแบบ "นาฬิกาผนัง" (เหมือน getThaiQuestDayKey)
+  function thaiNow() {
+    const n = new Date();
+    return new Date(n.getTime() + n.getTimezoneOffset() * 60000 + 7 * 3600000);
   }
+  // รอบเควสต์รายสัปดาห์: เริ่มวันจันทร์ 06:00 น. เวลาไทย · คีย์ = วันที่ของวันจันทร์นั้น
+  function weekStart() {
+    const t = thaiNow();
+    t.setHours(t.getHours() - 6);
+    t.setDate(t.getDate() - ((t.getDay() + 6) % 7));
+    t.setHours(6, 0, 0, 0);
+    return t;
+  }
+  function getThaiQuestWeekKey() {
+    const t = weekStart();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  }
+  function msToWeeklyReset() {
+    const t = weekStart();
+    t.setDate(t.getDate() + 7);
+    return Math.max(0, t - thaiNow());
+  }
+  function msToDailyReset() {
+    const t = thaiNow(), r = new Date(t);
+    if (t.getHours() >= 6) r.setDate(r.getDate() + 1);
+    r.setHours(6, 0, 0, 0);
+    return Math.max(0, r - t);
+  }
+
+  // ตัวนับเควสต์: รีเซ็ตรายวัน/รายสัปดาห์เมื่อข้ามรอบ แล้วนับเพิ่มทั้งสองฝั่งพร้อมกัน
+  const freshProgress = () => ({ packsOpened: 0, craftsDone: 0, duelsCompleted: 0, duelsWon: 0 });
+  function ensureProgress(eco = economy) {
+    const d = getThaiQuestDayKey(), w = getThaiQuestWeekKey();
+    if (!eco.dailyProgress || eco.dailyProgress.date !== d) { eco.dailyProgress = { date: d, ...freshProgress() }; eco.claimedQuests = {}; }
+    if (!eco.weeklyProgress || eco.weeklyProgress.week !== w) { eco.weeklyProgress = { week: w, ...freshProgress() }; eco.claimedWeekly = {}; }
+    if (!eco.claimedQuests) eco.claimedQuests = {};
+    if (!eco.claimedWeekly) eco.claimedWeekly = {};
+    return eco;
+  }
+  function bumpProgress(field, n = 1) {
+    ensureProgress();
+    economy.dailyProgress[field] = (economy.dailyProgress[field] || 0) + n;
+    economy.weeklyProgress[field] = (economy.weeklyProgress[field] || 0) + n;
+  }
+
+
 
   const DEFAULT_OWNED_COSMETICS = {
     cb_default: true,
@@ -629,7 +660,7 @@
       const uClaimed = (user.dailyProgress && user.dailyProgress.date === todayStr && user.claimedQuests)
         ? { ...user.claimedQuests }
         : {};
-      return {
+      return ensureProgress({
         coins: typeof user.coins === 'number' ? user.coins : STARTING_COINS,
         shards: typeof user.shards === 'number' ? user.shards : 150,
         ownedCards: user.ownedCards && typeof user.ownedCards === 'object' ? { ...user.ownedCards } : {},
@@ -638,9 +669,11 @@
         lastDailyClaimDate: user.lastDailyClaimDate || '',
         dailyProgress: uProgress,
         claimedQuests: uClaimed,
+        weeklyProgress: user.weeklyProgress ? { ...user.weeklyProgress } : null,
+        claimedWeekly: user.claimedWeekly ? { ...user.claimedWeekly } : {},
         ownedCosmetics: { ...DEFAULT_OWNED_COSMETICS, ...(user.ownedCosmetics || {}) },
         equippedCosmetics: { ...DEFAULT_EQUIPPED_COSMETICS, ...(user.equippedCosmetics || {}) }
-      };
+      });
     }
 
     let guestCoins = STARTING_COINS;
@@ -649,6 +682,8 @@
     let guestPity = {};
     let guestDaily = '';
     let guestQuests = {};
+    let guestWeekly = null;
+    let guestClaimedWeekly = {};
     let guestDailyProgress = { date: todayStr, packsOpened: 0, craftsDone: 0, duelsCompleted: 0 };
     let guestOwnedCosmetics = { ...DEFAULT_OWNED_COSMETICS };
     let guestEquippedCosmetics = { ...DEFAULT_EQUIPPED_COSMETICS };
@@ -664,6 +699,8 @@
           guestDailyProgress = savedGuest.dailyProgress;
           guestQuests = savedGuest.claimedQuests || {};
         }
+        guestWeekly = savedGuest.weeklyProgress || null;
+        guestClaimedWeekly = savedGuest.claimedWeekly || {};
         if (savedGuest.ownedCosmetics) {
           guestOwnedCosmetics = { ...DEFAULT_OWNED_COSMETICS, ...savedGuest.ownedCosmetics };
         }
@@ -673,7 +710,7 @@
       }
     } catch (e) {}
 
-    return {
+    return ensureProgress({
       coins: guestCoins,
       shards: guestShards,
       ownedCards: getGuestFullOwned(),
@@ -682,9 +719,11 @@
       lastDailyClaimDate: guestDaily,
       dailyProgress: guestDailyProgress,
       claimedQuests: guestQuests,
+      weeklyProgress: guestWeekly,
+      claimedWeekly: guestClaimedWeekly,
       ownedCosmetics: guestOwnedCosmetics,
       equippedCosmetics: guestEquippedCosmetics
-    };
+    });
   }
 
   function saveEconomy() {
@@ -702,6 +741,8 @@
           lastDailyClaimDate: economy.lastDailyClaimDate,
           dailyProgress: economy.dailyProgress,
           claimedQuests: economy.claimedQuests,
+          weeklyProgress: economy.weeklyProgress,
+          claimedWeekly: economy.claimedWeekly,
           ownedCosmetics: economy.ownedCosmetics,
           equippedCosmetics: economy.equippedCosmetics
         }));
@@ -709,6 +750,7 @@
     }
     updateCoinDisplays();
     applyEquippedCosmetics();
+    document.dispatchEvent(new CustomEvent('bof:economy'));
   }
 
   function updateCoinDisplays() {
@@ -720,6 +762,8 @@
     if (shopCoinVal) shopCoinVal.textContent = fmt;
     const shopShardVal = document.getElementById('bof-shop-shard-val');
     if (shopShardVal) shopShardVal.textContent = shardFmt;
+    const lobbyShardVal = document.getElementById('lb-shard-val');
+    if (lobbyShardVal) lobbyShardVal.textContent = shardFmt;
   }
 
   const PITY_THRESHOLD = 15; // เปิดครบ 15 ซอง การันตี SSR แน่นอน
@@ -869,12 +913,7 @@
 
     economy.coins -= totalCost;
     economy.packsOpened += packCount;
-    const todayKey = getThaiQuestDayKey();
-    if (!economy.dailyProgress || economy.dailyProgress.date !== todayKey) {
-      economy.dailyProgress = { date: todayKey, packsOpened: 0, craftsDone: 0, duelsCompleted: 0 };
-      economy.claimedQuests = {};
-    }
-    economy.dailyProgress.packsOpened = (economy.dailyProgress.packsOpened || 0) + packCount;
+    bumpProgress('packsOpened', packCount);
 
     // ติดตามระบบ Pity (การันตี SSR ในทุกๆ 15 ซอง)
     if (!economy.pity) economy.pity = {};
@@ -1111,7 +1150,7 @@
   }
 
   /* ---------------- ระบบร้านค้า แท็บสุ่มซอง, หลอมการ์ด, เควสต์ประจำวัน และของตกแต่ง ---------------- */
-  let activeShopTab = 'packs'; // 'packs' | 'craft' | 'quests' | 'cosmetics'
+  let activeShopTab = 'packs'; // 'packs' | 'craft' | 'cosmetics'
   let craftFilterTribe = 'ALL';
   let craftFilterRarity = 'ALL';
   let cosmeticFilterCat = 'ALL'; // 'ALL' | 'card_back' | 'frame' | 'title' | 'arena_theme'
@@ -1125,23 +1164,10 @@
   const SHOP_TABS = [
     { id: 'packs', label: 'สุ่มซอง', icon: '<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9 8h6M9 12h6"/>' },
     { id: 'craft', label: 'หลอมการ์ด', icon: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 002 3h10a2 2 0 002-3l-5-9V3"/>' },
-    { id: 'quests', label: 'เควสต์', icon: '<rect x="3" y="9" width="18" height="12" rx="1.5"/><path d="M12 9v12M3 13h18M12 9c-2-4-6-4-6-1s6 1 6 1 6 2 6-1-4-3-6 1"/>' },
     { id: 'cosmetics', label: 'ของตกแต่ง', icon: '<path d="M14 4l6 6-8 8-6-6zM6 12l-2 6 6-2"/>' }
   ];
   const COIN_SVG = '<svg class="sh-ico-coin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#f3c969"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="#b07a1e" stroke-width="1.6"/></svg>';
   const SHARD_SVG = '<svg class="sh-ico-shard" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l7 7-7 13-7-13z" fill="#c4a7ff"/><path d="M5 9h14M12 2l-3 7 3 13 3-13z" stroke="#7d5cd6" stroke-width="1" fill="none"/></svg>';
-
-  // จำนวนรางวัลเควสต์ที่ทำครบแล้วแต่ยังไม่กดรับ (เงื่อนไขเดียวกับ renderQuestsView) + ของขวัญรายวัน
-  function claimableQuestCount() {
-    const today = getThaiQuestDayKey();
-    const sameDay = economy.dailyProgress && economy.dailyProgress.date === today;
-    const dp = sameDay ? economy.dailyProgress : {};
-    const claimed = (sameDay && economy.claimedQuests) || {};
-    const done = { quest_packs_1: dp.packsOpened >= 1, quest_craft_1: dp.craftsDone >= 1, quest_duel_1: dp.duelsCompleted >= 1 };
-    let n = Object.keys(done).filter(id => done[id] && !claimed[id]).length;
-    if (economy.lastDailyClaimDate !== today) n++;
-    return n;
-  }
 
   function renderActiveTabView() {
     const viewContainer = document.getElementById('bof-tab-view-container');
@@ -1149,16 +1175,7 @@
     viewContainer.style.setProperty('--accent', '#f3c969'); // หมวดที่มีตัวกรองสีจะตั้งสีของตัวเองทับ
     if (activeShopTab === 'packs') renderPacksView(viewContainer);
     else if (activeShopTab === 'craft') renderCraftingView(viewContainer);
-    else if (activeShopTab === 'quests') renderQuestsView(viewContainer);
     else if (activeShopTab === 'cosmetics') renderCosmeticsView(viewContainer);
-  }
-
-  function syncTabBadge() {
-    const badge = document.querySelector('#bof-shop-dynamic-body .sh-tab[data-tab="quests"] .sh-badge');
-    if (!badge) return;
-    const n = claimableQuestCount();
-    badge.textContent = n;
-    badge.hidden = n <= 0;
   }
 
   function renderShopContent() {
@@ -1171,7 +1188,7 @@
       <div class="sh-tabs" role="tablist" aria-label="หมวดร้านค้า" style="--i:${idx}">
         ${SHOP_TABS.map(t => `
           <button type="button" class="sh-tab" role="tab" id="sh-tab-${t.id}" data-tab="${t.id}" aria-selected="${t.id === activeShopTab}" aria-controls="bof-tab-view-container" tabindex="${t.id === activeShopTab ? 0 : -1}">
-            <svg viewBox="0 0 24 24" aria-hidden="true">${t.icon}</svg><span>${t.label}</span>${t.id === 'quests' ? '<span class="sh-badge" hidden></span>' : ''}
+            <svg viewBox="0 0 24 24" aria-hidden="true">${t.icon}</svg><span>${t.label}</span>
           </button>`).join('')}
         <span class="sh-tab-ink" aria-hidden="true"></span>
       </div>
@@ -1189,7 +1206,6 @@
       const view = document.getElementById('bof-tab-view-container');
       view.setAttribute('aria-labelledby', btn.id);
       renderActiveTabView();
-      syncTabBadge();
       view.dispatchEvent(new CustomEvent('shop:tab', { bubbles: true, detail: { tab: activeShopTab } }));
     };
     tabs.forEach(btn => btn.addEventListener('click', () => selectTab(btn, false)));
@@ -1201,7 +1217,6 @@
     });
 
     renderActiveTabView();
-    syncTabBadge();
   }
 
   // --- มุมมองที่ 1: ซองการ์ด 6 สาย (แบบ A): สวิตช์ "เปิดครั้งละ 1 / 10 ซอง" ด้านบน → แต่ละซองเหลือปุ่มเดียว ---
@@ -1374,19 +1389,13 @@
           if (Number(economy.ownedCards[card.id] || 0) > maxKeep) economy.ownedCards[card.id] = maxKeep;
         });
         economy.shards = (economy.shards || 0) + totalShardsGained;
-        const todayKey = getThaiQuestDayKey();
-        if (!economy.dailyProgress || economy.dailyProgress.date !== todayKey) {
-          economy.dailyProgress = { date: todayKey, packsOpened: 0, craftsDone: 0, duelsCompleted: 0 };
-          economy.claimedQuests = {};
-        }
-        economy.dailyProgress.craftsDone = (economy.dailyProgress.craftsDone || 0) + 1;
+        bumpProgress('craftsDone');
         const from = container.querySelector('.cf-orb');
         const fromRect = from ? from.getBoundingClientRect() : null;
         saveEconomy();
         if (window.BOF_AUDIO) window.BOF_AUDIO.playSpell();
         showShopToast(`✨ ย่อยการ์ดซ้ำสำเร็จ! ได้รับ +${totalShardsGained.toLocaleString('th-TH')} 🔮 Soul Shards`);
         renderCraftingView(container);
-        syncTabBadge();
         container.dispatchEvent(new CustomEvent('shop:melt', { bubbles: true, detail: { from: fromRect, amount: totalShardsGained } }));
       };
     }
@@ -1414,163 +1423,12 @@
         if (Number(economy.ownedCards[target.id] || 0) >= maxKeepOf(target)) return;
         economy.shards -= cost;
         grantCardToCollection(target);
-        const todayKey = getThaiQuestDayKey();
-        if (!economy.dailyProgress || economy.dailyProgress.date !== todayKey) {
-          economy.dailyProgress = { date: todayKey, packsOpened: 0, craftsDone: 0, duelsCompleted: 0 };
-          economy.claimedQuests = {};
-        }
-        economy.dailyProgress.craftsDone = (economy.dailyProgress.craftsDone || 0) + 1;
+        bumpProgress('craftsDone');
         saveEconomy();
         if (window.BOF_AUDIO) window.BOF_AUDIO.playSsr();
         showShopToast(`🔮 หลอมการ์ด "${target.name}" [${target.rarity}] สำเร็จ!`);
         renderCraftingView(container);
-        syncTabBadge();
         container.dispatchEvent(new CustomEvent('shop:craft', { bubbles: true, detail: { id: target.id } }));
-      };
-    });
-  }
-
-  // --- มุมมองที่ 3: เควสต์ประจำวัน & รางวัลเข้าเกม (Daily Quests) ---
-  function renderQuestsView(container) {
-    const today = getThaiQuestDayKey();
-    if (!economy.dailyProgress || economy.dailyProgress.date !== today) {
-      economy.dailyProgress = { date: today, packsOpened: 0, craftsDone: 0, duelsCompleted: 0 };
-      economy.claimedQuests = {};
-    }
-    const isDailyClaimed = economy.lastDailyClaimDate === today;
-    if (!economy.claimedQuests) economy.claimedQuests = {};
-
-    const dp = economy.dailyProgress;
-    const quests = [
-      {
-        id: 'quest_packs_1',
-        title: '📦 เปิดซองการ์ด 1 ซอง',
-        desc: 'เปิดซองสุ่มการ์ดสายใดก็ได้ในร้านค้า 1 ซอง',
-        current: Math.min(dp.packsOpened || 0, 1),
-        max: 1,
-        rewardCoins: 200,
-        rewardShards: 30,
-        isCompleted: (dp.packsOpened || 0) >= 1,
-        isClaimed: !!economy.claimedQuests['quest_packs_1']
-      },
-      {
-        id: 'quest_craft_1',
-        title: '🔮 ย่อยหรือหลอมการ์ด 1 ครั้ง',
-        desc: 'สะสมการ์ดซ้ำแล้วย่อย หรือหลอมการ์ดใหม่ด้วย Soul Shards',
-        current: Math.min(dp.craftsDone || 0, 1),
-        max: 1,
-        rewardCoins: 250,
-        rewardShards: 40,
-        isCompleted: (dp.craftsDone || 0) >= 1,
-        isClaimed: !!economy.claimedQuests['quest_craft_1']
-      },
-      {
-        id: 'quest_duel_1',
-        title: '⚔️ ประลองการ์ด 1 แมตช์',
-        desc: 'ดวลการ์ดกับ AI หรือเพื่อนออนไลน์จนจบแมตช์',
-        current: Math.min(dp.duelsCompleted || 0, 1),
-        max: 1,
-        rewardCoins: 350,
-        rewardShards: 50,
-        isCompleted: (dp.duelsCompleted || 0) >= 1,
-        isClaimed: !!economy.claimedQuests['quest_duel_1']
-      }
-    ];
-
-    function formatCountdown() {
-      return getThaiQuestCountdown();
-    }
-
-    container.innerHTML = `
-      <div class="bof-quests-panel">
-        <div class="bof-daily-login-card">
-          <div class="bof-daily-login-info">
-            <h4 class="bof-daily-login-title">🎁 รางวัลเช็คอินประจำวัน (Daily Login)</h4>
-            <p class="bof-daily-login-desc">เข้าเกมรับทันที: <span class="bof-reward-pill is-coin">🪙 +300 Coins</span> <span class="bof-reward-pill is-shard">🔮 +50 Shards</span></p>
-          </div>
-          <button type="button" class="bof-quest-claim-btn bof-daily-claim-btn ${isDailyClaimed ? 'is-claimed' : ''}" id="btn-claim-daily" ${isDailyClaimed ? 'disabled' : ''}>
-            ${isDailyClaimed ? '✓ รับแล้ววันนี้' : '🎁 รับของขวัญทันที'}
-          </button>
-        </div>
-
-        <div class="bof-quest-section-head">
-          <h4 class="bof-quest-section-title">📜 ภารกิจประจำวัน (Daily Missions)</h4>
-          <div class="bof-quest-reset-pill">
-            ⏳ รีเซ็ตใน: <b id="quest-countdown-timer">${formatCountdown()}</b> (ทุก 06:00 น.)
-          </div>
-        </div>
-        
-        ${quests.map(q => {
-          const pct = Math.min(100, (q.current / q.max) * 100);
-          return `
-            <div class="bof-quest-row ${q.isCompleted ? 'is-completed' : ''}">
-              <div class="bof-quest-meta">
-                <div class="bof-quest-title-row">
-                  <h5 class="bof-quest-title">${q.title}</h5>
-                  <span class="bof-quest-progress-badge ${q.isCompleted ? 'is-done' : ''}">
-                    ${q.current} / ${q.max} ${q.isCompleted ? '✓ สำเร็จ' : ''}
-                  </span>
-                </div>
-                <p class="bof-quest-desc">${q.desc}</p>
-                <div class="bof-quest-bar-track">
-                  <div class="bof-quest-bar-fill ${q.isCompleted ? 'is-done' : ''}" style="width:${pct}%;"></div>
-                </div>
-              </div>
-              <div class="bof-quest-reward">
-                <div class="bof-quest-reward-items">
-                  <span class="bof-quest-reward-label">รางวัล:</span>
-                  <span class="bof-reward-pill is-coin">🪙 +${q.rewardCoins}</span>
-                  <span class="bof-reward-pill is-shard">🔮 +${q.rewardShards}</span>
-                </div>
-                <button type="button" class="bof-quest-claim-btn ${q.isClaimed ? 'is-claimed' : (q.isCompleted ? 'is-ready' : '')}" data-claim-quest="${q.id}" ${q.isClaimed || !q.isCompleted ? 'disabled' : ''}>
-                  ${q.isClaimed ? '✓ รับแล้ว' : (q.isCompleted ? '✨ กดรับรางวัล' : 'กำลังดำเนินการ')}
-                </button>
-              </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-    `;
-
-    // ผูกตัวนับเวลาถอยหลังแบบเรียลไทม์
-    if (window._questTimerInterval) clearInterval(window._questTimerInterval);
-    window._questTimerInterval = setInterval(() => {
-      const el = document.getElementById('quest-countdown-timer');
-      if (el) {
-        el.textContent = formatCountdown();
-      } else {
-        clearInterval(window._questTimerInterval);
-      }
-    }, 1000);
-
-    // ปุ่มรับ Daily Login
-    const dailyBtn = container.querySelector('#btn-claim-daily');
-    if (dailyBtn && !isDailyClaimed) {
-      dailyBtn.onclick = () => {
-        economy.coins = (economy.coins || 0) + 300;
-        economy.shards = (economy.shards || 0) + 50;
-        economy.lastDailyClaimDate = today;
-        saveEconomy();
-        if (window.BOF_AUDIO) window.BOF_AUDIO.playSsr();
-        showShopToast('🎉 เช็คอินประจำวันสำเร็จ! ได้รับ +300 Coins และ +50 Soul Shards!');
-        renderQuestsView(container);
-      };
-    }
-
-    // ปุ่มรับรางวัลแต่ละเควสต์
-    container.querySelectorAll('.bof-quest-claim-btn[data-claim-quest]').forEach(btn => {
-      btn.onclick = () => {
-        const qId = btn.dataset.claimQuest;
-        const q = quests.find(item => item.id === qId);
-        if (!q || q.isClaimed || !q.isCompleted) return;
-
-        economy.claimedQuests[qId] = true;
-        economy.coins = (economy.coins || 0) + q.rewardCoins;
-        economy.shards = (economy.shards || 0) + q.rewardShards;
-        saveEconomy();
-        if (window.BOF_AUDIO) window.BOF_AUDIO.playSsr();
-        showShopToast(`🎉 รับรางวัลเควสต์สำเร็จ! ได้รับ +${q.rewardCoins} 🪙 และ +${q.rewardShards} 🔮`);
-        renderQuestsView(container);
       };
     });
   }
@@ -1979,12 +1837,8 @@
         }
         economy = loadEconomy();
         economy.coins = (economy.coins || 0) + reward;
-        const todayKey = getThaiQuestDayKey();
-        if (!economy.dailyProgress || economy.dailyProgress.date !== todayKey) {
-          economy.dailyProgress = { date: todayKey, packsOpened: 0, craftsDone: 0, duelsCompleted: 0 };
-          economy.claimedQuests = {};
-        }
-        economy.dailyProgress.duelsCompleted = (economy.dailyProgress.duelsCompleted || 0) + 1;
+        bumpProgress('duelsCompleted');
+        if (isWin) bumpProgress('duelsWon');
         saveEconomy();
         const extraDesc = `${desc || ''} (ได้รับรางวัลแมตช์ +${reward} 🪙 Coins!)`;
         return origEnd.call(this, title, extraDesc);
@@ -1994,12 +1848,19 @@
 
   window.BOFShop = {
     getEconomy: () => economy,
+    save: saveEconomy,
+    ensureProgress: () => ensureProgress(),
+    msToDailyReset,
+    msToWeeklyReset,
+    COIN_SVG,
+    SHARD_SVG,
     applyEquippedCosmetics,
     reloadFromProfile: () => {
       economy = loadEconomy();
       updateCoinDisplays();
       syncLobbyDecksForOwnership();
       applyEquippedCosmetics();
+      document.dispatchEvent(new CustomEvent('bof:economy'));
     }
   };
 

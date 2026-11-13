@@ -1,0 +1,173 @@
+/* ============================================================================
+   ภารกิจหน้าแรก (js/quests.js) · ตัวนับชาร์ดในการ์ดผู้เล่น · เมนูไทล์ (จอใหญ่)
+   โมชั่นใช้ transform/opacity เท่านั้น · อนุภาครางวัลวาดบน canvas (js/fx-particles.js)
+   ============================================================================ */
+
+/* ---------- ตัวนับชาร์ดข้างเหรียญ ---------- */
+#lb-coin-pill .lb-shard { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; padding-left: 10px; border-left: 1px solid rgba(196, 167, 255, .3); color: #d9c8ff; font-weight: 700; }
+#lb-coin-pill .lb-coin-plus { white-space: nowrap; }
+#lb-coin-pill .lb-shard svg { width: 16px; height: 16px; flex-shrink: 0; filter: drop-shadow(0 0 4px rgba(196, 167, 255, .55)); }
+
+/* ---------- ปุ่มเปิดภารกิจ (มือถือ) · ส่วนของแผ่นล่าง ---------- */
+.lb-quest-btn { display: none; }
+.qb-grab, .qb-close, .qb-wallet { display: none; }
+
+/* ---------- แผง ---------- */
+.qb { --qb-gold: #f3c969; --qb-gold-hi: #ffe39a; --qb-ink: #e8eaf7; --qb-dim: #8f96c2; color: var(--qb-ink); font-family: var(--font-body, 'Kanit', sans-serif); }
+.qb .sh-ico-coin, .qb .sh-ico-shard, .qb-fx-gain svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+@media (min-width: 768px) {
+  .lb-side { bottom: 52px; width: 260px; gap: 10px; }
+  .lb-side > *, #lb-quests > * { flex-shrink: 0; }
+
+  /* เมนู: ไทล์ 3 คอลัมน์ ไอคอนบนป้ายล่าง (เตี้ยลงแต่ยังเป็นปุ่มใหญ่ กดง่าย) */
+  #lobby-screen .lb-side .lb-menu { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  #lobby-screen .lb-side .lb-menu-item {
+    height: 60px; padding: 0 4px; flex-direction: column; justify-content: center; align-items: center; gap: 4px;
+    font-size: 13px; border-radius: 14px; text-align: center;
+    background: linear-gradient(170deg, rgba(38, 44, 92, .88), rgba(20, 24, 54, .92));
+  }
+  #lobby-screen .lb-side .lb-menu-item svg { width: 22px; height: 22px; }
+  #lobby-screen .lb-side #nav-settings { grid-column: span 2; flex-direction: row; gap: 8px; }
+
+  /* แผงภารกิจ: กรอบทองเรือง แถบฟอยล์บนเหมือนการ์ดผู้เล่น · มีของให้รับ = แสงวิ่งผ่านแผง */
+  #lobby-screen .lb-side #lb-quests {
+    position: relative; isolation: isolate; overflow: hidden;
+    flex: 1 1 auto; min-height: 170px; display: flex; flex-direction: column;
+    padding: 12px 12px 10px; border-radius: 18px;
+    background:
+      radial-gradient(120% 55% at 0% 0%, rgba(243, 201, 105, .18), transparent 60%),
+      radial-gradient(90% 50% at 100% 100%, rgba(140, 110, 255, .16), transparent 60%),
+      linear-gradient(170deg, #1f2656 0%, #12152f 75%);
+    border: 1px solid rgba(243, 201, 105, .6);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, .55), 0 0 26px rgba(243, 201, 105, .14), inset 0 1px 0 rgba(255, 255, 255, .08), inset 0 0 0 3px rgba(11, 13, 26, .4);
+  }
+  #lobby-screen .lb-side #lb-quests::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; z-index: 1; background: linear-gradient(90deg, #b07a1e, var(--qb-gold-hi) 45%, #c4a7ff 100%); }
+  #lobby-screen .lb-side #lb-quests.has-ready::after {
+    content: ''; position: absolute; inset: -40% -60%; z-index: -1; pointer-events: none;
+    background: linear-gradient(105deg, transparent 42%, rgba(255, 227, 154, .14) 50%, transparent 58%);
+    animation: qb-sheen 5s ease-in-out infinite;
+  }
+}
+@keyframes qb-sheen { 0% { transform: translateX(-40%); } 60%, 100% { transform: translateX(40%); } }
+
+/* หัวแผง: ตราม้วนคัมภีร์ + ชื่อ + เวลา */
+.qb-head { display: flex; align-items: center; gap: 10px; }
+.qb-head h3, .qb-timer { white-space: nowrap; }
+.qb-emblem {
+  position: relative; display: grid; place-items: center; width: 38px; height: 38px; flex-shrink: 0; border-radius: 12px;
+  background: linear-gradient(145deg, #ffe7a6, #d99a2b 70%, #a8701a); color: #2a1a03;
+  box-shadow: 0 4px 12px rgba(224, 168, 60, .4), inset 0 1px 0 rgba(255, 255, 255, .6), inset 0 -2px 0 rgba(0, 0, 0, .18);
+}
+.qb-emblem svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.qb.has-ready .qb-emblem::after { content: ''; position: absolute; top: -3px; right: -3px; width: 11px; height: 11px; border-radius: 50%; background: #ff5d73; box-shadow: 0 0 0 2px #151936; animation: qb-blip 1.6s ease-in-out infinite; }
+@keyframes qb-blip { 50% { transform: scale(1.3); } }
+.qb-head-txt { min-width: 0; flex: 1; }
+.qb-head h3 { margin: 0; font: 700 18px/1.1 var(--font-display, 'Kanit', sans-serif); color: var(--qb-gold-hi); letter-spacing: .02em; text-shadow: 0 2px 10px rgba(243, 201, 105, .35); }
+.qb-timer { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; font-size: 11.5px; color: var(--qb-dim); white-space: nowrap; }
+.qb-timer svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.qb-timer b { font-weight: 600; color: #c8cdf0; }
+
+/* แท็บ: สวิตช์สองช่องกับแถบทองที่เลื่อนตาม */
+.qb-tabs { position: relative; display: grid; grid-template-columns: 1fr 1fr; margin: 8px 0 8px; padding: 3px; border-radius: 12px; background: rgba(6, 8, 20, .55); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .5); }
+.qb-tabs button { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 30px; border: 0; background: none; color: var(--qb-dim); font: 600 13px var(--font-display, 'Kanit', sans-serif); cursor: pointer; transition: color .2s; touch-action: manipulation; }
+.qb-tabs button:hover { color: var(--qb-ink); }
+.qb-tabs button[aria-selected="true"] { color: #1a1405; }
+.qb-tabs button i { min-width: 17px; height: 17px; padding: 0 4px; border-radius: 99px; background: #ff5d73; color: #fff; font: 700 10.5px/17px var(--font-display, 'Kanit', sans-serif); font-style: normal; }
+.qb-tab-ink { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: 9px; background: linear-gradient(135deg, #ffe39a, #e0a83c); box-shadow: 0 2px 10px rgba(243, 201, 105, .35), inset 0 1px 0 rgba(255, 255, 255, .5); transform: translateX(calc(var(--i, 0) * 100%)); transition: transform .35s cubic-bezier(.3, 1.4, .5, 1); }
+
+/* ความคืบหน้า: วงแหวนรอบตัวเลข (มุมขวาของหัว) */
+.qb-prog { position: relative; display: grid; place-items: center; width: 40px; height: 40px; flex-shrink: 0; }
+.qb-prog b { position: absolute; font: 700 11px var(--font-display, 'Kanit', sans-serif); color: #e3d6ff; }
+.qb-ring { width: 40px; height: 40px; transform: rotate(-90deg); }
+.qb-ring circle { fill: none; stroke: rgba(6, 8, 20, .6); stroke-width: 3.5; }
+.qb-ring .qb-ring-fg { stroke: #c4a7ff; stroke-linecap: round; transition: stroke-dashoffset .7s cubic-bezier(.2, .8, .2, 1); filter: drop-shadow(0 0 3px rgba(196, 167, 255, .7)); }
+
+/* โบนัสรายสัปดาห์ */
+.qb-bonus { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; padding: 4px 8px; border-radius: 10px; background: linear-gradient(90deg, rgba(243, 201, 105, .12), rgba(196, 167, 255, .12)); font-size: 11.5px; color: #d6d9f5; }
+.qb-bonus b { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 99px; background: rgba(243, 201, 105, .14); border: 1px solid rgba(243, 201, 105, .4); color: var(--qb-gold-hi); font: 700 12px var(--font-display, 'Kanit', sans-serif); }
+.qb-bonus b:first-of-type { margin-left: auto; }
+.qb-bonus b + b { background: rgba(196, 167, 255, .12); border-color: rgba(196, 167, 255, .45); color: #e3d6ff; }
+
+/* รายการ */
+#lb-quests > .qb-list { flex: 1 1 auto; }
+.qb-list { min-height: 0; margin: 0 -4px; padding: 0 4px; list-style: none; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(160, 175, 255, .3) transparent; }
+.qb-row {
+  position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 8px;
+  margin-bottom: 6px; padding: 7px 8px; border-radius: 12px; overflow: hidden;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .05), rgba(255, 255, 255, .02)); border: 1px solid rgba(160, 175, 255, .13);
+  transition: background-color .2s, border-color .2s, opacity .3s;
+}
+.qb-list.is-swap .qb-row { animation: qb-in .32s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i) * 40ms); }
+@keyframes qb-in { from { opacity: 0; transform: translateY(8px); } }
+.qb-side { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.qb-ico { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: rgba(79, 107, 255, .16); color: #a9b6ff; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08); }
+.qb-ico svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.qb-main { min-width: 0; }
+.qb-title { margin: 0; font-size: 12.5px; line-height: 1.3; font-weight: 500; }
+.qb-tier { display: inline-block; padding: 0 5px; border-radius: 99px; font: 600 9.5px/14px var(--font-display, 'Kanit', sans-serif); }
+.qb-t-easy .qb-tier { background: rgba(74, 222, 128, .16); color: #7ef0a8; }
+.qb-t-hard .qb-tier { background: rgba(251, 113, 133, .16); color: #ff9aa9; }
+.qb-t-weekly .qb-tier { background: rgba(196, 167, 255, .2); color: #d9c8ff; }
+.qb-t-gift .qb-tier { background: rgba(243, 201, 105, .2); color: var(--qb-gold); }
+.qb-t-hard .qb-ico { background: rgba(251, 113, 133, .14); color: #ff9aa9; }
+.qb-t-weekly .qb-ico { background: rgba(196, 167, 255, .16); color: #d9c8ff; }
+.qb-t-gift .qb-ico { background: rgba(243, 201, 105, .16); color: var(--qb-gold); }
+.qb-bar { height: 5px; margin: 5px 0 4px; border-radius: 99px; background: rgba(6, 8, 20, .6); overflow: hidden; }
+.qb-bar i { display: block; height: 100%; transform-origin: left; border-radius: inherit; background: linear-gradient(90deg, #4f6bff, #8fa2ff); transition: transform .6s cubic-bezier(.2, .8, .2, 1); }
+.qb-t-gift .qb-rew { margin-top: 4px; }
+.qb-rew { display: flex; align-items: center; gap: 8px; margin: 0; font: 600 11.5px var(--font-display, 'Kanit', sans-serif); color: #c8cdf0; }
+.qb-rew span { display: inline-flex; align-items: center; gap: 3px; }
+
+.qb-claim {
+  min-width: 46px; min-height: 34px; padding: 0 8px; border: 0; border-radius: 10px;
+  background: rgba(6, 8, 20, .5); color: var(--qb-dim); font: 600 12px var(--font-display, 'Kanit', sans-serif); cursor: default; touch-action: manipulation;
+}
+.qb-claim svg { width: 18px; height: 18px; fill: none; stroke: #7ef0a8; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; }
+
+/* พร้อมรับ: ขอบทองเรือง + ปุ่มทองนูน มีแสงวิ่งและวงชีพจร */
+.qb-row.is-ready { background: linear-gradient(100deg, rgba(243, 201, 105, .18), rgba(255, 255, 255, .03) 65%); border-color: rgba(243, 201, 105, .6); box-shadow: 0 0 16px rgba(243, 201, 105, .12); overflow: visible; }
+.qb-row.is-ready .qb-bar i { background: linear-gradient(90deg, #e0a83c, #ffe39a); }
+.qb-row.is-ready .qb-claim {
+  position: relative; cursor: pointer; color: #1a1405; font-size: 13px; font-weight: 700;
+  background: linear-gradient(180deg, #ffe9ad, #e0a83c); box-shadow: 0 3px 0 #9a6614, 0 6px 14px rgba(224, 168, 60, .4), inset 0 1px 0 rgba(255, 255, 255, .7);
+  transition: transform .12s, box-shadow .12s;
+}
+.qb-row.is-ready .qb-claim::before { content: ''; position: absolute; inset: -4px; border-radius: 13px; border: 2px solid rgba(255, 227, 154, .8); opacity: 0; animation: qb-pulse 1.8s ease-out infinite; }
+.qb-row.is-ready .qb-claim::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, .8) 50%, transparent 70%) no-repeat; background-size: 250% 100%; background-position: 150% 0; animation: qb-shine-bg 2.4s ease-in-out infinite; }
+.qb-row.is-ready .qb-claim:hover { filter: brightness(1.07); }
+.qb-row.is-ready .qb-claim:active { transform: translateY(3px); box-shadow: 0 0 0 #9a6614, 0 2px 6px rgba(224, 168, 60, .4), inset 0 1px 0 rgba(255, 255, 255, .7); }
+@keyframes qb-pulse { 0% { opacity: .9; transform: scale(.9); } 100% { opacity: 0; transform: scale(1.25); } }
+@keyframes qb-shine-bg { 0% { background-position: 150% 0; } 55%, 100% { background-position: -50% 0; } }
+@keyframes qb-shine { 55%, 100% { transform: translateX(120%); } }
+
+.qb-row.is-claimed { opacity: .55; }
+.qb-row.is-claimed .qb-bar i { background: #4ade80; }
+/* เพิ่งรับ: ตราประทับเด้ง + แสงกวาดทั้งแถว */
+.qb-row.just-claimed { opacity: 1; animation: qb-dim .5s 1.2s forwards; }
+.qb-row.just-claimed .qb-claim svg { animation: qb-stamp .5s cubic-bezier(.3, 1.6, .5, 1) both; }
+.qb-row.just-claimed::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(100deg, transparent 20%, rgba(255, 227, 154, .4) 50%, transparent 80%); animation: qb-sweep .7s ease-out both; pointer-events: none; }
+@keyframes qb-stamp { from { transform: scale(2.4) rotate(-25deg); opacity: 0; } }
+@keyframes qb-sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); opacity: 0; } }
+@keyframes qb-dim { to { opacity: .55; } }
+
+.qb-claim-all {
+  position: relative; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; min-height: 42px; margin-top: 4px; border: 0; border-radius: 12px; cursor: pointer;
+  background: linear-gradient(180deg, #ffe9ad, #e0a83c); color: #1a1405; font: 700 14px var(--font-display, 'Kanit', sans-serif);
+  box-shadow: 0 3px 0 #9a6614, 0 8px 18px rgba(224, 168, 60, .35), inset 0 1px 0 rgba(255, 255, 255, .7); touch-action: manipulation; transition: transform .12s, box-shadow .12s;
+}
+.qb-claim-all b { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 99px; background: #1a1405; color: var(--qb-gold-hi); font-size: 12px; line-height: 22px; }
+.qb-claim-all::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, .7) 50%, transparent 65%); transform: translateX(-120%); animation: qb-shine 3s ease-in-out infinite; }
+.qb-claim-all:active { transform: translateY(3px); box-shadow: 0 0 0 #9a6614, 0 3px 8px rgba(224, 168, 60, .35), inset 0 1px 0 rgba(255, 255, 255, .7); }
+
+/* ---------- ป้ายรางวัลลอย (อนุภาคอยู่บน canvas ของ fx-particles.js) ---------- */
+.qb-fx-gain { z-index: 10001; pointer-events: none; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; white-space: nowrap; }
+.qb-fx-gain b { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 99px; background: rgba(10, 12, 29, .92); border: 1px solid rgba(243, 201, 105, .5); color: #ffe39a; font: 700 14px var(--font-display, 'Kanit', sans-serif); box-shadow: 0 6px 16px rgba(0, 0, 0, .45); }
+.qb-fx-gain b + b { color: #e3d6ff; border-color: rgba(196, 167, 255, .55); }
+
+@media (prefers-reduced-motion: reduce) {
+  .qb-row.is-ready .qb-claim::before, .qb-row.is-ready .qb-claim::after, .qb-claim-all::after, .qb-list.is-swap .qb-row, .qb-row.just-claimed, .qb-row.just-claimed::after,
+  .qb-row.just-claimed .qb-claim svg, #lb-quests.has-ready::after, .qb.has-ready .qb-emblem::after { animation: none; }
+  .qb-tab-ink, .qb-bar i, .qb-ring .qb-ring-fg { transition: none; }
+}
