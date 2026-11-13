@@ -2320,158 +2320,81 @@ body {
   white-space: nowrap;
 }
 
-/* หน้าต่างเลือกสล็อตก่อนแก้ไขเด็ค (Deck Slot Picker Modal) */
-.deck-slot-picker-box {
-  max-width: 680px !important;
-  width: min(680px, 95vw) !important;
-  max-height: 90dvh;
-  overflow-y: auto;
-  text-align: left !important;
-  background: linear-gradient(180deg, #13182b 0%, #0b0e1a 100%) !important;
-  border: 1.5px solid #38bdf8 !important;
-  border-radius: 18px !important;
-  padding: 20px !important;
+/* หน้าต่างเลือกสล็อตเด็ค (แบบ A "ชั้นวาง + รายละเอียด") — ซ้าย: สล็อตย่อ · ขวา: สล็อตที่เลือก
+   ui-motion.css ใส่สกิน .modal-box ด้วย !important ไว้ จึงต้องทับด้วย !important เฉพาะกล่อง */
+.sp-box {
+  --sp-ink: #e8eaf7; --sp-soft: #b9bee0; --sp-mute: #8a90b8; --sp-line: rgba(160, 175, 255, .18);
+  --sp-gold-hi: #ffe39a; --sp-gold-lo: #e0a83c;
+  width: min(760px, calc(100vw - 24px)) !important; max-width: none !important; max-height: min(92vh, 92dvh);
+  overflow-y: auto; padding: 22px !important; text-align: left !important; color: var(--sp-ink);
+  background: linear-gradient(180deg, #171c40 0%, #0f1229 70%) !important;
+  border: 1px solid rgba(160, 175, 255, .32) !important; border-radius: 20px !important;
 }
-
-.slot-picker-dropdown-bar {
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  border-radius: 12px;
-  padding: 12px 14px;
-  margin-bottom: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.sp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.sp-head h2 { margin: 0; font: 700 24px/1.2 var(--font-display); color: var(--sp-gold-hi); }
+.sp-head p { margin: 2px 0 0; font-size: 13.5px; color: var(--sp-soft); }
+.sp-x {
+  width: 44px; height: 44px; flex-shrink: 0; display: inline-grid; place-items: center; border-radius: 50%;
+  border: 1px solid rgba(160, 175, 255, .32); background: rgba(255, 255, 255, .05); color: var(--sp-ink); cursor: pointer;
 }
-
-.slot-picker-dropdown-bar label {
-  font-size: 13px;
-  font-weight: 700;
-  color: #fde047;
+.sp-x:hover { border-color: #f3c969; }
+.sp-x svg, .sp-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sp-body { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+.sp-list { display: flex; flex-direction: column; gap: 6px; }
+.sp-row {
+  --c: #3ee08f; position: relative; display: grid; grid-template-columns: 22px 36px minmax(0, 1fr); align-items: center; gap: 10px;
+  min-height: 58px; padding: 8px 10px; border-radius: 12px; border: 1px solid transparent; background: rgba(255, 255, 255, .03);
+  color: var(--sp-ink); font: inherit; text-align: left; cursor: pointer; touch-action: manipulation;
+  transition: background-color .25s, border-color .25s;
 }
-
-.slot-picker-dropdown-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
+.sp-row:hover { border-color: rgba(160, 175, 255, .32); }
+.sp-row[aria-selected="true"] { background: #1c2a3c; background: color-mix(in srgb, var(--c) 14%, #141834); border-color: var(--c); }
+.sp-num { font: 700 18px var(--font-display); color: var(--c); text-align: center; }
+.sp-row img { width: 36px; aspect-ratio: 750 / 1050; object-fit: cover; border-radius: 4px; }
+.sp-row-meta { min-width: 0; }
+.sp-row-meta strong { display: block; font: 600 14px/1.3 var(--font-display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-row-meta small { font-size: 12px; color: var(--sp-mute); }
+.sp-warn { color: #ffb36b !important; }
+.sp-detail {
+  --c: #3ee08f; position: relative; display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 20px; padding: 20px;
+  border-radius: 16px; border: 1px solid var(--sp-line); overflow: hidden; background: #141834;
+  background: radial-gradient(90% 120% at 0% 0%, color-mix(in srgb, var(--c) 22%, transparent), transparent 60%), #141834;
 }
-
-.slot-picker-dropdown-row .deck-slot-choice-select {
-  flex: 1;
-  height: 38px;
-  font-size: 13.5px;
+.sp-art { width: 150px; aspect-ratio: 750 / 1050; border-radius: 10px; overflow: hidden; transform: rotate(-3deg); box-shadow: 0 16px 34px rgba(0, 0, 0, .6), 0 0 0 2px var(--c); }
+.sp-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sp-info { display: flex; flex-direction: column; min-width: 0; }
+.sp-tag { align-self: flex-start; padding: 2px 10px; border-radius: 99px; background: var(--c); color: #12142a; font: 600 12px var(--font-display); }
+.sp-slot-label { font: 600 13px var(--font-display); color: var(--sp-mute); }
+.sp-info h3 { margin: 8px 0 0; font: 700 26px/1.15 var(--font-display); color: var(--c); overflow-wrap: anywhere; }
+.sp-leader { font-size: 14px; color: var(--sp-soft); }
+.sp-count { margin-top: 16px; }
+.sp-count > div:first-child { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; color: var(--sp-soft); }
+.sp-count b { font: 600 15px var(--font-display); color: var(--sp-ink); }
+.sp-meter { height: 6px; border-radius: 99px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+.sp-meter i { display: block; height: 100%; border-radius: inherit; background: var(--c); transform-origin: left; }
+.sp-acts { margin-top: auto; padding-top: 18px; display: flex; flex-wrap: wrap; gap: 8px; }
+.sp-btn {
+  min-height: 46px; padding: 0 18px; border-radius: 12px; border: 0; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font: 600 15px var(--font-display); cursor: pointer; touch-action: manipulation;
 }
-
-.slot-picker-go-btn {
-  height: 38px;
-  padding: 0 16px !important;
-  background: linear-gradient(135deg, #0284c7, #2563eb) !important;
-  font-size: 13px !important;
-  font-weight: 700 !important;
-  border-radius: 8px !important;
-  white-space: nowrap;
+.sp-btn-gold { flex: 1 1 160px; background: linear-gradient(135deg, var(--sp-gold-hi), var(--sp-gold-lo)); color: #1a1405; box-shadow: 0 6px 18px rgba(224, 168, 60, .25); }
+.sp-btn-ghost { background: rgba(255, 255, 255, .04); border: 1px solid rgba(160, 175, 255, .32); color: var(--sp-ink); }
+.sp-btn-ghost:hover:not(:disabled) { border-color: #f3c969; }
+.sp-btn:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 680px) {
+  .sp-box { padding: 16px 14px !important; }
+  .sp-body { grid-template-columns: 1fr; }
+  .sp-list { flex-direction: row; overflow-x: auto; scroll-snap-type: x mandatory; padding: 2px 2px 6px; }
+  .sp-row { flex: 0 0 72px; grid-template-columns: 1fr; justify-items: center; gap: 4px; scroll-snap-align: start; }
+  .sp-row-meta { display: none; }
+  .sp-detail { grid-template-columns: 96px minmax(0, 1fr); gap: 14px; padding: 14px; }
+  .sp-art { width: 96px; }
+  .sp-info h3 { font-size: 20px; }
 }
-
-.slot-picker-cards-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-
-.slot-picker-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: #151b30;
-  border: 1.5px solid #2b3554;
-  color: #f8fafc;
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.16s ease;
-}
-
-.slot-picker-card:hover {
-  transform: translateY(-2px);
-  border-color: #38bdf8;
-  background: #1a2340;
-}
-
-.slot-picker-card.is-active {
-  border-color: #facc15;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.28), rgba(15, 23, 42, 0.95));
-  box-shadow: 0 0 14px rgba(250, 204, 21, 0.25);
-}
-
-.slot-picker-card-img {
-  width: 48px;
-  height: 66px;
-  object-fit: cover;
-  border-radius: 7px;
-  border: 1.5px solid #f3c969;
-  flex-shrink: 0;
-}
-
-.slot-picker-card-meta {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.slot-picker-card-top {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.slot-picker-num {
-  font-size: 11px;
-  font-weight: 800;
-  color: #38bdf8;
-  background: rgba(56, 189, 248, 0.15);
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  padding: 1px 8px;
-  border-radius: 999px;
-}
-
-.slot-picker-curr-badge {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: #4ade80;
-  background: rgba(22, 163, 74, 0.2);
-  border: 1px solid rgba(74, 222, 128, 0.5);
-  padding: 1px 8px;
-  border-radius: 999px;
-}
-
-.slot-picker-name {
-  font-size: 15px;
-  color: #f8fafc;
-}
-
-.slot-picker-leader {
-  font-size: 12px;
-  color: #fde047;
-}
-
-.slot-picker-count {
-  font-size: 11.5px;
-  color: #94a3b8;
-}
-
-.slot-picker-edit-cta {
-  padding: 7px 14px;
-  border-radius: 8px;
-  background: rgba(56, 189, 248, 0.18);
-  border: 1px solid rgba(56, 189, 248, 0.5);
-  color: #7dd3fc;
-  font-size: 12.5px;
-  font-weight: 700;
-  white-space: nowrap;
-  flex-shrink: 0;
+@media (max-width: 400px) {
+  .sp-detail { grid-template-columns: 76px minmax(0, 1fr); }
+  .sp-art { width: 76px; }
+  .sp-acts .sp-btn { flex: 1 1 100%; }
 }
 
 
@@ -2877,21 +2800,6 @@ html[data-card-back="cosmic"] .player-mat-half .deck-packet {
   .deck-slot-choice-group .deck-slot-choice-select {
     flex: 1;
     min-width: 140px;
-  }
-  .slot-picker-dropdown-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .slot-picker-go-btn {
-    width: 100%;
-  }
-  .slot-picker-card {
-    padding: 9px 10px;
-    gap: 9px;
-  }
-  .slot-picker-edit-cta {
-    padding: 5px 10px;
-    font-size: 11px;
   }
   .deck-name-edit-group input {
     flex: 1;

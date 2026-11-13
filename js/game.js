@@ -7811,83 +7811,100 @@ function openDeckSlotPickerModal() {
   }
 
   const activeIdx = deckSlotsState.activeSlot || 0;
+  const LV = window.LobbyView || {};
+  const colourOf = id => (LV.colours && LV.colours[id]) || '#f3c969';
+  const thumbOf = img => String(img || 'images/เด็คจิต/1.png').replace(/^images\//, 'images/thumbs/').replace(/\.png$/, '.webp');
+  const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  const info = deckSlotsState.slots.map((s, idx) => {
+    const l = CARD_DATABASE.find(c => c.id === s.leaderId);
+    const cnt = Array.isArray(s.mainDeck) ? s.mainDeck.length : 0;
+    return {
+      idx, cnt, ready: !!l && cnt === 20,
+      name: esc(s.name || `เด็คจัดเอง #${idx + 1}`),
+      leader: esc(l ? l.name : s.leaderId),
+      img: l ? l.image : 'images/เด็คจิต/1.png',
+      c: colourOf(s.leaderId)
+    };
+  });
+  const inUse = idx => idx === deckSlotsState.activeSlot && typeof LV.selectedDeck === 'function' && LV.selectedDeck() === 'mine';
+  let sel = activeIdx;
+
+  // แบบ A "ชั้นวาง + รายละเอียด": รายการสล็อตย่อทางซ้าย · สล็อตที่เลือกแสดงเต็มทางขวา พร้อมปุ่มแก้ไข / ใช้ดวล
   modal.innerHTML = `
-    <div class="modal-box deck-slot-picker-box">
-      <div class="ai-setup-header">
-        <div>
-          <h2>🗂️ เลือกสล็อตเด็คที่ต้องการแก้ไข</h2>
-          <p>เลือกสล็อตเด็ค (1–5) ที่ต้องการจัดหรือปรับแต่งการ์ด</p>
+    <div class="modal-box deck-slot-picker-box sp-box" role="dialog" aria-modal="true" aria-labelledby="sp-title">
+      <div class="sp-head">
+        <div><h2 id="sp-title">เด็คของฉัน</h2><p>เลือกสล็อต แล้วแก้ไขหรือใช้ดวลได้ทันที</p></div>
+        <button type="button" id="btn-close-slot-picker-x" class="sp-x" aria-label="ปิด"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <div class="sp-body">
+        <div class="sp-list" role="tablist" aria-label="สล็อตเด็ค">
+          ${info.map(s => `
+            <button type="button" class="sp-row" role="tab" data-slot="${s.idx}" aria-selected="${s.idx === sel}" style="--c:${s.c}">
+              <span class="sp-num">${s.idx + 1}</span>
+              <img src="${thumbOf(s.img)}" alt="" loading="lazy">
+              <span class="sp-row-meta"><strong>${s.name}</strong><small class="${s.cnt < 20 ? 'sp-warn' : ''}">${s.cnt}/20 ใบ${s.cnt < 20 ? ' · ยังไม่ครบ' : ''}</small></span>
+            </button>`).join('')}
         </div>
-        <button type="button" id="btn-close-slot-picker-x" class="bof-auth-close-x" aria-label="ปิด">✕</button>
-      </div>
-
-      <div class="slot-picker-dropdown-bar">
-        <label for="slot-picker-choice-select">📋 เลือกจากช้อยส์ดรอปดาวน์:</label>
-        <div class="slot-picker-dropdown-row">
-          <select id="slot-picker-choice-select" class="deck-slot-choice-select">
-            ${deckSlotsState.slots.map((s, idx) => {
-              const l = CARD_DATABASE.find(c => c.id === s.leaderId);
-              const lName = l ? l.name : s.leaderId;
-              const sName = s.name || `เด็คจัดเอง #${idx + 1}`;
-              const cnt = Array.isArray(s.mainDeck) ? s.mainDeck.length : 0;
-              return `<option value="${idx}" ${idx === activeIdx ? 'selected' : ''}>สล็อต #${idx + 1}: ${sName} — 👑 ${lName} (${cnt}/20 ใบ)</option>`;
-            }).join('')}
-          </select>
-          <button type="button" class="btn slot-picker-go-btn" id="btn-slot-picker-go">🛠️ แก้ไขสล็อตนี้ ▶</button>
-        </div>
-      </div>
-
-      <div class="slot-picker-cards-grid">
-        ${deckSlotsState.slots.map((s, idx) => {
-          const l = CARD_DATABASE.find(c => c.id === s.leaderId);
-          const lName = l ? l.name : s.leaderId;
-          const lImg = l ? l.image : 'images/เด็คจิต/1.png';
-          const sName = s.name || `เด็คจัดเอง #${idx + 1}`;
-          const cnt = Array.isArray(s.mainDeck) ? s.mainDeck.length : 0;
-          const isCurr = idx === activeIdx;
-          return `
-            <button type="button" class="slot-picker-card ${isCurr ? 'is-active' : ''}" data-edit-slot="${idx}">
-              <img class="slot-picker-card-img" src="${lImg}" alt="${lName}">
-              <div class="slot-picker-card-meta">
-                <div class="slot-picker-card-top">
-                  <span class="slot-picker-num">สล็อต #${idx + 1}</span>
-                  ${isCurr ? '<span class="slot-picker-curr-badge">กำลังใช้งาน</span>' : ''}
-                </div>
-                <strong class="slot-picker-name">${sName}</strong>
-                <span class="slot-picker-leader">👑 ลีดเดอร์: ${lName}</span>
-                <span class="slot-picker-count">🃏 การ์ดในเด็ค: ${cnt}/20 ใบ</span>
-              </div>
-              <span class="slot-picker-edit-cta">🛠️ แก้ไข ▶</span>
-            </button>
-          `;
-        }).join('')}
-      </div>
-
-      <div class="ai-setup-footer" style="margin-top:12px;">
-        <button type="button" class="btn ai-cancel-btn" id="btn-cancel-slot-picker" style="width:100%;">ปิดหน้าต่าง</button>
+        <div class="sp-detail" role="tabpanel" aria-live="polite"></div>
       </div>
     </div>
   `;
 
+  const detail = modal.querySelector('.sp-detail');
+  const renderDetail = () => {
+    const s = info[sel];
+    detail.style.setProperty('--c', s.c);
+    detail.innerHTML = `
+      <div class="sp-art"><img src="${s.img}" alt="${s.leader}"></div>
+      <div class="sp-info">
+        ${inUse(s.idx) ? '<span class="sp-tag">ใช้ดวลอยู่</span>' : `<span class="sp-slot-label">สล็อต ${s.idx + 1}</span>`}
+        <h3>${s.name}</h3>
+        <span class="sp-leader">ลีดเดอร์ ${s.leader}</span>
+        <div class="sp-count">
+          <div><span>การ์ดในเด็ค</span><b class="${s.cnt < 20 ? 'sp-warn' : ''}">${s.cnt} / 20</b></div>
+          <div class="sp-meter"><i style="width:${Math.min(100, s.cnt * 5)}%"></i></div>
+        </div>
+        <div class="sp-acts">
+          <button type="button" class="sp-btn sp-btn-gold" data-act="edit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/></svg>แก้ไขเด็ค</button>
+          ${inUse(s.idx) ? '' : `<button type="button" class="sp-btn sp-btn-ghost" data-act="use" ${s.ready ? '' : 'disabled title="ต้องมีการ์ดครบ 20 ใบ"'}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l9 9M4 4h4M4 4v4M20 4l-9 9M20 4h-4M20 4v4M7 13l4 4M17 13l-4 4"/></svg>ใช้เด็คนี้ดวล</button>`}
+        </div>
+      </div>`;
+  };
+  renderDetail();
+
   const closePicker = () => { modal.style.display = 'none'; };
   modal.querySelector('#btn-close-slot-picker-x').onclick = closePicker;
-  modal.querySelector('#btn-cancel-slot-picker').onclick = closePicker;
   modal.onclick = (e) => { if (e.target === modal) closePicker(); };
+  modal.onkeydown = (e) => {
+    if (e.key === 'Escape') { closePicker(); return; }
+    const row = e.target.closest && e.target.closest('.sp-row');
+    if (!row || !['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+    e.preventDefault();
+    const step = (e.key === 'ArrowDown' || e.key === 'ArrowRight') ? 1 : -1;
+    modal.querySelectorAll('.sp-row')[(sel + step + info.length) % info.length].click();
+  };
 
-  const sel = modal.querySelector('#slot-picker-choice-select');
-  const goBtn = modal.querySelector('#btn-slot-picker-go');
-  if (goBtn && sel) {
-    goBtn.onclick = () => {
-      openDeckBuilderEditorForSlot(Number(sel.value || 0));
-    };
-  }
-
-  modal.querySelectorAll('[data-edit-slot]').forEach(btn => {
-    btn.onclick = () => {
-      const idx = Number(btn.getAttribute('data-edit-slot') || 0);
-      openDeckBuilderEditorForSlot(idx);
+  const rows = [...modal.querySelectorAll('.sp-row')];
+  rows.forEach(row => {
+    row.onclick = () => {
+      const idx = Number(row.dataset.slot);
+      if (idx === sel) return;
+      sel = idx;
+      rows.forEach(r => r.setAttribute('aria-selected', String(r === row)));
+      row.focus();
+      renderDetail();
+      modal.dispatchEvent(new CustomEvent('sp:select', { detail: { index: idx } }));
     };
   });
+
+  detail.onclick = (e) => {
+    const btn = e.target.closest('[data-act]'); if (!btn || btn.disabled) return;
+    if (btn.dataset.act === 'edit') { openDeckBuilderEditorForSlot(sel); return; }
+    window.BOFDeckSlots.selectSlot(sel);
+    if (typeof LV.selectDeck === 'function') LV.selectDeck('mine', true);
+    renderDetail();
+    modal.dispatchEvent(new CustomEvent('sp:use', { detail: { index: sel } }));
+  };
 
   modal.style.display = 'flex';
 }
@@ -8421,7 +8438,11 @@ function setupLobbyEvents() {
   });
 
   const openDeckFn = (e) => { if (e) e.preventDefault(); openDeckBuilder(); };
-  const openCardsFn = (e) => { if (e) e.preventDefault(); openZoneViewerModal('🔍 คลังการ์ดทั้งหมด (คลิกขวาที่การ์ดเพื่อดูรายละเอียด)', CARD_DATABASE, null); };
+  const openCardsFn = (e) => {
+    if (e) e.preventDefault();
+    if (window.BOFCollection) { window.BOFCollection.open(); return; } // คลังการ์ดแบบแฟ้มสะสม (js/collection.js)
+    openZoneViewerModal('🔍 คลังการ์ดทั้งหมด (คลิกขวาที่การ์ดเพื่อดูรายละเอียด)', CARD_DATABASE, null);
+  };
 
   document.getElementById('nav-deck')?.addEventListener('click', openDeckFn);
   document.getElementById('nav-cards')?.addEventListener('click', openCardsFn);
@@ -8656,10 +8677,19 @@ function initCombatLogAndAudioControls() {
   // Sound settings in Lobby settings dialog
   const soundSwitch = document.getElementById('lb-setting-sound');
   const volumeSlider = document.getElementById('lb-setting-volume');
+  const volumeOut = document.getElementById('lb-setting-volume-val');
+  // ปิดเสียงแล้ว แถบระดับเสียงใช้ไม่ได้ (จางลง) — เปิดกลับก็ใช้ได้ทันที
+  const syncVolumeRow = () => {
+    if (!volumeSlider || !soundSwitch) return;
+    volumeSlider.disabled = !soundSwitch.checked;
+    volumeSlider.closest('.st-vol')?.classList.toggle('is-off', !soundSwitch.checked);
+    if (volumeOut) volumeOut.textContent = Math.round(Number(volumeSlider.value) * 100) + '%';
+  };
   if (soundSwitch && window.BOF_AUDIO) {
     soundSwitch.checked = window.BOF_AUDIO.isSoundEnabled();
     soundSwitch.onchange = () => {
       window.BOF_AUDIO.setSoundEnabled(soundSwitch.checked);
+      syncVolumeRow();
       if (btnSound) {
         btnSound.textContent = soundSwitch.checked ? '🔊' : '🔇';
         btnSound.style.background = soundSwitch.checked ? '#334155' : '#7f1d1d';
@@ -8670,8 +8700,10 @@ function initCombatLogAndAudioControls() {
     volumeSlider.value = localStorage.getItem('bof_sound_volume') || '0.7';
     volumeSlider.oninput = () => {
       window.BOF_AUDIO.setVolume(volumeSlider.value);
+      syncVolumeRow();
     };
   }
+  syncVolumeRow();
 }
 
 if (typeof document !== 'undefined') {
@@ -8707,11 +8739,16 @@ function initArenaCustomBackground() {
   const lobbyInput = document.getElementById('lobby-arena-bg-input');
   const lobbyResetBtn = document.getElementById('btn-lobby-reset-arena-bg');
   const statusEl = document.getElementById('lobby-arena-bg-status');
+  const previewEl = document.getElementById('lobby-arena-bg-preview');
 
   const updateStatus = () => {
     const savedBg = localStorage.getItem('bof_arena_bg');
     if (statusEl) {
       statusEl.style.display = savedBg ? 'block' : 'none';
+    }
+    if (previewEl) {
+      previewEl.style.backgroundImage = savedBg ? 'url("' + savedBg + '")' : '';
+      previewEl.classList.toggle('has-img', !!savedBg);
     }
     if (savedBg && arenaEl) {
       arenaEl.style.backgroundImage = `url("${savedBg}")`;

@@ -488,7 +488,7 @@
     markPressed();
   }
 
-  window.LobbyView = { render, renderDeck, wallSize, selectDeck, applySelectedDeck, refreshMine, selectedDeck: () => selected };
+  window.LobbyView = { render, renderDeck, wallSize, selectDeck, applySelectedDeck, refreshMine, selectedDeck: () => selected, colours: DECK_COLOURS };
   render();
   bindDialogs();
   bindJoinForm();

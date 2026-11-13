@@ -457,7 +457,6 @@
 .lb-deck-picker-x:hover { border-color: var(--lb-gold); }
 .lb-deck-picker-body {
   min-height: 0; overflow-y: auto; margin: 0 -8px; padding: 2px 8px 6px; -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin; scrollbar-color: rgba(243, 201, 105, .4) transparent;
 }
 #lobby-screen .lb-picker-section {
   display: flex; align-items: center; gap: 10px; margin: 6px 0 8px;
@@ -582,4 +581,58 @@ dialog.bof-dialog-polyfilled[open] {
     }
     .lb-deck-picker-panel .lb-deck-picker-body { max-height: none; }
   }
+}
+
+/* ================= หน้าต่างตั้งค่า (แบบ A "แผงมืดแบ่งกลุ่ม") — การเล่น / เสียง / สนาม ================= */
+.lb-settings { width: min(480px, calc(100vw - 24px)); }
+.lb-settings-panel { padding: 22px; max-height: min(90vh, 90dvh); overflow-y: auto; }
+.st-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+#lobby-screen .st-head h2 { margin: 0 !important; font: 700 26px/1.2 var(--font-display); color: var(--lb-gold-hi); }
+.st-x { width: 44px; height: 44px; flex-shrink: 0; display: inline-grid; place-items: center; border-radius: 50%; border: 1px solid rgba(160, 175, 255, .32); background: rgba(255, 255, 255, .05); color: var(--lb-ink); cursor: pointer; }
+.st-x:hover { border-color: var(--lb-gold); }
+.st-x svg, .st-ico, .st-btn svg, .st-admin svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.st-x svg { width: 18px; height: 18px; }
+.st-group { margin-top: 18px; }
+#lobby-screen .st-group h3 { margin: 0 0 8px; font: 600 14px/1.2 var(--font-display); color: #8a90b8; }
+.st-card { border-radius: 14px; background: #141834; border: 1px solid rgba(160, 175, 255, .18); }
+.st-row { position: relative; display: flex; align-items: center; gap: 12px; min-height: 62px; padding: 10px 14px; cursor: pointer; }
+.st-row:has(.lb-switch-input:focus-visible) { outline: 3px solid var(--lb-gold); outline-offset: 2px; border-radius: 14px; }
+.st-ico { width: 20px; height: 20px; flex-shrink: 0; color: var(--lb-gold); }
+.st-text { flex: 1; min-width: 0; }
+.st-text b { display: block; font: 600 15px/1.3 var(--font-display); }
+.st-text small, .st-arena-body small { display: block; font-size: 12.5px; line-height: 1.4; color: #8a90b8; }
+.lb-settings .lb-switch-track { background: #2b3160; }
+.lb-settings .lb-switch-input:checked + .lb-switch-track { background: #2fae6b; }
+.st-vol { display: flex; align-items: center; gap: 12px; padding: 0 14px 14px 46px; transition: opacity .25s; }
+.st-vol label { font-size: 13px; color: var(--lb-ink-soft); }
+.st-vol input { flex: 1; min-height: 28px; accent-color: var(--lb-gold); cursor: pointer; }
+.st-vol output { width: 40px; text-align: right; font: 600 13px var(--font-display); color: var(--lb-ink-soft); }
+.st-vol.is-off { opacity: .4; }
+.st-vol.is-off input { cursor: not-allowed; }
+.st-arena { display: grid; grid-template-columns: 116px minmax(0, 1fr); gap: 14px; align-items: center; padding: 14px; }
+.st-arena-prev {
+  aspect-ratio: 16 / 10; border-radius: 10px; border: 1px solid rgba(160, 175, 255, .32); overflow: hidden;
+  display: grid; place-items: center; background: linear-gradient(160deg, #23306b, #0d1130) center / cover no-repeat;
+  color: #8a90b8; font-size: 12px; transition: background-image .3s;
+}
+.st-arena-prev.has-img span { display: none; }
+.st-arena-body b { display: block; font: 600 15px/1.3 var(--font-display); }
+.st-arena-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.st-btn { min-height: 42px; padding: 0 14px; border-radius: 11px; border: 0; display: inline-flex; align-items: center; justify-content: center; gap: 7px; font: 600 14px var(--font-display); cursor: pointer; touch-action: manipulation; }
+.st-btn svg { width: 17px; height: 17px; }
+.st-btn-gold { position: relative; overflow: hidden; color: #1a1405; background: linear-gradient(135deg, var(--lb-gold-hi), var(--lb-gold-lo)); }
+.st-btn-ghost { color: var(--lb-ink); background: rgba(255, 255, 255, .04); border: 1px solid rgba(160, 175, 255, .32); }
+.st-btn-ghost:hover { border-color: var(--lb-gold); }
+.st-btn-gold:has(.st-file:focus-visible) { outline: 3px solid var(--lb-gold); outline-offset: 2px; }
+.st-file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.st-status { margin: 8px 0 0 !important; font-size: 12px; color: #4ade80; }
+.st-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; }
+.st-admin { min-height: 44px; padding: 0 6px; border: 0; background: none; color: #8a90b8; font: 500 13px var(--font-body); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.st-admin:hover { color: var(--lb-ink); }
+.st-admin svg { width: 15px; height: 15px; }
+.st-done { min-height: 44px; padding: 0 22px; }
+@media (max-width: 420px) {
+  .lb-settings-panel { padding: 18px 14px; }
+  .st-arena { grid-template-columns: 1fr; }
+  .st-vol { padding-left: 14px; }
 }

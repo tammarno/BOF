@@ -892,7 +892,15 @@
       if (card && card.rarity === 'SSR') {
         economy.pity[packId] = 0; // รีเซ็ตการันตีเมื่อสุ่มได้ SSR
       }
-      drawn.push(grantCardToCollection(card));
+      const granted = grantCardToCollection(card);
+      // เกินจำนวนจัดเด็ค (ลีดเดอร์ 1 · การ์ดอื่น 2) → แปลงเป็นชาร์ดทันที ตามค่าเดียวกับปุ่มย่อยการ์ดซ้ำ
+      const maxKeep = card.type === 'Leader' ? 1 : 2;
+      if (economy.ownedCards[card.id] > maxKeep) {
+        economy.ownedCards[card.id] = maxKeep;
+        granted.shards = DISENCHANT_VALUES[card.rarity] || 10;
+        economy.shards = (economy.shards || 0) + granted.shards;
+      }
+      drawn.push(granted);
     }
 
     if (window.BOF_AUDIO) window.BOF_AUDIO.playPackOpen();
@@ -919,7 +927,91 @@
     });
   }
 
-  /* ---------------- หน้าต่างป๊อปอัปแสดงผลการเปิดซอง (ขึ้นทันทีหลังจบแอนิเมชัน!) ---------------- */
+  /* ---------------- หน้าต่างผลการเปิดซอง: พลิกการ์ด · ใบซ้ำแตกเป็นชาร์ดแล้วบินเข้าตัวนับ ---------------- */
+  const RARITY_TONE = { SSR: '#fde047', SR: '#ff8597', R: '#7cc0ff', N: '#cbd5e1' };
+  const motionOK = () => typeof gsap !== 'undefined' && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let revealShardTotal = 0;   // ชาร์ดที่นับขึ้นแล้วในหน้าต่างนี้ (ตัวเลขวิ่งไล่ไปหายอดจริง)
+  let revealShardShown = { v: 0 };
+
+  function bumpRevealShards(add) {
+    revealShardTotal += add;
+    const el = document.getElementById('bof-reveal-shards');
+    if (!el) return;
+    const chip = el.closest('.rv-chip-shard');
+    if (!motionOK()) { el.textContent = revealShardTotal.toLocaleString('th-TH'); return; }
+    gsap.to(revealShardShown, {
+      v: revealShardTotal, duration: .5, ease: 'power2.out', overwrite: 'auto',
+      onUpdate: () => { el.textContent = Math.round(revealShardShown.v).toLocaleString('th-TH'); }
+    });
+    if (chip) gsap.fromTo(chip, { scale: 1.18 }, { scale: 1, duration: .45, ease: 'back.out(3)', overwrite: 'auto' });
+  }
+
+  // ใบซ้ำ: สั่น → แตกเป็นเศษคริสตัลบินเข้าตัวนับชาร์ด → การ์ดกลายเป็นป้าย "+N ชาร์ด"
+  function shatterToShards(wrap, item) {
+    const value = item.shards || 0;
+    const finish = () => {
+      wrap.classList.add('is-shattered');
+      if (window.BOF_AUDIO) window.BOF_AUDIO.playSpell();
+      bumpRevealShards(value);
+    };
+    if (!motionOK()) { finish(); return; }
+
+    const stage = document.getElementById('bof-reveal-stage');
+    const target = document.querySelector('#bof-reveal-summary .rv-chip-shard svg') || document.getElementById('bof-reveal-summary');
+    const from = wrap.getBoundingClientRect();
+    const to = target ? target.getBoundingClientRect() : { left: innerWidth / 2, top: 40, width: 0, height: 0 };
+    const cx = from.left + from.width / 2, cy = from.top + from.height / 2;
+    const tx = to.left + to.width / 2, ty = to.top + to.height / 2;
+
+    const layer = document.createElement('div');
+    layer.className = 'rv-shard-layer';
+    stage.appendChild(layer);
+    const n = Math.min(14, 6 + Math.round(value / 25));
+    const bits = [];
+    for (let i = 0; i < n; i++) {
+      const b = document.createElement('span');
+      b.className = 'rv-shard-bit';
+      b.style.left = `${cx}px`; b.style.top = `${cy}px`;
+      layer.appendChild(b);
+      bits.push(b);
+    }
+
+    const front = wrap.querySelector('.bof-flip-front');
+    const tl = gsap.timeline({
+      onComplete: () => {
+        layer.remove();
+        if (!wrap.classList.contains('is-shattered')) finish();
+        gsap.set(front, { clearProps: 'all' });
+        gsap.set(wrap, { clearProps: 'transform' }); // คืน transform ให้ CSS (ชี้แล้วยกการ์ด)
+      }
+    });
+    tl.to(wrap, { x: -3, duration: .05, repeat: 5, yoyo: true, ease: 'none' })
+      .set(wrap, { x: 0 })
+      .add(() => wrap.classList.add('is-cracking'))
+      .to(front, { scale: .86, opacity: .25, filter: 'saturate(0) brightness(1.6)', duration: .28, ease: 'power2.in' })
+      .add(() => { if (!wrap.classList.contains('is-shattered')) finish(); gsap.set(front, { clearProps: 'all' }); });
+    bits.forEach((b, i) => {
+      const ang = (Math.PI * 2 * i) / n + Math.random() * .5;
+      const r = 50 + Math.random() * 45;
+      const delay = .32 + Math.random() * .06;
+      gsap.timeline({ delay })
+        .fromTo(b, { x: 0, y: 0, scale: .4, rotation: Math.random() * 180, opacity: 1 },
+          { x: Math.cos(ang) * r, y: Math.sin(ang) * r, scale: 1, rotation: '+=160', duration: .32, ease: 'power3.out' })
+        .to(b, { x: tx - cx, y: ty - cy, scale: .35, rotation: '+=220', duration: .5 + i * .025, ease: 'power3.in' })
+        .to(b, { opacity: 0, duration: .08 });
+    });
+    tl.duration(Math.max(tl.duration(), 1.3));
+  }
+
+  function flipRevealCard(wrap) {
+    if (!wrap || wrap.classList.contains('is-flipped')) return false;
+    wrap.classList.add('is-flipped');
+    const item = wrap._revealItem;
+    if (window.BOF_AUDIO) window.BOF_AUDIO.playCardDraw();
+    if (item && item.shards) setTimeout(() => shatterToShards(wrap, item), 600); // รอให้พลิกเสร็จ (0.55s) ก่อนแตก
+    return true;
+  }
+
   function showPackRevealStage(titleText, drawnItems) {
     const stage = document.getElementById('bof-reveal-stage');
     const titleEl = document.getElementById('bof-reveal-title');
@@ -927,23 +1019,25 @@
     const cardsBox = document.getElementById('bof-reveal-cards');
     if (!stage || !cardsBox) return;
 
+    revealShardTotal = 0;
+    revealShardShown = { v: 0 };
+
     if (titleEl) {
-      titleEl.textContent = `✨ ผลการเปิดซอง: ${titleText} — เรียงแรร์น้อย ➔ มาก (คลิกการ์ดเพื่อพลิก / คลิกขวาดูฟอยล์ 3D ใบใหญ่)`;
+      titleEl.innerHTML = `ผลการเปิดซอง <span>${titleText}</span><small>แตะการ์ดเพื่อพลิก · พลิกแล้วแตะอีกครั้งหรือคลิกขวาเพื่อดูใบใหญ่</small>`;
     }
 
     if (summaryEl) {
-      const counts = { SSR: 0, SR: 0, R: 0, N: 0, newCount: 0 };
+      const counts = { SSR: 0, SR: 0, R: 0, N: 0, newCount: 0, dupes: 0, shards: 0 };
       drawnItems.forEach(it => {
         counts[it.card.rarity] = (counts[it.card.rarity] || 0) + 1;
         if (it.isNew) counts.newCount++;
+        if (it.shards) { counts.dupes++; counts.shards += it.shards; }
       });
-      summaryEl.innerHTML = `
-        <span class="bof-sum-badge" style="color:#fde047;border-color:#facc15;">🌟 SSR: ${counts.SSR} ใบ</span>
-        <span class="bof-sum-badge" style="color:#fda4af;border-color:#ff5a6e;">🔥 SR: ${counts.SR} ใบ</span>
-        <span class="bof-sum-badge" style="color:#93c5fd;border-color:#4fa7ff;">💎 R: ${counts.R} ใบ</span>
-        <span class="bof-sum-badge" style="color:#cbd5e1;border-color:#8f97b8;">⚪ N: ${counts.N} ใบ</span>
-        <span class="bof-sum-badge" style="color:#4ade80;border-color:#22c55e;">✨ การ์ดใหม่: ${counts.newCount} ใบ</span>
-      `;
+      summaryEl.innerHTML = ['SSR', 'SR', 'R', 'N']
+        .filter(r => counts[r] > 0)
+        .map(r => `<span class="rv-chip" style="--t:${RARITY_TONE[r]}"><b>${r}</b>${counts[r]} ใบ</span>`).join('')
+        + (counts.newCount ? `<span class="rv-chip rv-chip-new">การ์ดใหม่ ${counts.newCount} ใบ</span>` : '')
+        + (counts.shards ? `<span class="rv-chip rv-chip-shard" title="การ์ดซ้ำ ${counts.dupes} ใบ กลายเป็นชาร์ดรวม ${counts.shards}">${SHARD_SVG}ชาร์ด +<b id="bof-reveal-shards">0</b><small>/ ${counts.shards.toLocaleString('th-TH')}</small></span>` : '');
     }
 
     cardsBox.innerHTML = '';
@@ -951,41 +1045,47 @@
     drawnItems.forEach((item, idx) => {
       const c = item.card;
       const wrap = document.createElement('div');
-      wrap.className = 'bof-flip-card';
+      wrap.className = 'bof-flip-card' + (item.shards ? ' is-dupe' : '');
       wrap.style.animationDelay = `${Math.min(idx * 0.03, 0.8)}s`;
+      wrap.tabIndex = 0;
+      wrap.setAttribute('role', 'button');
+      wrap.setAttribute('aria-label', `การ์ดใบที่ ${idx + 1} จาก ${drawnItems.length} แตะเพื่อพลิก`);
+      wrap._revealItem = item;
 
       const inner = document.createElement('div');
       inner.className = 'bof-flip-inner';
 
       const back = document.createElement('div');
       back.className = `bof-flip-back hint-${c.rarity}`;
-      back.innerHTML = `<span style="font-size:28px;">🎴</span><span style="margin-top:6px;">แตะเพื่อพลิก</span><small style="font-size:10px;opacity:.82;margin-top:2px;">ใบที่ ${idx + 1} / ${drawnItems.length}</small>`;
+      back.innerHTML = `<span class="rv-back-n">${idx + 1}</span><span>แตะเพื่อพลิก</span>`;
 
       const front = document.createElement('div');
       front.className = 'bof-flip-front';
 
-      const pillLabel = item.isNew ? `NEW! · ${c.rarity}` : c.rarity;
+      const pillLabel = item.shards ? `ซ้ำ · ${c.rarity}` : (item.isNew ? `ใหม่ · ${c.rarity}` : c.rarity);
       const foilCardEl = createFullArtFoilCard(c, pillLabel);
       front.appendChild(foilCardEl);
+      if (item.shards) {
+        const res = document.createElement('div');
+        res.className = 'rv-dupe-result';
+        res.innerHTML = `${SHARD_SVG}<b>+${item.shards}</b><span>ชาร์ด</span><small>${c.name}</small>`;
+        front.appendChild(res);
+      }
 
       inner.appendChild(back);
       inner.appendChild(front);
       wrap.appendChild(inner);
 
-      wrap.addEventListener('click', () => {
-        if (!wrap.classList.contains('is-flipped')) {
-          wrap.classList.add('is-flipped');
-        } else if (typeof window.openCardDetailModal === 'function') {
-          window.openCardDetailModal(c, null, foilCardEl);
-        }
-      });
-
-      wrap.addEventListener('contextmenu', e => {
+      const openDetail = () => {
+        if (typeof window.openCardDetailModal === 'function') window.openCardDetailModal(c, null, foilCardEl);
+      };
+      wrap.addEventListener('click', () => { if (!flipRevealCard(wrap)) openDetail(); });
+      wrap.addEventListener('keydown', e => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
         e.preventDefault();
-        if (typeof window.openCardDetailModal === 'function') {
-          window.openCardDetailModal(c, null, foilCardEl);
-        }
+        if (!flipRevealCard(wrap)) openDetail();
       });
+      wrap.addEventListener('contextmenu', e => { e.preventDefault(); openDetail(); });
 
       cardsBox.appendChild(wrap);
     });
@@ -1003,6 +1103,13 @@
     stage.scrollTop = 0;
   }
 
+  // พลิกทั้งหมด: ไล่พลิกทีละใบ (ใบซ้ำจะแตกเป็นชาร์ดตามจังหวะ)
+  function flipAllRevealCards() {
+    const cards = [...document.querySelectorAll('#bof-reveal-cards .bof-flip-card:not(.is-flipped)')];
+    const gap = motionOK() ? Math.max(40, Math.min(110, 1400 / Math.max(1, cards.length))) : 0;
+    cards.forEach((c, i) => setTimeout(() => flipRevealCard(c), i * gap));
+  }
+
   /* ---------------- ระบบร้านค้า แท็บสุ่มซอง, หลอมการ์ด, เควสต์ประจำวัน และของตกแต่ง ---------------- */
   let activeShopTab = 'packs'; // 'packs' | 'craft' | 'quests' | 'cosmetics'
   let craftFilterTribe = 'ALL';
@@ -1014,206 +1121,257 @@
   // ค่าใช้จ่ายในการหลอมการ์ดใหม่ (Crafting Cost)
   const CRAFT_COSTS = { N: 50, R: 150, SR: 400, SSR: 1000 };
 
+  // แท็บร้าน (แบบ A): 4 แท็บกว้างเท่ากัน + เส้นทองใต้แท็บที่เลื่อนตามแท็บที่เลือก (--i) · แท็บเควสต์มีจุดบอกรางวัลที่รอรับ
+  const SHOP_TABS = [
+    { id: 'packs', label: 'สุ่มซอง', icon: '<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9 8h6M9 12h6"/>' },
+    { id: 'craft', label: 'หลอมการ์ด', icon: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 002 3h10a2 2 0 002-3l-5-9V3"/>' },
+    { id: 'quests', label: 'เควสต์', icon: '<rect x="3" y="9" width="18" height="12" rx="1.5"/><path d="M12 9v12M3 13h18M12 9c-2-4-6-4-6-1s6 1 6 1 6 2 6-1-4-3-6 1"/>' },
+    { id: 'cosmetics', label: 'ของตกแต่ง', icon: '<path d="M14 4l6 6-8 8-6-6zM6 12l-2 6 6-2"/>' }
+  ];
+  const COIN_SVG = '<svg class="sh-ico-coin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#f3c969"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="#b07a1e" stroke-width="1.6"/></svg>';
+  const SHARD_SVG = '<svg class="sh-ico-shard" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l7 7-7 13-7-13z" fill="#c4a7ff"/><path d="M5 9h14M12 2l-3 7 3 13 3-13z" stroke="#7d5cd6" stroke-width="1" fill="none"/></svg>';
+
+  // จำนวนรางวัลเควสต์ที่ทำครบแล้วแต่ยังไม่กดรับ (เงื่อนไขเดียวกับ renderQuestsView) + ของขวัญรายวัน
+  function claimableQuestCount() {
+    const today = getThaiQuestDayKey();
+    const sameDay = economy.dailyProgress && economy.dailyProgress.date === today;
+    const dp = sameDay ? economy.dailyProgress : {};
+    const claimed = (sameDay && economy.claimedQuests) || {};
+    const done = { quest_packs_1: dp.packsOpened >= 1, quest_craft_1: dp.craftsDone >= 1, quest_duel_1: dp.duelsCompleted >= 1 };
+    let n = Object.keys(done).filter(id => done[id] && !claimed[id]).length;
+    if (economy.lastDailyClaimDate !== today) n++;
+    return n;
+  }
+
+  function renderActiveTabView() {
+    const viewContainer = document.getElementById('bof-tab-view-container');
+    if (!viewContainer) return;
+    viewContainer.style.setProperty('--accent', '#f3c969'); // หมวดที่มีตัวกรองสีจะตั้งสีของตัวเองทับ
+    if (activeShopTab === 'packs') renderPacksView(viewContainer);
+    else if (activeShopTab === 'craft') renderCraftingView(viewContainer);
+    else if (activeShopTab === 'quests') renderQuestsView(viewContainer);
+    else if (activeShopTab === 'cosmetics') renderCosmeticsView(viewContainer);
+  }
+
+  function syncTabBadge() {
+    const badge = document.querySelector('#bof-shop-dynamic-body .sh-tab[data-tab="quests"] .sh-badge');
+    if (!badge) return;
+    const n = claimableQuestCount();
+    badge.textContent = n;
+    badge.hidden = n <= 0;
+  }
+
   function renderShopContent() {
     updateCoinDisplays();
     const body = document.getElementById('bof-shop-dynamic-body');
     if (!body) return;
+    const idx = Math.max(0, SHOP_TABS.findIndex(t => t.id === activeShopTab));
 
     body.innerHTML = `
-      <div class="bof-shop-tabs">
-        <button type="button" class="bof-shop-tab ${activeShopTab === 'packs' ? 'is-active' : ''}" data-tab="packs">📦 สุ่มซองการ์ด<span class="bof-tab-sub"> (Booster)</span></button>
-        <button type="button" class="bof-shop-tab ${activeShopTab === 'craft' ? 'is-active' : ''}" data-tab="craft">🔮 ย่อย & หลอม<span class="bof-tab-sub">การ์ด (Crafting)</span></button>
-        <button type="button" class="bof-shop-tab ${activeShopTab === 'quests' ? 'is-active' : ''}" data-tab="quests">🎁 เควสต์รายวัน<span class="bof-tab-sub"> & ของขวัญ</span></button>
-        <button type="button" class="bof-shop-tab ${activeShopTab === 'cosmetics' ? 'is-active' : ''}" data-tab="cosmetics">🎨 ของตกแต่ง<span class="bof-tab-sub"> (Cosmetics)</span></button>
+      <div class="sh-tabs" role="tablist" aria-label="หมวดร้านค้า" style="--i:${idx}">
+        ${SHOP_TABS.map(t => `
+          <button type="button" class="sh-tab" role="tab" id="sh-tab-${t.id}" data-tab="${t.id}" aria-selected="${t.id === activeShopTab}" aria-controls="bof-tab-view-container" tabindex="${t.id === activeShopTab ? 0 : -1}">
+            <svg viewBox="0 0 24 24" aria-hidden="true">${t.icon}</svg><span>${t.label}</span>${t.id === 'quests' ? '<span class="sh-badge" hidden></span>' : ''}
+          </button>`).join('')}
+        <span class="sh-tab-ink" aria-hidden="true"></span>
       </div>
-      <div id="bof-tab-view-container"></div>
+      <div id="bof-tab-view-container" class="sh-view" role="tabpanel" aria-labelledby="sh-tab-${activeShopTab}"></div>
     `;
 
-    // ผูกแท็บเมนู
-    body.querySelectorAll('.bof-shop-tab').forEach(tBtn => {
-      tBtn.addEventListener('click', () => {
-        activeShopTab = tBtn.dataset.tab;
-        renderShopContent();
-      });
+    const tabsEl = body.querySelector('.sh-tabs');
+    const tabs = [...tabsEl.querySelectorAll('.sh-tab')];
+    const selectTab = (btn, focus) => {
+      if (btn.dataset.tab === activeShopTab) return;
+      activeShopTab = btn.dataset.tab;
+      tabsEl.style.setProperty('--i', tabs.indexOf(btn));
+      tabs.forEach(t => { const on = t === btn; t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1; });
+      if (focus) btn.focus();
+      const view = document.getElementById('bof-tab-view-container');
+      view.setAttribute('aria-labelledby', btn.id);
+      renderActiveTabView();
+      syncTabBadge();
+      view.dispatchEvent(new CustomEvent('shop:tab', { bubbles: true, detail: { tab: activeShopTab } }));
+    };
+    tabs.forEach(btn => btn.addEventListener('click', () => selectTab(btn, false)));
+    tabsEl.addEventListener('keydown', e => {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      e.preventDefault();
+      const i = tabs.findIndex(t => t.dataset.tab === activeShopTab);
+      selectTab(tabs[(i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length], true);
     });
 
-    const viewContainer = document.getElementById('bof-tab-view-container');
-    if (!viewContainer) return;
-
-    if (activeShopTab === 'packs') {
-      renderPacksView(viewContainer);
-    } else if (activeShopTab === 'craft') {
-      renderCraftingView(viewContainer);
-    } else if (activeShopTab === 'quests') {
-      renderQuestsView(viewContainer);
-    } else if (activeShopTab === 'cosmetics') {
-      renderCosmeticsView(viewContainer);
-    }
+    renderActiveTabView();
+    syncTabBadge();
   }
 
-  // --- มุมมองที่ 1: ตู้สุ่มซองการ์ด 6 สาย พร้อมแถบ Pity ---
+  // --- มุมมองที่ 1: ซองการ์ด 6 สาย (แบบ A): สวิตช์ "เปิดครั้งละ 1 / 10 ซอง" ด้านบน → แต่ละซองเหลือปุ่มเดียว ---
+  let packQty = 1;
+  const thumbOf = img => String(img).replace(/^images\//, 'images/thumbs/').replace(/\.png$/, '.webp');
+  const buyLabel = (p, qty) => `เปิด ${qty} ซอง · <span class="sh-price">${COIN_SVG}${(qty === 10 ? p.tenPrice : p.price).toLocaleString('th-TH')}</span>`;
+
   function renderPacksView(container) {
     const totalUnique = typeof CARD_DATABASE !== 'undefined' ? CARD_DATABASE.length : 72;
     const ownedUnique = Object.keys(economy.ownedCards).filter(id => economy.ownedCards[id] > 0).length;
 
     container.innerHTML = `
-      <div class="bof-shop-controls-bar">
-        <span style="font-size:13px;color:#cbd5e1;">
-          🎴 <b>เรทสุ่ม:</b> N 40% · R 30% · SR 20% · <b style="color:#fde047;">SSR (Leader) 10%</b>
-          &nbsp;|&nbsp; 📚 สะสม: <b style="color:#fde047;">${ownedUnique} / ${totalUnique}</b> แบบ (เปิดแล้ว <b style="color:#38bdf8;">${economy.packsOpened}</b> ซอง)
-        </span>
+      <div class="sh-packs-bar">
+        <div class="sh-qty" role="radiogroup" aria-label="จำนวนซองต่อครั้ง" data-q="${packQty}">
+          <span class="sh-qty-thumb" aria-hidden="true"></span>
+          <button type="button" role="radio" data-qty="1" aria-checked="${packQty === 1}">1 ซอง</button>
+          <button type="button" role="radio" data-qty="10" aria-checked="${packQty === 10}">10 ซอง <span class="sh-save">−10%</span></button>
+        </div>
+        <p class="sh-packs-info">ซองละ 5 ใบ · N 40% · R 30% · SR 20% · SSR 10% · สะสมแล้ว <b>${ownedUnique}/${totalUnique}</b> แบบ</p>
       </div>
+      <p class="sh-dupe-note">${SHARD_SVG}<span>การ์ดที่เกินจำนวนจัดเด็ค (ลีดเดอร์ 1 ใบ · การ์ดอื่น 2 ใบ) จะกลายเป็นชาร์ดให้อัตโนมัติ</span></p>
 
-      <div class="bof-packs-grid">
+      <div class="sh-packs">
         ${FACTION_PACKS.map(p => {
           const deckCards = typeof CARD_DATABASE !== 'undefined'
             ? CARD_DATABASE.filter(c => c.image && c.image.startsWith(p.prefix))
             : [];
+          const leader = deckCards.find(c => c.type === 'Leader');
           const ownedInDeck = deckCards.filter(c => economy.ownedCards[c.id] > 0).length;
           const pityCount = (economy.pity && economy.pity[p.id]) || 0;
           const remainingPity = Math.max(0, PITY_THRESHOLD - pityCount);
           const pityPercent = Math.min(100, (pityCount / PITY_THRESHOLD) * 100);
 
           return `
-            <div class="bof-pack-card" style="--pack-color:${p.color};">
-              <div class="bof-pack-foil">
-                <img src="${p.image}" alt="${p.name}">
-                <span class="bof-pack-ribbon">5 CARDS / PACK</span>
+            <article class="sh-pack" style="--c:${p.color};">
+              <div class="sh-pack-art"><span class="sh-pack-back" aria-hidden="true"></span><img src="${thumbOf(p.image)}" alt="" loading="lazy"></div>
+              <div class="sh-pack-info">
+                <h3>${p.name}</h3>
+                <p>ลุ้นลีดเดอร์ SSR ${leader ? leader.name : ''} · สะสม ${ownedInDeck}/${deckCards.length}</p>
               </div>
-              <div class="bof-pack-name">${p.name}</div>
-              <div class="bof-pack-sub">${p.sub}</div>
-              <div style="font-size:11px;color:#fde047;margin-top:4px;">สะสมในสายนี้: ${ownedInDeck} / ${deckCards.length} แบบ</div>
-              
-              <div class="bof-pity-counter">
-                <div class="bof-pity-text">
-                  <span>⭐ การันตี SSR ในอีก:</span>
-                  <b>${remainingPity} ซอง</b>
-                </div>
-                <div class="bof-pity-track">
-                  <div class="bof-pity-fill" style="width:${pityPercent}%;"></div>
-                </div>
+              <div class="sh-pity">
+                <div><span>การันตี SSR</span><span>อีก <b>${remainingPity}</b> ซอง</span></div>
+                <div class="sh-meter" role="progressbar" aria-label="ความคืบหน้าการันตี SSR ${p.name}" aria-valuemin="0" aria-valuemax="${PITY_THRESHOLD}" aria-valuenow="${pityCount}"><i style="width:${pityPercent}%"></i></div>
               </div>
-
-              <div class="bof-pack-actions">
-                <button type="button" class="bof-buy-btn" data-pack="${p.id}" data-count="1">
-                  สุ่ม 1 ซอง · 🪙 ${p.price}
-                </button>
-                <button type="button" class="bof-buy-btn is-ten" data-pack="${p.id}" data-count="10">
-                  🔥 สุ่ม 10 ซอง · 🪙 ${p.tenPrice.toLocaleString('th-TH')}
-                  <span class="bof-discount-badge">-10%</span>
-                </button>
-              </div>
-            </div>
+              <button type="button" class="sh-buy" data-pack="${p.id}" data-count="${packQty}">${buyLabel(p, packQty)}</button>
+            </article>
           `;
         }).join('')}
       </div>
     `;
 
-    container.querySelectorAll('.bof-buy-btn[data-pack]').forEach(btn => {
+    const qtyEl = container.querySelector('.sh-qty');
+    qtyEl.addEventListener('click', e => {
+      const b = e.target.closest('[data-qty]'); if (!b) return;
+      const q = Number(b.dataset.qty);
+      if (q === packQty) return;
+      packQty = q;
+      qtyEl.dataset.q = q;
+      qtyEl.querySelectorAll('[data-qty]').forEach(x => x.setAttribute('aria-checked', String(x === b)));
+      container.querySelectorAll('.sh-buy[data-pack]').forEach(btn => {
+        const p = FACTION_PACKS.find(x => x.id === btn.dataset.pack);
+        btn.dataset.count = q;
+        btn.innerHTML = buyLabel(p, q);
+      });
+      container.dispatchEvent(new CustomEvent('shop:qty', { bubbles: true, detail: { qty: q } }));
+    });
+
+    container.querySelectorAll('.sh-buy[data-pack]').forEach(btn => {
       btn.addEventListener('click', () => {
-        const packId = btn.getAttribute('data-pack');
-        const count = Number(btn.getAttribute('data-count') || 1);
-        openFactionPack(packId, count);
+        openFactionPack(btn.dataset.pack, Number(btn.dataset.count || 1));
       });
     });
   }
 
-  // --- มุมมองที่ 2: ระบบย่อยการ์ดส่วนเกิน & หลอมการ์ด (Crafting) ---
+  // --- มุมมองที่ 2: โรงหลอมการ์ด — ย่อยการ์ดซ้ำ + หลอมการ์ดที่ขาด ---
+  // ตัวกรองสายเด็คใช้สีประจำเด็ค: เลือกแล้วทั้งแผงเปลี่ยนสีตาม (--accent ไล่สีด้วย @property)
+  const DECK_FILTERS = [
+    { key: 'ALL', label: 'ทั้งหมด', c: '#f3c969' },
+    { key: 'JIT', label: 'จิต', dir: 'เด็คจิต', c: '#3ee08f' },
+    { key: 'NUEA', label: 'ขุนเหนือ', dir: 'เด็คเหนือ', c: '#f0a347' },
+    { key: 'DOOM', label: 'สิ้นโลก', dir: 'วันสิ้นโลก', c: '#5fd0ff' },
+    { key: 'DINO', label: 'ไดโน', dir: 'ไดโน', c: '#a3e635' },
+    { key: 'DEMON', label: 'ปีศาจ', dir: 'เด็คปีศาจ', c: '#c084fc' },
+    { key: 'OAT', label: 'โอ๊ต', dir: 'เด็คโอ๊ต', c: '#fb923c' }
+  ];
+  const RARITY_FILTERS = [
+    { key: 'ALL', label: 'ทุกระดับ', c: '#f3c969' },
+    { key: 'SSR', label: 'SSR', c: '#fde047' },
+    { key: 'SR', label: 'SR', c: '#ff8597' },
+    { key: 'R', label: 'R', c: '#7cc0ff' },
+    { key: 'N', label: 'N', c: '#cbd5e1' }
+  ];
+  const deckOfCard = card => DECK_FILTERS.find(d => d.dir && String(card.image || '').includes(`/${d.dir}/`)) || DECK_FILTERS[0];
+  const maxKeepOf = card => (card.type === 'Leader' ? 1 : 2);
+  const chipsHTML = (list, active, attr, counts) => list.map(f => `
+    <button type="button" class="fx-chip" role="radio" aria-checked="${f.key === active}" ${attr}="${f.key}" style="--chip-c:${f.c}">
+      <span>${f.label}</span>${counts ? `<small>${counts[f.key] || 0}</small>` : ''}
+    </button>`).join('');
+  window.BOFDecks = { DECK_FILTERS, RARITY_FILTERS, deckOfCard, maxKeepOf, thumbOf: img => String(img).replace(/^images\//, 'images/thumbs/').replace(/\.png$/, '.webp') };
+
   function renderCraftingView(container) {
     if (typeof CARD_DATABASE === 'undefined') return;
 
-    // คำนวณการ์ดส่วนเกิน (Normal > 2 ใบ, Leader > 1 ใบ)
     let totalExtraCards = 0;
     let totalShardsGained = 0;
-
     CARD_DATABASE.forEach(card => {
       const owned = Number(economy.ownedCards[card.id] || 0);
-      const maxKeep = card.type === 'Leader' ? 1 : 2;
+      const maxKeep = maxKeepOf(card);
       if (owned > maxKeep) {
-        const extra = owned - maxKeep;
-        totalExtraCards += extra;
-        totalShardsGained += extra * (DISENCHANT_VALUES[card.rarity] || 10);
+        totalExtraCards += owned - maxKeep;
+        totalShardsGained += (owned - maxKeep) * (DISENCHANT_VALUES[card.rarity] || 10);
       }
     });
 
-    // กรองการ์ดตามฟิลเตอร์
     const allCards = CARD_DATABASE.filter(c => {
       if (craftFilterRarity !== 'ALL' && c.rarity !== craftFilterRarity) return false;
-      if (craftFilterTribe === 'JIT' && !c.image.includes('เด็คจิต')) return false;
-      if (craftFilterTribe === 'NUEA' && !c.image.includes('เด็คเหนือ')) return false;
-      if (craftFilterTribe === 'DOOM' && !c.image.includes('วันสิ้นโลก')) return false;
-      if (craftFilterTribe === 'DINO' && !c.image.includes('ไดโน')) return false;
-      if (craftFilterTribe === 'DEMON' && !c.image.includes('เด็คปีศาจ')) return false;
-      if (craftFilterTribe === 'OAT' && !c.image.includes('เด็คโอ๊ต')) return false;
+      if (craftFilterTribe !== 'ALL' && deckOfCard(c).key !== craftFilterTribe) return false;
       return true;
     });
+    const accent = (DECK_FILTERS.find(d => d.key === craftFilterTribe) || DECK_FILTERS[0]).c;
+    const deckCounts = { ALL: CARD_DATABASE.length };
+    CARD_DATABASE.forEach(c => { const k = deckOfCard(c).key; deckCounts[k] = (deckCounts[k] || 0) + 1; });
 
+    container.style.setProperty('--accent', accent); // อยู่บนกล่องที่ไม่ถูกวาดใหม่ สีจึงไล่เปลี่ยนได้
     container.innerHTML = `
-      <div class="bof-craft-panel">
-        <div class="bof-disenchant-box">
-          <div class="bof-disenchant-info">
-            <h4>🔮 ย่อยการ์ดส่วนเกิน (Disenchant Duplicates)</h4>
-            <p>พบการ์ดซ้ำที่เกินจำนวนจัดเด็ค <b>${totalExtraCards} ใบ</b> — สามารถย่อยเป็น <b style="color:#fde047;">+${totalShardsGained.toLocaleString('th-TH')} 🔮 Soul Shards</b></p>
+      <div class="cf">
+        <section class="cf-melt ${totalExtraCards ? 'has-extra' : ''}">
+          <div class="cf-orb" aria-hidden="true">${SHARD_SVG}</div>
+          <div class="cf-melt-text">
+            <h4>ย่อยการ์ดซ้ำ</h4>
+            <p>${totalExtraCards
+              ? `มีการ์ดเกินจำนวนจัดเด็ค <b>${totalExtraCards} ใบ</b> ย่อยแล้วได้ <b class="cf-plus">+${totalShardsGained.toLocaleString('th-TH')} ชาร์ด</b>`
+              : 'ไม่มีการ์ดเกินจำนวนจัดเด็คแล้ว การ์ดซ้ำจากซองจะกลายเป็นชาร์ดให้อัตโนมัติ'}</p>
           </div>
-          <button type="button" class="bof-btn-disenchant" id="btn-disenchant-all" ${totalExtraCards <= 0 ? 'disabled' : ''}>
-            ✨ ย่อยการ์ดซ้ำทั้งหมด (+${totalShardsGained} 🔮)
-          </button>
+          <button type="button" class="cf-melt-btn" id="btn-disenchant-all" ${totalExtraCards ? '' : 'disabled'}>${totalExtraCards ? `ย่อยทั้งหมด +${totalShardsGained.toLocaleString('th-TH')}` : 'ไม่มีการ์ดซ้ำ'}</button>
+        </section>
+
+        <div class="cf-filters">
+          <div class="fx-chips" role="radiogroup" aria-label="สายเด็ค">${chipsHTML(DECK_FILTERS, craftFilterTribe, 'data-tribe', deckCounts)}</div>
+          <div class="fx-chips fx-chips-rarity" role="radiogroup" aria-label="ความแรร์">${chipsHTML(RARITY_FILTERS.map(r => ({ ...r, label: r.key === 'ALL' ? r.label : `${r.label} · ${CRAFT_COSTS[r.key]}` })), craftFilterRarity, 'data-rarity')}</div>
         </div>
 
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-          <strong style="color:#c084fc;font-size:14px;">🎴 เลือกหลอมการ์ดที่คุณต้องการ:</strong>
-          <span style="font-size:12px;color:#94a3b8;">ราคา: N 50 🔮 | R 150 🔮 | SR 400 🔮 | SSR 1,000 🔮</span>
-        </div>
-
-        <div class="bof-craft-filter-row">
-          <span style="font-size:12px;color:#cbd5e1;">สายเด็ค:</span>
-          <button type="button" class="bof-craft-filter-btn ${craftFilterTribe === 'ALL' ? 'is-active' : ''}" data-tribe="ALL">ทั้งหมด</button>
-          <button type="button" class="bof-craft-filter-btn ${craftFilterTribe === 'JIT' ? 'is-active' : ''}" data-tribe="JIT">จิต</button>
-          <button type="button" class="bof-craft-filter-btn ${craftFilterTribe === 'NUEA' ? 'is-active' : ''}" data-tribe="NUEA">ขุนเหนือ</button>
-          <button type="button" class="bof-craft-filter-btn ${craftFilterTribe === 'DOOM' ? 'is-active' : ''}" data-tribe="DOOM">สิ้นโลก</button>
-          <button type="button" class="bof-craft-filter-btn ${craftFilterTribe === 'DINO' ? 'is-active' : ''}" data-tribe="DINO">ไดโน</button>
-          <button type="button" class="bof-craft-filter-btn ${craftFilterTribe === 'DEMON' ? 'is-active' : ''}" data-tribe="DEMON">ปีศาจ</button>
-          <button type="button" class="bof-craft-filter-btn ${craftFilterTribe === 'OAT' ? 'is-active' : ''}" data-tribe="OAT">โอ๊ต</button>
-
-          <span style="font-size:12px;color:#cbd5e1;margin-left:8px;">ความแรร์:</span>
-          <button type="button" class="bof-craft-filter-btn ${craftFilterRarity === 'ALL' ? 'is-active' : ''}" data-rarity="ALL">ทุกระดับ</button>
-          <button type="button" class="bof-craft-filter-btn ${craftFilterRarity === 'SSR' ? 'is-active' : ''}" data-rarity="SSR">SSR</button>
-          <button type="button" class="bof-craft-filter-btn ${craftFilterRarity === 'SR' ? 'is-active' : ''}" data-rarity="SR">SR</button>
-          <button type="button" class="bof-craft-filter-btn ${craftFilterRarity === 'R' ? 'is-active' : ''}" data-rarity="R">R</button>
-          <button type="button" class="bof-craft-filter-btn ${craftFilterRarity === 'N' ? 'is-active' : ''}" data-rarity="N">N</button>
-        </div>
-
-        <div class="bof-craft-grid">
+        <div class="cf-grid">
           ${allCards.map(c => {
             const owned = Number(economy.ownedCards[c.id] || 0);
+            const maxKeep = maxKeepOf(c);
             const cost = CRAFT_COSTS[c.rarity] || 50;
+            const full = owned >= maxKeep;
             const canAfford = (economy.shards || 0) >= cost;
+            const label = full ? 'มีครบแล้ว' : `หลอม ${SHARD_SVG}${cost.toLocaleString('th-TH')}`;
             return `
-              <div class="bof-craft-card">
-                <img src="${c.image}" alt="${c.name}">
-                <div class="bof-craft-card-name" title="${c.name}">${c.name}</div>
-                <div class="bof-craft-card-owned">ครอบครอง: ${owned} ใบ</div>
-                <button type="button" class="bof-craft-action-btn" data-craft-id="${c.id}" ${canAfford ? '' : 'disabled'}>
-                  หลอม · ${cost} 🔮
-                </button>
-              </div>
+              <article class="cf-card r-${c.rarity} ${owned ? 'is-owned' : 'is-missing'}" data-craft-tile="${c.id}" style="--c:${deckOfCard(c).c}">
+                <div class="cf-art"><img src="${window.BOFDecks.thumbOf(c.image)}" alt="" loading="lazy"><i class="cf-rar">${c.rarity}</i></div>
+                <h5 title="${c.name}">${c.name}</h5>
+                <div class="cf-own" aria-label="มี ${owned} จาก ${maxKeep} ใบ">${Array.from({ length: maxKeep }, (_, i) => `<i class="${i < owned ? 'on' : ''}"></i>`).join('')}<span>${Math.min(owned, 99)}/${maxKeep}</span></div>
+                <button type="button" class="cf-craft-btn" data-craft-id="${c.id}" ${full || !canAfford ? 'disabled' : ''} ${!full && !canAfford ? 'title="ชาร์ดไม่พอ"' : ''}>${label}</button>
+              </article>
             `;
-          }).join('')}
+          }).join('') || '<p class="fx-empty">ไม่มีการ์ดที่ตรงกับตัวกรอง</p>'}
         </div>
       </div>
     `;
 
-    // ปุมย่อยการ์ดซ้ำ
     const disenchantBtn = container.querySelector('#btn-disenchant-all');
     if (disenchantBtn) {
       disenchantBtn.onclick = () => {
         if (totalExtraCards <= 0) return;
         CARD_DATABASE.forEach(card => {
-          const owned = Number(economy.ownedCards[card.id] || 0);
-          const maxKeep = card.type === 'Leader' ? 1 : 2;
-          if (owned > maxKeep) {
-            economy.ownedCards[card.id] = maxKeep;
-          }
+          const maxKeep = maxKeepOf(card);
+          if (Number(economy.ownedCards[card.id] || 0) > maxKeep) economy.ownedCards[card.id] = maxKeep;
         });
         economy.shards = (economy.shards || 0) + totalShardsGained;
         const todayKey = getThaiQuestDayKey();
@@ -1222,38 +1380,38 @@
           economy.claimedQuests = {};
         }
         economy.dailyProgress.craftsDone = (economy.dailyProgress.craftsDone || 0) + 1;
+        const from = container.querySelector('.cf-orb');
+        const fromRect = from ? from.getBoundingClientRect() : null;
         saveEconomy();
         if (window.BOF_AUDIO) window.BOF_AUDIO.playSpell();
         showShopToast(`✨ ย่อยการ์ดซ้ำสำเร็จ! ได้รับ +${totalShardsGained.toLocaleString('th-TH')} 🔮 Soul Shards`);
         renderCraftingView(container);
+        syncTabBadge();
+        container.dispatchEvent(new CustomEvent('shop:melt', { bubbles: true, detail: { from: fromRect, amount: totalShardsGained } }));
       };
     }
 
-    // ตัวกรอง
-    container.querySelectorAll('.bof-craft-filter-btn[data-tribe]').forEach(btn => {
-      btn.onclick = () => {
-        craftFilterTribe = btn.dataset.tribe;
-        renderCraftingView(container);
-      };
+    const rerender = () => {
+      renderCraftingView(container);
+      container.dispatchEvent(new CustomEvent('fx:filter', { bubbles: true, detail: { grid: container.querySelector('.cf-grid') } }));
+    };
+    container.querySelectorAll('.fx-chip[data-tribe]').forEach(btn => {
+      btn.onclick = () => { if (craftFilterTribe === btn.dataset.tribe) return; craftFilterTribe = btn.dataset.tribe; rerender(); };
     });
-    container.querySelectorAll('.bof-craft-filter-btn[data-rarity]').forEach(btn => {
-      btn.onclick = () => {
-        craftFilterRarity = btn.dataset.rarity;
-        renderCraftingView(container);
-      };
+    container.querySelectorAll('.fx-chip[data-rarity]').forEach(btn => {
+      btn.onclick = () => { if (craftFilterRarity === btn.dataset.rarity) return; craftFilterRarity = btn.dataset.rarity; rerender(); };
     });
 
-    // ปุ่มหลอมการ์ด
-    container.querySelectorAll('.bof-craft-action-btn[data-craft-id]').forEach(btn => {
+    container.querySelectorAll('.cf-craft-btn[data-craft-id]').forEach(btn => {
       btn.onclick = () => {
-        const cardId = btn.dataset.craftId;
-        const target = CARD_DATABASE.find(c => c.id === cardId);
+        const target = CARD_DATABASE.find(c => c.id === btn.dataset.craftId);
         if (!target) return;
         const cost = CRAFT_COSTS[target.rarity] || 50;
         if ((economy.shards || 0) < cost) {
           showShopToast('⚠️ เศษวิญญาณ Soul Shards ไม่เพียงพอ!');
           return;
         }
+        if (Number(economy.ownedCards[target.id] || 0) >= maxKeepOf(target)) return;
         economy.shards -= cost;
         grantCardToCollection(target);
         const todayKey = getThaiQuestDayKey();
@@ -1266,6 +1424,8 @@
         if (window.BOF_AUDIO) window.BOF_AUDIO.playSsr();
         showShopToast(`🔮 หลอมการ์ด "${target.name}" [${target.rarity}] สำเร็จ!`);
         renderCraftingView(container);
+        syncTabBadge();
+        container.dispatchEvent(new CustomEvent('shop:craft', { bubbles: true, detail: { id: target.id } }));
       };
     });
   }
@@ -1485,187 +1645,162 @@
     }
   }
 
+  // --- มุมมองที่ 4: ห้องแต่งตัว — เวทีโชว์ชุดที่สวมอยู่ (ลองชิ้นใหม่บนเวทีได้ก่อนซื้อ) + ชั้นวางของตกแต่ง ---
+  const COS_CATS = [
+    { key: 'ALL', label: 'ทั้งหมด', c: '#f3c969' },
+    { key: 'card_back', label: 'หลังการ์ด', c: '#ff8597' },
+    { key: 'frame', label: 'กรอบโปรไฟล์', c: '#5fd0ff' },
+    { key: 'title', label: 'ฉายา', c: '#fde047' },
+    { key: 'arena_theme', label: 'สีสนาม', c: '#a3e635' }
+  ];
+  const RARITY_C = { N: '#cbd5e1', R: '#7cc0ff', SR: '#ff8597', SSR: '#fde047' };
+  let cosmeticTry = {}; // ชิ้นที่กำลังลองบนเวที { category: itemId } — ไม่บันทึก
+
+  function cosmeticPreviewHTML(item, avatarSrc) {
+    if (item.category === 'card_back') {
+      return `<div class="bof-cos-preview-cardback" data-cb-style="${item.styleId}"><img src="${item.image}" alt="" loading="lazy"><span class="bof-cos-cb-shine"></span></div>`;
+    }
+    if (item.category === 'frame') {
+      return `<div class="bof-cos-preview-frame-wrap"><img class="bof-cos-avatar-sample" data-frame="${item.styleId}" src="${avatarSrc}" alt=""></div>`;
+    }
+    if (item.category === 'title') {
+      return `<div class="bof-cos-preview-title-wrap"><span class="bof-user-title-pill is-large" style="--title-color:${item.color};">${item.badgeText}</span></div>`;
+    }
+    return `<div class="bof-cos-preview-arena" style="background:${item.previewBg};" data-arena-style="${item.styleId}">
+      <div class="bof-cos-arena-grid-lines"><span></span><span></span><span></span></div>
+      <div class="bof-cos-arena-divider"></div>
+      <div class="bof-cos-arena-grid-lines"><span></span><span></span><span></span></div></div>`;
+  }
+
   function renderCosmeticsView(container) {
     if (!economy.ownedCosmetics) economy.ownedCosmetics = { ...DEFAULT_OWNED_COSMETICS };
     if (!economy.equippedCosmetics) economy.equippedCosmetics = { ...DEFAULT_EQUIPPED_COSMETICS };
 
-    const countByCat = (cat) => cat === 'ALL'
-      ? COSMETIC_ITEMS.length
-      : COSMETIC_ITEMS.filter(it => it.category === cat).length;
-
-    const catLabels = {
-      ALL: `✨ ทั้งหมด (${countByCat('ALL')})`,
-      card_back: `🎴 ลายหลังการ์ด (${countByCat('card_back')})`,
-      frame: `🖼️ กรอบโปรไฟล์ (${countByCat('frame')})`,
-      title: `👑 ฉายาผู้เล่น (${countByCat('title')})`,
-      arena_theme: `🏟️ สีสนามประลอง (${countByCat('arena_theme')})`
-    };
-
+    const counts = { ALL: COSMETIC_ITEMS.length };
+    COSMETIC_ITEMS.forEach(it => { counts[it.category] = (counts[it.category] || 0) + 1; });
     const filteredItems = COSMETIC_ITEMS.filter(it => cosmeticFilterCat === 'ALL' || it.category === cosmeticFilterCat);
+    const user = window.BOFAuth && typeof window.BOFAuth.currentUser === 'function' ? window.BOFAuth.currentUser() : null;
+    const avatarSrc = (user && user.customAvatar) || 'images/เด็คจิต/1.png';
+    const playerName = (document.querySelector('#lb-auth-bar .lb-auth-name') || {}).textContent || 'ผู้เล่น';
 
-    const eqBack = getCosmeticItemById(economy.equippedCosmetics.card_back) || COSMETIC_ITEMS[0];
-    const eqFrame = getCosmeticItemById(economy.equippedCosmetics.frame) || getCosmeticItemById('pf_default');
-    const eqTitle = getCosmeticItemById(economy.equippedCosmetics.title) || getCosmeticItemById('tt_default');
-    const eqTheme = getCosmeticItemById(economy.equippedCosmetics.arena_theme) || getCosmeticItemById('mt_default');
-    const currentAvatarSrc = (window.BOFAuth && window.BOFAuth.currentUser && window.BOFAuth.currentUser() && window.BOFAuth.currentUser().customAvatar)
-      ? window.BOFAuth.currentUser().customAvatar
-      : 'images/เด็คจิต/1.png';
+    // ชุดบนเวที = ที่สวมอยู่ ทับด้วยชิ้นที่กำลังลอง
+    const pick = (cat, fallback) => getCosmeticItemById(cosmeticTry[cat] || economy.equippedCosmetics[cat]) || getCosmeticItemById(fallback);
+    const look = {
+      card_back: pick('card_back', 'cb_default'),
+      frame: pick('frame', 'pf_default'),
+      title: pick('title', 'tt_default'),
+      arena_theme: pick('arena_theme', 'mt_default')
+    };
+    const trying = Object.values(cosmeticTry).map(id => getCosmeticItemById(id)).filter(Boolean);
+    const accent = (COS_CATS.find(c => c.key === cosmeticFilterCat) || COS_CATS[0]).c;
+    const slot = (cat, label, valueHTML, thumbHTML) => `
+      <button type="button" class="cs-slot ${cosmeticFilterCat === cat ? 'is-on' : ''} ${cosmeticTry[cat] ? 'is-trying' : ''}" data-cos-jump="${cat}" style="--chip-c:${COS_CATS.find(c => c.key === cat).c}">
+        <span class="cs-slot-thumb">${thumbHTML}</span>
+        <span class="cs-slot-meta"><small>${label}</small><b>${valueHTML}</b></span>
+      </button>`;
 
+    container.style.setProperty('--accent', accent);
     container.innerHTML = `
-      <div class="bof-cosmetics-panel">
-        <div class="bof-cosmetics-equipped-bar">
-          <div class="bof-cos-eq-head">✨ ชุดของตกแต่งที่กำลังสวมใส่ประจำตัว</div>
-          <div class="bof-cos-eq-pills">
-            <div class="bof-cos-eq-pill" data-cos-jump="card_back">
-              <img class="bof-cos-eq-mini-cb" src="${eqBack ? eqBack.image : 'images/card-back.png'}" alt="">
-              <div class="bof-cos-eq-meta">
-                <span>🎴 ลายหลังการ์ด</span>
-                <b>${eqBack ? eqBack.name : '-'}</b>
-              </div>
+      <div class="cs">
+        <section class="cs-stage" aria-label="ชุดที่สวมอยู่">
+          <div class="cs-arena" style="background:${look.arena_theme ? look.arena_theme.previewBg : '#1b2048'};">
+            <div class="cs-arena-lines" aria-hidden="true"></div>
+            <div class="cs-hero">
+              <img class="bof-cos-avatar-sample cs-avatar" data-frame="${look.frame ? look.frame.styleId : 'default'}" src="${avatarSrc}" alt="">
+              <span class="bof-user-title-pill" style="--title-color:${look.title ? look.title.color : '#94a3b8'};">${look.title ? look.title.badgeText : ''}</span>
+              <b class="cs-name">${playerName}</b>
             </div>
-            <div class="bof-cos-eq-pill" data-cos-jump="frame">
-              <img class="bof-cos-eq-mini-avatar" data-frame="${eqFrame ? eqFrame.styleId : 'default'}" src="${currentAvatarSrc}" alt="">
-              <div class="bof-cos-eq-meta">
-                <span>🖼️ กรอบโปรไฟล์</span>
-                <b>${eqFrame ? eqFrame.name : '-'}</b>
-              </div>
+            <div class="cs-fan" aria-hidden="true">
+              <img src="${look.card_back ? look.card_back.image : 'images/card-back.png'}" alt="">
+              <img src="${look.card_back ? look.card_back.image : 'images/card-back.png'}" alt="">
+              <img src="${look.card_back ? look.card_back.image : 'images/card-back.png'}" alt="">
             </div>
-            <div class="bof-cos-eq-pill" data-cos-jump="title">
-              <div class="bof-cos-eq-meta">
-                <span>👑 ฉายาผู้เล่น</span>
-                <b style="color:${eqTitle ? eqTitle.color : '#fde047'};">${eqTitle ? eqTitle.badgeText : '-'}</b>
-              </div>
-            </div>
-            <div class="bof-cos-eq-pill" data-cos-jump="arena_theme">
-              <span class="bof-cos-eq-mini-swatch" style="background:${eqTheme ? eqTheme.previewBg : '#1e293b'};"></span>
-              <div class="bof-cos-eq-meta">
-                <span>🏟️ สีสนามประลอง</span>
-                <b>${eqTheme ? eqTheme.name : '-'}</b>
-              </div>
-            </div>
+            ${trying.length ? `<div class="cs-try-banner"><span>กำลังลอง: ${trying.map(t => t.name).join(', ')}</span><button type="button" class="cs-try-reset">กลับชุดเดิม</button></div>` : ''}
           </div>
-        </div>
+          <div class="cs-slots">
+            ${slot('card_back', 'หลังการ์ด', look.card_back ? look.card_back.name : '-', `<img src="${look.card_back ? look.card_back.image : ''}" alt="">`)}
+            ${slot('frame', 'กรอบโปรไฟล์', look.frame ? look.frame.name : '-', `<img class="bof-cos-eq-mini-avatar" data-frame="${look.frame ? look.frame.styleId : 'default'}" src="${avatarSrc}" alt="">`)}
+            ${slot('title', 'ฉายา', `<span style="color:${look.title ? look.title.color : '#fde047'}">${look.title ? look.title.badgeText : '-'}</span>`, '<i class="cs-ico-title"></i>')}
+            ${slot('arena_theme', 'สีสนาม', look.arena_theme ? look.arena_theme.name : '-', `<span class="cs-swatch" style="background:${look.arena_theme ? look.arena_theme.previewBg : '#1e293b'}"></span>`)}
+          </div>
+        </section>
 
-        <div class="bof-craft-filter-row bof-cosmetics-cat-row">
-          ${Object.entries(catLabels).map(([key, label]) => `
-            <button type="button" class="bof-craft-filter-btn ${cosmeticFilterCat === key ? 'is-active' : ''}" data-cos-cat="${key}">${label}</button>
-          `).join('')}
-        </div>
+        <div class="fx-chips" role="radiogroup" aria-label="หมวดของตกแต่ง">${chipsHTML(COS_CATS, cosmeticFilterCat, 'data-cos-cat', counts)}</div>
 
-        <div class="bof-cosmetics-grid">
+        <div class="cs-grid">
           ${filteredItems.map(item => {
             const isOwned = !!economy.ownedCosmetics[item.id] || item.currency === 'free';
             const isEquipped = economy.equippedCosmetics[item.category] === item.id;
+            const isTrying = cosmeticTry[item.category] === item.id;
             const canAfford = item.currency === 'coins'
               ? (economy.coins || 0) >= item.price
               : (item.currency === 'shards' ? (economy.shards || 0) >= item.price : true);
             const rarity = item.rarity || 'R';
-
-            let previewHTML = '';
-            if (item.category === 'card_back') {
-              previewHTML = `
-                <div class="bof-cos-preview-cardback" data-cb-style="${item.styleId}">
-                  <img src="${item.image}" alt="${item.name}">
-                  <span class="bof-cos-cb-shine"></span>
-                </div>
-              `;
-            } else if (item.category === 'frame') {
-              previewHTML = `
-                <div class="bof-cos-preview-frame-wrap">
-                  <img class="bof-cos-avatar-sample" data-frame="${item.styleId}" src="${currentAvatarSrc}" alt="${item.name}">
-                </div>
-              `;
-            } else if (item.category === 'title') {
-              previewHTML = `
-                <div class="bof-cos-preview-title-wrap">
-                  <span class="bof-user-title-pill is-large" style="--title-color:${item.color};border-color:${item.color};color:${item.color};">${item.badgeText}</span>
-                </div>
-              `;
-            } else if (item.category === 'arena_theme') {
-              previewHTML = `
-                <div class="bof-cos-preview-arena" style="background:${item.previewBg};" data-arena-style="${item.styleId}">
-                  <div class="bof-cos-arena-grid-lines">
-                    <span></span><span></span><span></span>
-                  </div>
-                  <div class="bof-cos-arena-divider"></div>
-                  <div class="bof-cos-arena-grid-lines">
-                    <span></span><span></span><span></span>
-                  </div>
-                </div>
-              `;
-            }
-
-            let btnHTML = '';
-            if (isEquipped) {
-              btnHTML = `<button type="button" class="bof-cos-action-btn is-equipped" disabled>✓ กำลังสวมใส่</button>`;
-            } else if (isOwned) {
-              btnHTML = `<button type="button" class="bof-cos-action-btn is-equip" data-equip-id="${item.id}">✨ กดสวมใส่</button>`;
-            } else {
-              const priceLabel = item.currency === 'coins'
-                ? `🪙 ${item.price.toLocaleString('th-TH')} Coins`
-                : `🔮 ${item.price.toLocaleString('th-TH')} Shards`;
-              btnHTML = `<button type="button" class="bof-cos-action-btn is-buy ${canAfford ? '' : 'is-disabled'}" data-buy-id="${item.id}" ${canAfford ? '' : 'disabled'}>🛒 แลกซื้อ · ${priceLabel}</button>`;
-            }
-
-            const catBadgeMap = {
-              card_back: '🎴 หลังการ์ด',
-              frame: '🖼️ กรอบโปรไฟล์',
-              title: '👑 ฉายา',
-              arena_theme: '🏟️ สีสนาม'
-            };
-
-            const statusBadgeHTML = isEquipped
-              ? `<span class="bof-cosmetic-status-tag is-eq">✓ สวมใส่อยู่</span>`
-              : (isOwned ? `<span class="bof-cosmetic-status-tag is-own">มีในคลัง</span>` : `<span class="bof-cosmetic-rarity-tag is-${rarity}">${rarity}</span>`);
-
+            const cur = item.currency === 'shards' ? SHARD_SVG : COIN_SVG;
+            const action = isEquipped
+              ? '<span class="cs-state is-eq">สวมใส่อยู่</span>'
+              : isOwned
+                ? `<button type="button" class="cs-btn cs-btn-equip" data-equip-id="${item.id}">สวมใส่</button>`
+                : `<button type="button" class="cs-btn cs-btn-buy" data-buy-id="${item.id}" ${canAfford ? '' : 'disabled title="ไม่พอ"'}>แลก ${cur}${item.price.toLocaleString('th-TH')}</button>`;
             return `
-              <div class="bof-cosmetic-card rarity-border-${rarity} ${isEquipped ? 'is-equipped-card' : ''} ${isOwned ? 'is-owned-card' : ''}">
-                <div class="bof-cosmetic-badge-row">
-                  <span class="bof-cos-cat-tag">${catBadgeMap[item.category] || ''}</span>
-                  ${statusBadgeHTML}
+              <article class="cs-item r-${rarity} ${isEquipped ? 'is-equipped' : ''} ${isOwned ? 'is-owned' : ''} ${isTrying ? 'is-trying' : ''}" data-cos-item="${item.id}" style="--rc:${RARITY_C[rarity] || '#cbd5e1'}">
+                <span class="cs-glow" aria-hidden="true"></span>
+                <button type="button" class="cs-preview" data-try-id="${item.id}" aria-label="ลอง ${item.name} บนเวที">
+                  ${cosmeticPreviewHTML(item, avatarSrc)}
+                  <span class="cs-try-hint">${isTrying ? 'กำลังลอง' : 'แตะเพื่อลอง'}</span>
+                </button>
+                <div class="cs-item-body">
+                  <div class="cs-item-top"><i class="cs-rar">${rarity}</i>${isOwned && !isEquipped ? '<span class="cs-state">มีแล้ว</span>' : ''}</div>
+                  <h5>${item.name}</h5>
+                  <p>${item.desc}</p>
+                  ${action}
                 </div>
-                <div class="bof-cos-preview-box">${previewHTML}</div>
-                <h5 class="bof-cos-name">${item.name}</h5>
-                <p class="bof-cos-desc">${item.desc}</p>
-                ${btnHTML}
-              </div>
+              </article>
             `;
           }).join('')}
         </div>
       </div>
     `;
 
-    container.querySelectorAll('.bof-cos-eq-pill[data-cos-jump]').forEach(pill => {
-      pill.onclick = () => {
-        cosmeticFilterCat = pill.getAttribute('data-cos-jump') || 'ALL';
-        renderCosmeticsView(container);
+    const rerender = (evt, detail) => {
+      renderCosmeticsView(container);
+      if (evt) container.dispatchEvent(new CustomEvent(evt, { bubbles: true, detail: detail || {} }));
+    };
+    const filterTo = cat => {
+      if (cosmeticFilterCat === cat) return;
+      cosmeticFilterCat = cat;
+      rerender();
+      container.dispatchEvent(new CustomEvent('fx:filter', { bubbles: true, detail: { grid: container.querySelector('.cs-grid') } }));
+    };
+    container.querySelectorAll('.cs-slot[data-cos-jump]').forEach(b => { b.onclick = () => filterTo(b.dataset.cosJump); });
+    container.querySelectorAll('.fx-chip[data-cos-cat]').forEach(b => { b.onclick = () => filterTo(b.dataset.cosCat); });
+
+    container.querySelectorAll('.cs-preview[data-try-id]').forEach(b => {
+      b.onclick = () => {
+        const item = getCosmeticItemById(b.dataset.tryId); if (!item) return;
+        const same = cosmeticTry[item.category] === item.id || economy.equippedCosmetics[item.category] === item.id;
+        if (same) delete cosmeticTry[item.category]; else cosmeticTry[item.category] = item.id;
+        rerender('cos:try', { category: item.category });
       };
     });
+    container.querySelector('.cs-try-reset')?.addEventListener('click', () => { cosmeticTry = {}; rerender('cos:try', {}); });
 
-    container.querySelectorAll('.bof-craft-filter-btn[data-cos-cat]').forEach(btn => {
+    container.querySelectorAll('.cs-btn[data-equip-id]').forEach(btn => {
       btn.onclick = () => {
-        cosmeticFilterCat = btn.dataset.cosCat;
-        renderCosmeticsView(container);
-      };
-    });
-
-    container.querySelectorAll('.bof-cos-action-btn[data-equip-id]').forEach(btn => {
-      btn.onclick = () => {
-        const id = btn.dataset.equipId;
-        const item = getCosmeticItemById(id);
+        const item = getCosmeticItemById(btn.dataset.equipId);
         if (!item) return;
         economy.equippedCosmetics[item.category] = item.id;
+        delete cosmeticTry[item.category];
         saveEconomy();
         if (window.BOF_AUDIO) window.BOF_AUDIO.playSpell();
         showShopToast(`✨ สวมใส่ "${item.name}" เรียบร้อยแล้ว!`);
-        renderCosmeticsView(container);
+        rerender('cos:equip', { id: item.id, category: item.category });
       };
     });
 
-    container.querySelectorAll('.bof-cos-action-btn[data-buy-id]').forEach(btn => {
+    container.querySelectorAll('.cs-btn[data-buy-id]').forEach(btn => {
       btn.onclick = () => {
-        const id = btn.dataset.buyId;
-        const item = getCosmeticItemById(id);
+        const item = getCosmeticItemById(btn.dataset.buyId);
         if (!item) return;
         if (item.currency === 'coins') {
           if ((economy.coins || 0) < item.price) {
@@ -1682,10 +1817,11 @@
         }
         economy.ownedCosmetics[item.id] = true;
         economy.equippedCosmetics[item.category] = item.id;
+        delete cosmeticTry[item.category];
         saveEconomy();
         if (window.BOF_AUDIO) window.BOF_AUDIO.playSsr();
         showShopToast(`🎉 แลกซื้อและสวมใส่ "${item.name}" สำเร็จ!`);
-        renderCosmeticsView(container);
+        rerender('cos:equip', { id: item.id, category: item.category, bought: true });
       };
     });
   }
@@ -1700,23 +1836,7 @@
   }
 
   function hookCollectionAndDeckBuilder() {
-    const navCards = document.getElementById('nav-cards');
-    if (navCards) {
-      navCards.addEventListener('click', e => {
-        if (!isLoggedInUser()) return;
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        economy = loadEconomy();
-        const ownedList = CARD_DATABASE.filter(c => Number(economy.ownedCards[c.id] || 0) > 0);
-        if (typeof openZoneViewerModal === 'function') {
-          openZoneViewerModal(
-            `🎒 คลังการ์ดของคุณ (${ownedList.length} / ${CARD_DATABASE.length} แบบ — สุ่มเพิ่มได้จากร้านค้าซองการ์ด)`,
-            ownedList,
-            null
-          );
-        }
-      }, true);
-    }
+    // คลังการ์ด (เมนู "คลังการ์ด") ย้ายไปอยู่ js/collection.js — แสดงทุกใบ ใบที่ยังไม่มีเป็นเงาล็อกไว้
 
     if (typeof window.renderDeckBuilder === 'function') {
       const origRenderDeckBuilder = window.renderDeckBuilder;
@@ -1788,6 +1908,17 @@
 
     document.getElementById('bof-shop-close')?.addEventListener('click', () => dialog.close());
 
+    // ช่องใส่โค้ดซ่อนไว้จนกดปุ่ม "ใส่โค้ด" (ไม่ค่อยได้ใช้ จึงไม่ให้กินที่หัวร้าน)
+    const codeToggle = document.getElementById('bof-shop-code-toggle');
+    const codeBox = document.getElementById('bof-shop-code-box');
+    codeToggle?.addEventListener('click', () => {
+      const open = codeBox.hidden;
+      codeBox.hidden = !open;
+      codeToggle.setAttribute('aria-expanded', String(open));
+      if (open) document.getElementById('bof-shop-code-input')?.focus();
+      codeBox.dispatchEvent(new CustomEvent('shop:code', { bubbles: true, detail: { open } }));
+    });
+
     // ระบบช่องกรอกโค้ดรับเหรียญ (โค้ด "10000" รับ 10,000 เหรียญ)
     const redeemShopCode = () => {
       const codeInput = document.getElementById('bof-shop-code-input');
@@ -1817,11 +1948,7 @@
     });
 
     // ปุ่มพลิกการ์ดทั้งหมดพร้อมกัน
-    document.getElementById('bof-reveal-flip-all')?.addEventListener('click', () => {
-      document.querySelectorAll('#bof-reveal-cards .bof-flip-card').forEach(c => {
-        c.classList.add('is-flipped');
-      });
-    });
+    document.getElementById('bof-reveal-flip-all')?.addEventListener('click', flipAllRevealCards);
 
     const hideRevealStage = () => {
       const st = document.getElementById('bof-reveal-stage');
