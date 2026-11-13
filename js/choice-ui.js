@@ -19,6 +19,7 @@
     live.forEach(t => t && t.kill && t.kill()); live = [];
     modal.querySelectorAll('.um-x').forEach(n => n.remove());
     document.querySelectorAll('.um-spark').forEach(n => n.remove());
+    if (window.BOFParticles) window.BOFParticles.clear(); // กระดาษสีของฉากชนะไม่ค้างไปหน้าต่างถัดไป
     modal.classList.remove('um-choice', 'um-end', 'um-victory', 'um-defeat', 'um-tone-danger', 'um-tone-arcane', 'um-has-card-grid');
     const box = modal.querySelector('.modal-box');
     if (box && hasGsap) gsap.set([box, ...box.children, ...box.querySelectorAll('#choice-modal-buttons .btn')], { clearProps: 'transform,opacity' });
@@ -234,8 +235,22 @@
       gsap.fromTo(s, { x: 0, y: 0, scale: .4 + Math.random() * .9, opacity: 1 },
         { x: Math.cos(a) * d, y: Math.sin(a) * d * .7 + 60, opacity: 0, duration: 1 + Math.random() * .8, delay: .1 + Math.random() * .2, ease: 'power3.out', onComplete: () => s.remove(), onInterrupt: () => s.remove() });
     }
+    winFx(ring);
     live.push(gsap.to(ring.firstChild, { y: -5, duration: 1.4, yoyo: true, repeat: -1, ease: 'sine.inOut', delay: 1.2 }));
     live.push(gsap.to(word, { scale: 1.03, duration: 1.8, yoyo: true, repeat: -1, ease: 'sine.inOut', delay: 1.4 }));
+  }
+  // อนุภาค canvas (js/fx-particles.js): ระเบิดทองที่ถ้วย · ปืนกระดาษสีจากมุมล่างสองข้าง · พลุสามลูก · กระดาษโปรยจากบน
+  function winFx(ring) {
+    const fx = window.BOFParticles; if (!fx) return;
+    const host = document.body, W = innerWidth, H = innerHeight;
+    const r = ring.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const gold = '253, 224, 71';
+    fx.burst(host, cx, cy, { count: 40, radius: 160, speed: 520, size: 16, life: 1, gravity: 160, color: gold, color2: '255, 255, 255', delay: .1 });
+    fx.confetti(host, 0, H, { angle: -Math.PI / 3, spread: .7, speed: 1100, count: 70, delay: .25, stagger: .15 });
+    fx.confetti(host, W, H, { angle: -Math.PI * 2 / 3, spread: .7, speed: 1100, count: 70, delay: .3, stagger: .15 });
+    [[.25, .28, '255, 133, 151', .7], [.75, .24, '124, 192, 255', 1.05], [.5, .16, gold, 1.4]].forEach(([fxp, fyp, color, d]) =>
+      fx.burst(host, W * fxp, H * fyp, { count: 36, rings: 1, radius: 70, speed: 380, size: 12, life: 1.1, gravity: 260, color, color2: '255, 255, 255', delay: d }));
+    fx.confetti(host, W / 2, -20, { angle: Math.PI / 2, spread: 2.6, speed: 260, count: 50, delay: 1.2, stagger: 1.4 });
   }
   function animateDefeat(modal, box, ring, word) {
     const vig = modal.querySelector('.um-vignette');

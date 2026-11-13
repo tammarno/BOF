@@ -1,5 +1,7 @@
 /* ============================================================================
    BOF อนุภาค (canvas เดียว · วาดด้วย sprite ที่เตรียมไว้ · rAF ทำงานเฉพาะตอนมีอนุภาค)
+   BOFParticles.confetti(layer, x, y, opts)       — กระดาษสีพุ่งจากจุด (angle/spread/speed/count) แล้วปลิวร่วง
+   BOFParticles.clear()                           — ลบอนุภาคที่ค้างอยู่ทั้งหมด
    BOFParticles.reward(layer, from, targets, opts) — เหรียญ/คริสตัลแตกออกแล้วบินโค้งเข้าตัวนับ
    BOFParticles.burst(layer, x, y, opts)          — ประกายแตกกระจาย + วงแสง
      opts: count, radius, color ('r, g, b'), speed, size, life, gravity, angle+spread (พุ่งเป็นกรวย), rings (0-2), delay
@@ -153,10 +155,44 @@
     });
   }
 
+  // กระดาษสี: สี่เหลี่ยมหมุนพลิก มีแรงต้านอากาศ แกว่งซ้ายขวาระหว่างร่วง
+  const CONFETTI = ['#ffe39a', '#f3c969', '#ff8597', '#7cc0ff', '#c4a7ff', '#7ef0a8', '#ffffff'];
+  function confettiBit(x, y, opt) {
+    const a = (opt.angle ?? -Math.PI / 2) + (Math.random() - .5) * (opt.spread ?? 1), sp = (opt.speed ?? 700) * (.55 + Math.random() * .6);
+    parts.push({
+      x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0, max: 2.4 + Math.random() * 1.4, delay: opt.delay || 0,
+      w: 6 + Math.random() * 6, h: 3 + Math.random() * 3, rot: Math.random() * 6, vr: (Math.random() - .5) * 14,
+      flip: Math.random() * 6, vf: 6 + Math.random() * 8, sway: Math.random() * 6, col: CONFETTI[(Math.random() * CONFETTI.length) | 0],
+      update(p, dt) {
+        p.life += dt; p.rot += p.vr * dt; p.flip += p.vf * dt; p.sway += dt * 3;
+        const drag = Math.pow(.18, dt); // ช้าลงเร็วเหมือนกระดาษ
+        p.vx *= drag; p.vy = p.vy * drag + 520 * dt;
+        if (p.vy > 140) p.vy = 140; // ความเร็วร่วงสูงสุด
+        p.x += (p.vx + Math.sin(p.sway) * 40) * dt; p.y += p.vy * dt;
+        return p.life >= p.max || p.y > cv.height / dpr + 20;
+      },
+      draw(p) {
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.scale(1, Math.cos(p.flip));
+        ctx.globalAlpha = Math.min(1, (p.max - p.life) * 2);
+        ctx.fillStyle = p.col; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore(); ctx.globalAlpha = 1;
+      }
+    });
+  }
+
   // ---------- API ----------
   const local = (host, x, y) => [x - ox, y - oy];
 
   window.BOFParticles = {
+    confetti(host, x, y, opt = {}) {
+      if (reduced()) return;
+      mount(host);
+      [x, y] = local(host, x, y);
+      const n = opt.count ?? 60;
+      for (let i = 0; i < n; i++) confettiBit(x, y, { ...opt, delay: (opt.delay || 0) + (opt.stagger ? Math.random() * opt.stagger : 0) });
+      start();
+    },
+    clear() { parts.length = 0; },
     burst(host, x, y, opt = {}) {
       if (reduced()) return;
       mount(host);
