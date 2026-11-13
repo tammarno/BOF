@@ -723,8 +723,9 @@ function showEndMatchModal(title, desc) {
 }
 
 function returnToLobbyScreen() {
-  if (typeof pvpState !== 'undefined' && pvpState.peer) pvpState.peer.destroy();
+  // ปิด isMultiplayer ก่อน destroy: ไม่งั้น conn.on('close') ฝั่งเราจะเด้ง "คุณชนะ" ให้คนที่กดออกเอง
   if (typeof pvpState !== 'undefined') pvpState.isMultiplayer = false;
+  if (typeof pvpState !== 'undefined' && pvpState.peer) pvpState.peer.destroy();
   const gameBoard = document.querySelector('.game-container');
   const lobbyScreen = document.getElementById('lobby-screen');
   const mulliganModal = document.getElementById('mulligan-modal');
@@ -8221,6 +8222,8 @@ function handleIncomingPvpData(data) {
   if (!data || !data.type) return;
 
   if (data.type === 'PLAYER_SURRENDER') {
+    // SYNC_BOARD ที่มี surrendered มักมาถึงก่อนและจบแมตช์ไปแล้ว: ห้ามเด้งผลซ้ำ (รางวัล/เควสต์จะนับสองรอบ)
+    if (gameState.gameOver) return;
     pvpState.isApplyingRemote = true;
     gameState.gameOver = true;
     gameState.pendingAction = null;
