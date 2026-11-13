@@ -2,7 +2,9 @@
    BOF อนุภาค (canvas เดียว · วาดด้วย sprite ที่เตรียมไว้ · rAF ทำงานเฉพาะตอนมีอนุภาค)
    BOFParticles.reward(layer, from, targets, opts) — เหรียญ/คริสตัลแตกออกแล้วบินโค้งเข้าตัวนับ
    BOFParticles.burst(layer, x, y, opts)          — ประกายแตกกระจาย + วงแสง
-   layer: document.body (พิกัดจอ) หรือ <dialog> ที่เปิดอยู่ (canvas ต้องอยู่ใน top layer เดียวกัน)
+     opts: count, radius, color ('r, g, b'), speed, size, life, gravity, angle+spread (พุ่งเป็นกรวย), rings (0-2), delay
+   layer: document.body (พิกัดจอ) หรือกล่อง position fixed/absolute ที่ลอยอยู่ (เช่น <dialog> ที่เปิด, ฉากเปิดซอง)
+          ที่เลื่อนได้ก็ใช้ได้ (canvas ตามตำแหน่ง scroll ตอนเริ่ม)
    ============================================================================ */
 (function () {
   const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -42,9 +44,12 @@
       grad.addColorStop(0, 'rgba(255,255,255,1)'); grad.addColorStop(.25, col); grad.addColorStop(1, 'rgba(0,0,0,0)');
       g.fillStyle = grad; g.fillRect(0, 0, s, s);
     });
+    S.glow = glow;
     S.sparkGold = glow('rgba(255, 214, 110, .85)');
     S.sparkViolet = glow('rgba(190, 160, 255, .85)');
   }
+  const tinted = {};
+  const sparkOf = rgb => tinted[rgb] || (tinted[rgb] = S.glow(`rgba(${rgb}, .85)`));
 
   // ---------- canvas ----------
   function mount(host) {
@@ -58,10 +63,11 @@
     const isBody = host === document.body;
     const r = isBody ? { left: 0, top: 0, width: innerWidth, height: innerHeight } : host.getBoundingClientRect();
     ox = r.left; oy = r.top;
+    const st = isBody ? 0 : host.scrollTop, sl = isBody ? 0 : host.scrollLeft; // กล่องที่เลื่อนได้: วาง canvas ตรงส่วนที่มองเห็น
     dpr = Math.min(2, window.devicePixelRatio || 1);
     const w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
     if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
-    cv.style.cssText = `position:${isBody ? 'fixed' : 'absolute'};left:0;top:0;width:${r.width}px;height:${r.height}px;pointer-events:none;z-index:10000`;
+    cv.style.cssText = `position:${isBody ? 'fixed' : 'absolute'};left:${sl}px;top:${st}px;width:${r.width}px;height:${r.height}px;pointer-events:none;z-index:10000`;
   }
 
   function start() {
@@ -91,7 +97,7 @@
     const sp = (opt.speed ?? 160) * (.4 + Math.random() * .8);
     parts.push({
       x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0, max: opt.life ?? (.45 + Math.random() * .4),
-      size: opt.size ?? (6 + Math.random() * 10), img: opt.violet ? S.sparkViolet : S.sparkGold, delay: opt.delay || 0, grav: opt.grav ?? 220,
+      size: opt.size ?? (6 + Math.random() * 10), img: opt.rgb ? sparkOf(opt.rgb) : (opt.violet ? S.sparkViolet : S.sparkGold), delay: opt.delay || 0, grav: opt.grav ?? 220,
       update(p, dt) { p.life += dt; p.vx *= .92; p.vy = p.vy * .92 + p.grav * dt; p.x += p.vx * dt; p.y += p.vy * dt; return p.life >= p.max; },
       draw(p) {
         const k = 1 - p.life / p.max;
@@ -155,10 +161,18 @@
       if (reduced()) return;
       mount(host);
       [x, y] = local(host, x, y);
-      const n = opt.count ?? 18, delay = opt.delay || 0;
-      ring(x, y, { delay, r1: opt.radius ?? 48 });
-      ring(x, y, { delay: delay + .08, r1: (opt.radius ?? 48) * .6, color: '196, 167, 255' });
-      for (let i = 0; i < n; i++) spark(x, y, { angle: (i / n) * Math.PI * 2 + Math.random() * .3, speed: 220, violet: i % 3 === 0, delay });
+      const n = opt.count ?? 18, delay = opt.delay || 0, rad = opt.radius ?? 48, rings = opt.rings ?? 2;
+      if (rings > 0) ring(x, y, { delay, r1: rad, color: opt.color });
+      if (rings > 1) ring(x, y, { delay: delay + .08, r1: rad * .6, color: opt.color2 || '196, 167, 255' });
+      for (let i = 0; i < n; i++) {
+        const angle = opt.spread != null ? (opt.angle ?? -Math.PI / 2) + (Math.random() - .5) * opt.spread : (i / n) * Math.PI * 2 + Math.random() * .3;
+        spark(x, y, {
+          angle, speed: opt.speed ?? 220, delay: delay + (opt.stagger ? Math.random() * opt.stagger : 0),
+          rgb: opt.color ? (opt.color2 && i % 3 === 0 ? opt.color2 : opt.color) : null, violet: !opt.color && i % 3 === 0,
+          size: opt.size != null ? opt.size * (.6 + Math.random() * .8) : undefined,
+          life: opt.life != null ? opt.life * (.7 + Math.random() * .6) : undefined, grav: opt.gravity
+        });
+      }
       start();
     },
     // targets: { coins: DOMRect, shards: DOMRect } · onArrive(kind) เรียกทุกครั้งที่ชิ้นถึงเป้า

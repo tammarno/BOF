@@ -879,10 +879,14 @@
 
     if (window.BOF_AUDIO) window.BOF_AUDIO.playPackOpen();
 
+    // อนุภาคตอนวงเวทระเบิด (ตรงกับ .bof-anim-burst-flash ที่ 0.9s) · แรงขึ้นตามระดับสูงสุดที่ได้
+    const fxTimer = setTimeout(() => packBurstFx(stage, highestRarity), 900);
+
     let finished = false;
     const closeAnim = () => {
       if (finished) return;
       finished = true;
+      clearTimeout(fxTimer);
       stage.className = 'bof-pack-anim-stage';
       stage.style.display = 'none';
       stage.innerHTML = '';
@@ -966,6 +970,31 @@
     });
   }
 
+  /* ---------------- อนุภาค (js/fx-particles.js) ---------------- */
+  const RARITY_RGB = { N: '203, 213, 225', R: '124, 192, 255', SR: '255, 133, 151', SSR: '253, 224, 71' };
+  function packBurstFx(stage, rarity) {
+    const fx = window.BOFParticles;
+    if (!fx || !stage.isConnected) return;
+    const x = innerWidth / 2, y = innerHeight / 2, color = RARITY_RGB[rarity] || RARITY_RGB.N;
+    const lvl = { N: 0, R: 1, SR: 2, SSR: 3 }[rarity] || 0;
+    fx.burst(stage, x, y, { count: 24 + lvl * 14, radius: 120 + lvl * 40, speed: 420 + lvl * 80, size: 16, life: .9, gravity: 120, color, color2: '255, 255, 255' });
+    if (lvl >= 2) fx.burst(stage, x, y, { count: 30, rings: 1, radius: 220, speed: 260, size: 12, life: 1, gravity: 40, color, delay: .15, stagger: .2 });
+    if (lvl === 3) fx.burst(stage, x, y + 40, { count: 50, rings: 0, angle: -Math.PI / 2, spread: 1.4, speed: 760, size: 14, life: .95, gravity: 800, color, color2: '255, 255, 255', delay: .1, stagger: .25 });
+  }
+  // พลิกการ์ด: N เงียบ · R ประกายเล็ก · SR วงแสง · SSR น้ำพุทอง
+  function flipFx(wrap, rarity) {
+    const fx = window.BOFParticles, stage = document.getElementById('bof-reveal-stage');
+    if (!fx || !stage || rarity === 'N') return;
+    const b = wrap.getBoundingClientRect();
+    const x = b.left + b.width / 2, y = b.top + b.height / 2, color = RARITY_RGB[rarity];
+    if (rarity === 'R') fx.burst(stage, x, y, { count: 10, rings: 0, speed: 150, size: 10, color });
+    else if (rarity === 'SR') fx.burst(stage, x, y, { count: 22, rings: 1, radius: b.width * .8, speed: 240, size: 12, color, color2: '255, 255, 255' });
+    else {
+      fx.burst(stage, x, y, { count: 30, rings: 2, radius: b.width, speed: 300, size: 14, color, color2: '255, 255, 255' });
+      fx.burst(stage, x, b.bottom - 10, { count: 26, rings: 0, angle: -Math.PI / 2, spread: 1, speed: 520, size: 12, life: 1.1, gravity: 650, color, delay: .05, stagger: .2 });
+    }
+  }
+
   /* ---------------- หน้าต่างผลการเปิดซอง: พลิกการ์ด · ใบซ้ำแตกเป็นชาร์ดแล้วบินเข้าตัวนับ ---------------- */
   const RARITY_TONE = { SSR: '#fde047', SR: '#ff8597', R: '#7cc0ff', N: '#cbd5e1' };
   const motionOK = () => typeof gsap !== 'undefined' && !matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1026,7 +1055,11 @@
     });
     tl.to(wrap, { x: -3, duration: .05, repeat: 5, yoyo: true, ease: 'none' })
       .set(wrap, { x: 0 })
-      .add(() => wrap.classList.add('is-cracking'))
+      .add(() => {
+        wrap.classList.add('is-cracking');
+        const b = wrap.getBoundingClientRect();
+        if (window.BOFParticles) window.BOFParticles.burst(stage, b.left + b.width / 2, b.top + b.height / 2, { count: 14, rings: 1, radius: b.width * .6, speed: 200, size: 10, color: '196, 167, 255', color2: '255, 255, 255' });
+      })
       .to(front, { scale: .86, opacity: .25, filter: 'saturate(0) brightness(1.6)', duration: .28, ease: 'power2.in' })
       .add(() => { if (!wrap.classList.contains('is-shattered')) finish(); gsap.set(front, { clearProps: 'all' }); });
     bits.forEach((b, i) => {
@@ -1047,6 +1080,7 @@
     wrap.classList.add('is-flipped');
     const item = wrap._revealItem;
     if (window.BOF_AUDIO) window.BOF_AUDIO.playCardDraw();
+    if (item && !item.shards && motionOK()) setTimeout(() => flipFx(wrap, item.card.rarity), 280);
     if (item && item.shards) setTimeout(() => shatterToShards(wrap, item), 600); // รอให้พลิกเสร็จ (0.55s) ก่อนแตก
     return true;
   }
