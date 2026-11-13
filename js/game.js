@@ -5837,7 +5837,7 @@ function openAISetupModal() {
       <div class="modal-box ai-setup-box">
         <div class="ai-setup-header">
           <div>
-            <h2>🤖 ตั้งค่าคู่ซ้อม AI (AI Battle Setup)</h2>
+            <h2>🤖 ตั้งค่าคู่ซ้อม AI <span class="m-hide">(AI Battle Setup)</span></h2>
             <p>เลือกระดับความยากและเด็คของบอทที่ต้องการฝึกซ้อมแก้ทาง</p>
           </div>
           <button type="button" id="btn-close-ai-setup-x" class="bof-auth-close-x" aria-label="ปิด">✕</button>
@@ -5871,12 +5871,12 @@ function openAISetupModal() {
         </div>
 
         <div class="ai-setup-section">
-          <div class="ai-setup-sec-title">🃏 2. เลือกเด็คให้ AI (ซ้อมมือแก้ทางเด็คเฉพาะ):</div>
+          <div class="ai-setup-sec-title">🃏 2. เลือกเด็คให้ AI <span class="m-hide">(ซ้อมมือแก้ทางเด็คเฉพาะ)</span>:</div>
           <div class="ai-deck-grid" id="ai-deck-buttons">
             <button type="button" class="ai-deck-card ai-deck-btn is-random-card" data-deck="RANDOM">
               <div class="ai-deck-random-ico">🎲</div>
               <div class="ai-deck-meta">
-                <strong>สุ่มเด็คอัตโนมัติ (Random Deck)</strong>
+                <strong>สุ่มเด็คอัตโนมัติ <span class="m-hide">(Random Deck)</span></strong>
                 <span>สุ่มเจอลีดเดอร์จากทั้ง 6 สายเด็คหลัก (L01–L06)</span>
               </div>
             </button>

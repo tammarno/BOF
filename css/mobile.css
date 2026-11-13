@@ -249,3 +249,82 @@ html.is-mobile #deck-builder-modal .pool-item { min-width: 0; }
 html.is-mobile #deck-builder-modal .card-pool-grid .card { width: 100% !important; height: auto !important; aspect-ratio: 750 / 1050; }
 html.is-mobile #deck-builder-modal .card-pool-grid .card .card-name { font-size: 9px !important; }
 html.is-mobile #deck-builder-modal .count-badge { width: 100%; font-size: 12px; font-weight: 800; line-height: 1.2; padding: 4px 2px; text-align: center; border-radius: 999px; }
+
+/* =============================================================================
+   6. ร้านค้า: เต็มจอแบบแอป · หัวกะทัดรัด · แท็บติดบนเมื่อเลื่อน
+   ============================================================================= */
+html.is-mobile #bof-shop-dialog {
+  width: 100vw !important; max-width: none !important; height: 100dvh !important; max-height: none !important;
+  margin: 0 !important; border-radius: 0 !important; inset: 0;
+}
+html.is-mobile #bof-shop-dialog .bof-shop-panel {
+  height: 100% !important; max-height: none !important; border-radius: 0 !important;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 14px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+  overscroll-behavior: contain;
+}
+/* หัว: ชื่อ + ปิด / กระเป๋าเงิน + ปุ่มโค้ด อยู่แถวเดียว */
+html.is-mobile #bof-shop-dialog .sh-top { display: grid !important; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px !important; }
+html.is-mobile #bof-shop-dialog #bof-shop-title { grid-column: 1; grid-row: 1; font-size: var(--m-fs-lg) !important; margin: 0; }
+html.is-mobile #bof-shop-dialog .sh-wallet { grid-column: 1 / 3; grid-row: 2; gap: 6px; }
+html.is-mobile #bof-shop-dialog .sh-wallet > span { height: 36px; padding: 0 12px; }
+html.is-mobile #bof-shop-dialog .sh-wallet small { display: none; }
+html.is-mobile #bof-shop-dialog #bof-shop-code-toggle { grid-column: 3; grid-row: 2; height: 36px; }
+html.is-mobile #bof-shop-dialog #bof-shop-close { grid-column: 3; grid-row: 1; position: static !important; width: 40px; height: 40px; justify-self: end; }
+/* แท็บติดบน */
+html.is-mobile #bof-shop-dialog .sh-tabs {
+  position: sticky; top: calc(-10px - env(safe-area-inset-top, 0px)); z-index: 20; margin: 10px -14px 0 !important; padding: 0 14px;
+  background: rgba(17, 19, 34, .97); box-shadow: 0 8px 14px -10px rgba(0, 0, 0, .7);
+}
+html.is-mobile #bof-shop-dialog .sh-tab { min-height: 56px !important; font-size: 12px !important; gap: 3px !important; }
+html.is-mobile #bof-shop-dialog .sh-packs-info,
+html.is-mobile #bof-shop-dialog .sh-dupe-note { font-size: 12px !important; line-height: 1.45; color: var(--m-dim); }
+
+/* =============================================================================
+   7. หน้าต่างทั้งหมด → แผ่นเลื่อนขึ้นจากล่าง (bottom sheet)
+   ============================================================================= */
+html.is-mobile .m-hide { display: none !important; }
+
+/* <dialog> ในล็อบบี้ (ยกเว้นร้านค้าที่เป็นเต็มจอ) */
+html.is-mobile #lobby-screen dialog:not(#bof-shop-dialog) {
+  width: 100vw !important; max-width: none !important; margin: auto 0 0 !important; max-height: 92dvh !important;
+  border-radius: 22px 22px 0 0 !important; animation: m-sheet-up .32s var(--m-ease) both;
+}
+html.is-mobile #lobby-screen dialog > .lb-dialog-panel,
+html.is-mobile #bof-auth-dialog > .bof-auth-panel {
+  width: 100% !important; max-width: none !important; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain;
+  border-radius: 22px 22px 0 0 !important; padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)) !important;
+}
+html.is-mobile #lb-howto-dialog, html.is-mobile #lb-join-dialog { padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important; }
+
+/* หน้าต่างของเกม (.modal-overlay) */
+html.is-mobile :is(#ai-setup-modal, #pvp-room-modal, #combat-log-modal, #zone-viewer-modal) { align-items: flex-end !important; padding: 0 !important; }
+html.is-mobile :is(#ai-setup-modal, #pvp-room-modal, #combat-log-modal, #zone-viewer-modal) > .modal-box {
+  width: 100% !important; max-width: none !important; max-height: 90dvh !important; margin: 0 !important;
+  border-radius: 22px 22px 0 0 !important; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+  overscroll-behavior: contain; animation: m-sheet-up .32s var(--m-ease) both;
+}
+
+/* ตั้งค่าบอท: ความยากแสดงคำอธิบายเฉพาะข้อที่เลือก · เด็ค 2 คอลัมน์ ไม่มีคำอธิบาย · ปุ่มเริ่มติดล่าง */
+html.is-mobile #ai-setup-modal .ai-setup-header h2 { font-size: var(--m-fs-lg); }
+html.is-mobile #ai-setup-modal .ai-setup-header p { display: none; }
+html.is-mobile #ai-setup-modal .ai-setup-sec-title { font-size: var(--m-fs-sm); margin-bottom: 8px; }
+html.is-mobile #ai-setup-modal .ai-diff-grid { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+html.is-mobile #ai-setup-modal .ai-diff-card { padding: 10px 6px !important; min-height: 64px; text-align: center; }
+html.is-mobile #ai-setup-modal .ai-diff-top { flex-direction: column; align-items: center; gap: 4px; }
+html.is-mobile #ai-setup-modal .ai-diff-badge { font-size: var(--m-fs-md); }
+html.is-mobile #ai-setup-modal .ai-diff-reward { font-size: 11px; }
+html.is-mobile #ai-setup-modal .ai-diff-desc { display: none; }
+html.is-mobile #ai-setup-modal .ai-deck-grid { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+html.is-mobile #ai-setup-modal .ai-deck-card { min-height: 56px; padding: 8px !important; gap: 8px; align-items: center; }
+html.is-mobile #ai-setup-modal .ai-deck-card.is-random-card { grid-column: 1 / -1; }
+html.is-mobile #ai-setup-modal .ai-deck-thumb { width: 36px !important; height: 36px !important; border-radius: 50%; object-fit: cover; object-position: top; }
+html.is-mobile #ai-setup-modal .ai-deck-meta strong { font-size: var(--m-fs-sm); line-height: 1.25; }
+html.is-mobile #ai-setup-modal .ai-deck-meta small { font-size: 11px; }
+html.is-mobile #ai-setup-modal .ai-deck-meta span { display: none; }
+html.is-mobile #ai-setup-modal .ai-setup-footer {
+  position: sticky; bottom: calc(-16px - env(safe-area-inset-bottom, 0px)); z-index: 5;
+  margin: 12px -16px calc(-16px - env(safe-area-inset-bottom, 0px)); padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  display: grid; grid-template-columns: 1fr 2fr; gap: 8px; background: rgba(17, 19, 34, .97);
+}
+html.is-mobile #ai-setup-modal .ai-start-btn { order: 2; min-height: 48px; font-size: var(--m-fs-md); margin: 0 !important; }
+html.is-mobile #ai-setup-modal .ai-cancel-btn { order: 1; min-height: 48px; margin: 0 !important; }
