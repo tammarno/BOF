@@ -7,6 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap">
+  <!-- ตัวตรวจมือถือตัวเดียวของทั้งเกม: CSS/JS มือถือทั้งหมดอิง html.is-mobile (PC ไม่มีคลาสนี้) -->
+  <script>(function(){var h=document.documentElement,q=[matchMedia("(max-width: 768px)"),matchMedia("(pointer: coarse) and (max-height: 500px)")];function u(){h.classList.toggle("is-mobile",q[0].matches||q[1].matches)}u();q.forEach(function(m){m.addEventListener?m.addEventListener("change",u):m.addListener(u)});window.isMobileUI=function(){return h.classList.contains("is-mobile")}})();</script>
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/holo.css">
   <link rel="stylesheet" href="css/lobby-motion.css">
@@ -746,5 +748,6 @@
   <script src="js/choice-ui.js"></script>
   <script src="js/panel-motion.js"></script>
   <script src="js/flow-motion.js"></script>
+  <script src="js/mobile.js"></script>
 </body>
 </html>

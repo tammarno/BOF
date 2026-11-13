@@ -800,7 +800,7 @@ function askCardUseConfirmation(card, actionTitle, onConfirmCallback) {
     `คุณต้องการ ${actionTitle} ใช่หรือไม่?\n\n📜 ความสามารถ:\n${getCardDescription(card)}`,
     [
       {
-        label: `✅ ยืนยัน (${actionTitle})`,
+        label: (window.isMobileUI && window.isMobileUI()) ? '✅ ยืนยัน' : `✅ ยืนยัน (${actionTitle})`,
         color: '#16a34a',
         onSelect: () => {
           if (onConfirmCallback) onConfirmCallback();
@@ -7093,7 +7093,7 @@ function renderGame() {
   ensureZoneUIAndViewers();
   setupInGameControlBar();
 
-  const isMobileView = window.innerWidth <= 768;
+  const isMobileView = window.isMobileUI ? window.isMobileUI() : window.innerWidth <= 768;
 
   document.getElementById('ai-deck-count').textContent = ai.deck.length;
   document.getElementById('ai-grave-count').textContent = ai.graveyard.length;
@@ -7168,32 +7168,38 @@ function renderGame() {
     playerLeaderBox.onmouseleave = () => hideCardTooltip();
   }
 
-  document.getElementById('turn-indicator').textContent =
-    `Turn ${gameState.turnCount} (${gameState.activeTurn === 'player' ? 'ตาคุณ' : 'ตาอีกฝ่าย'})`;
+  document.getElementById('turn-indicator').textContent = isMobileView
+    ? `${gameState.activeTurn === 'player' ? 'ตาคุณ' : 'ตาคู่แข่ง'} · T${gameState.turnCount}`
+    : `Turn ${gameState.turnCount} (${gameState.activeTurn === 'player' ? 'ตาคุณ' : 'ตาอีกฝ่าย'})`;
   document.getElementById('phase-indicator').textContent = gameState.phase;
 
-  document.getElementById('normal-spell-quota').textContent = isMobileView
-    ? `✨ ปกติ: ${player.spellQuota.normalUsed}/1`
+  const normalQuotaEl = document.getElementById('normal-spell-quota');
+  const reactionQuotaEl = document.getElementById('reaction-spell-quota');
+  normalQuotaEl.textContent = isMobileView
+    ? `✨ ${player.spellQuota.normalUsed}/1`
     : `Normal Spell: ${player.spellQuota.normalUsed} / 1`;
-  document.getElementById('reaction-spell-quota').textContent = isMobileView
-    ? `🛡️ รีแอค: ${player.spellQuota.reactionUsed}/1`
+  reactionQuotaEl.textContent = isMobileView
+    ? `🛡️ ${player.spellQuota.reactionUsed}/1`
     : `Reaction Spell: ${player.spellQuota.reactionUsed} / 1`;
+  normalQuotaEl.title = 'Normal Spell ที่ใช้ในเทิร์นนี้';
+  reactionQuotaEl.title = 'Reaction Spell ที่ใช้ในเทิร์นนี้';
 
   const passBtn = document.getElementById('btn-pass-turn-inline');
   if (passBtn) {
     const isWaitingDefense = (typeof pvpState !== 'undefined' && pvpState.waitingForDefense);
     passBtn.disabled = (gameState.activeTurn !== 'player' || gameState.gameOver || isWaitingDefense);
+    // มือถือ: ข้อความสั้นลงแต่ยังขึ้นต้น "เฟสถัดไป" ให้ตรงกับโหมดฝึกสอน
     if (isWaitingDefense) {
-      passBtn.textContent = '⏳ รออีกฝ่ายป้องกัน...';
+      passBtn.textContent = isMobileView ? '⏳ รออีกฝ่ายป้องกัน' : '⏳ รออีกฝ่ายป้องกัน...';
       passBtn.style.background = '#475569';
     } else if (gameState.phase === 'Main Phase') {
-      passBtn.textContent = '⚔️ เฟสถัดไป (Battle Phase)';
+      passBtn.textContent = isMobileView ? '⚔️ เฟสถัดไป · ต่อสู้' : '⚔️ เฟสถัดไป (Battle Phase)';
       passBtn.style.background = '#0284c7';
     } else if (gameState.phase === 'Battle Phase') {
-      passBtn.textContent = '⏭️ เฟสถัดไป (จบเทิร์น)';
+      passBtn.textContent = isMobileView ? '⏭️ เฟสถัดไป · จบเทิร์น' : '⏭️ เฟสถัดไป (จบเทิร์น)';
       passBtn.style.background = '#d97706';
     } else {
-      passBtn.textContent = '⏳ รอเทิร์นฝ่ายตรงข้าม...';
+      passBtn.textContent = isMobileView ? '⏳ รอคู่แข่ง' : '⏳ รอเทิร์นฝ่ายตรงข้าม...';
       passBtn.style.background = '#475569';
     }
   }
