@@ -981,18 +981,12 @@
     if (lvl >= 2) fx.burst(stage, x, y, { count: 30, rings: 1, radius: 220, speed: 260, size: 12, life: 1, gravity: 40, color, delay: .15, stagger: .2 });
     if (lvl === 3) fx.burst(stage, x, y + 40, { count: 50, rings: 0, angle: -Math.PI / 2, spread: 1.4, speed: 760, size: 14, life: .95, gravity: 800, color, color2: '255, 255, 255', delay: .1, stagger: .25 });
   }
-  // พลิกการ์ด: N เงียบ · R ประกายเล็ก · SR วงแสง · SSR น้ำพุทอง
+  // พลิกการ์ด: N เงียบ (เปิด 10 ซองจะได้ไม่รก) · R/SR/SSR ตาม BOFParticles.rarity
   function flipFx(wrap, rarity) {
     const fx = window.BOFParticles, stage = document.getElementById('bof-reveal-stage');
     if (!fx || !stage || rarity === 'N') return;
-    const b = wrap.getBoundingClientRect();
-    const x = b.left + b.width / 2, y = b.top + b.height / 2, color = RARITY_RGB[rarity];
-    if (rarity === 'R') fx.burst(stage, x, y, { count: 10, rings: 0, speed: 150, size: 10, color });
-    else if (rarity === 'SR') fx.burst(stage, x, y, { count: 22, rings: 1, radius: b.width * .8, speed: 240, size: 12, color, color2: '255, 255, 255' });
-    else {
-      fx.burst(stage, x, y, { count: 30, rings: 2, radius: b.width, speed: 300, size: 14, color, color2: '255, 255, 255' });
-      fx.burst(stage, x, b.bottom - 10, { count: 26, rings: 0, angle: -Math.PI / 2, spread: 1, speed: 520, size: 12, life: 1.1, gravity: 650, color, delay: .05, stagger: .2 });
-    }
+    fx.rarity(stage, wrap.getBoundingClientRect(), rarity);
+    if (rarity === 'SSR' && window.BOFHaptic) window.BOFHaptic(30);
   }
 
   /* ---------------- หน้าต่างผลการเปิดซอง: พลิกการ์ด · ใบซ้ำแตกเป็นชาร์ดแล้วบินเข้าตัวนับ ---------------- */
@@ -1080,7 +1074,8 @@
     wrap.classList.add('is-flipped');
     const item = wrap._revealItem;
     if (window.BOF_AUDIO) window.BOF_AUDIO.playCardDraw();
-    if (item && !item.shards && motionOK()) setTimeout(() => flipFx(wrap, item.card.rarity), 280);
+    // SSR ฉลองเสมอแม้เป็นใบซ้ำ (ใบซ้ำจะแตกเป็นชาร์ดตามหลัง)
+    if (item && (!item.shards || item.card.rarity === 'SSR') && motionOK()) setTimeout(() => flipFx(wrap, item.card.rarity), 280);
     if (item && item.shards) setTimeout(() => shatterToShards(wrap, item), 600); // รอให้พลิกเสร็จ (0.55s) ก่อนแตก
     return true;
   }

@@ -1,6 +1,7 @@
 /* ============================================================================
    BOF อนุภาค (canvas เดียว · วาดด้วย sprite ที่เตรียมไว้ · rAF ทำงานเฉพาะตอนมีอนุภาค)
    BOFParticles.confetti(layer, x, y, opts)       — กระดาษสีพุ่งจากจุด (angle/spread/speed/count) แล้วปลิวร่วง
+   BOFParticles.rarity(layer, rect, rarity)       — ฉลองตามระดับการ์ดที่ rect (N ประกาย · R ฟ้า · SR วงแสง · SSR น้ำพุทอง + กระดาษสี + รัศมี)
    BOFParticles.clear()                           — ลบอนุภาคที่ค้างอยู่ทั้งหมด
    BOFParticles.reward(layer, from, targets, opts) — เหรียญ/คริสตัลแตกออกแล้วบินโค้งเข้าตัวนับ
    BOFParticles.burst(layer, x, y, opts)          — ประกายแตกกระจาย + วงแสง
@@ -193,6 +194,31 @@
       start();
     },
     clear() { parts.length = 0; },
+    rarity(host, rect, rarity) {
+      if (reduced()) return;
+      const RGB = { N: '226, 232, 240', R: '124, 192, 255', SR: '255, 133, 151', SSR: '253, 224, 71' };
+      const color = RGB[rarity] || RGB.N, W = '255, 255, 255';
+      const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
+      if (rarity === 'N') return this.burst(host, x, y, { count: 8, rings: 0, speed: 120, size: 9, color });
+      if (rarity === 'R') return this.burst(host, x, y, { count: 12, rings: 0, speed: 160, size: 10, color });
+      if (rarity === 'SR') return this.burst(host, x, y, { count: 24, rings: 1, radius: rect.width * .8, speed: 250, size: 12, color, color2: W });
+      // SSR: ระเบิดสองชั้น · น้ำพุทองจากใต้การ์ด · กระดาษสีพุ่งขึ้น · ประกายวนรอบขอบการ์ดราว 1.2 วิ
+      this.burst(host, x, y, { count: 36, rings: 2, radius: rect.width * 1.1, speed: 340, size: 15, color, color2: W });
+      this.burst(host, x, rect.bottom - 10, { count: 30, rings: 0, angle: -Math.PI / 2, spread: 1, speed: 560, size: 12, life: 1.1, gravity: 650, color, color2: W, delay: .05, stagger: .25 });
+      this.confetti(host, x, y, { angle: -Math.PI / 2, spread: 1.8, speed: 620, count: 40, delay: .1, stagger: .1 });
+      mount(host);
+      const per = 2 * (rect.width + rect.height);
+      for (let i = 0; i < 24; i++) {
+        let d = Math.random() * per, px, py;
+        if (d < rect.width) { px = rect.left + d; py = rect.top; }
+        else if ((d -= rect.width) < rect.height) { px = rect.right; py = rect.top + d; }
+        else if ((d -= rect.height) < rect.width) { px = rect.right - d; py = rect.bottom; }
+        else { px = rect.left; py = rect.bottom - (d - rect.width); }
+        [px, py] = local(host, px, py);
+        spark(px, py, { rgb: i % 2 ? color : W, speed: 30, size: 10 + Math.random() * 8, grav: -40, life: .7, delay: .2 + Math.random() * 1 });
+      }
+      start();
+    },
     burst(host, x, y, opt = {}) {
       if (reduced()) return;
       mount(host);

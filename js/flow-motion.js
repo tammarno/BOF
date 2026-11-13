@@ -197,6 +197,9 @@
       tile.classList.add('is-crafted');
       gsap.fromTo(tile.querySelector('.cf-art'), { scale: .8, rotation: -6 }, { scale: 1, rotation: 0, duration: .6, ease: 'back.out(3)', clearProps: 'transform' });
       gsap.fromTo(tile.querySelectorAll('.cf-own i.on'), { scale: 0 }, { scale: 1, duration: .4, stagger: .08, ease: 'back.out(4)', clearProps: 'transform' });
+      // อนุภาคตามระดับการ์ดที่หลอมได้ (js/fx-particles.js)
+      const host = tile.closest('dialog'), rarity = (tile.className.match(/r-(N|R|SR|SSR)/) || [])[1];
+      if (window.BOFParticles && host && rarity) window.BOFParticles.rarity(host, (tile.querySelector('.cf-art') || tile).getBoundingClientRect(), rarity);
     });
   });
 
