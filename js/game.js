@@ -338,12 +338,19 @@ function performMulligan(contestant, indicesToMulligan) {
 
 // วางการ์ดทับช่องเดิม: ส่งใบเก่าลงนรกโดย "ไม่ถือว่าถูกทำลาย"
 
+// หาเจ้าของการ์ดจริง: เทียบ prefix ของ uid (ก่อน '_') กับ ownerPrefix ของแต่ละฝ่าย
+// (PvP ใช้ P1/P2 และสลับมุมมองกันบนแต่ละเครื่อง จึงห้ามผูก 'P1' = gameState.player ตายตัว)
 function getCardOriginalOwner(card, fallbackContestant = null) {
   if (!card) return fallbackContestant;
-  if (card.originalOwner) return card.originalOwner;
-  if (card.uid) {
-    if (card.uid.startsWith('P1')) return gameState.player;
-    if (card.uid.startsWith('AI')) return gameState.ai;
+  const { player, ai } = gameState;
+  // originalOwner ที่ผ่าน JSON sync มาจะเป็นสำเนา ไม่ใช่ object จริง จึงใช้ได้เฉพาะตอนอ้างอิงตรงกัน
+  if (card.originalOwner && (card.originalOwner === player || card.originalOwner === ai)) {
+    return card.originalOwner;
+  }
+  if (typeof card.uid === 'string' && card.uid.includes('_')) {
+    const prefix = card.uid.split('_')[0];
+    if (player && player.ownerPrefix === prefix) return player;
+    if (ai && ai.ownerPrefix === prefix) return ai;
   }
   return fallbackContestant;
 }
@@ -528,6 +535,7 @@ function createContestant(name, isFirstPlayer, prefix, leaderId = 'L01', deckLis
   const setup = createValidDeck(leaderId, deckList, prefix);
   return {
     name,
+    ownerPrefix: prefix,
     isFirstPlayer,
     turnsTaken: 0,
     attacksThisTurn: 0,
