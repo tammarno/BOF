@@ -6092,6 +6092,11 @@ function handlePlayerSurrender() {
           setLog('🏳️ คุณประกาศยอมแพ้ในแมตช์นี้!');
           renderGame();
           if (typeof pvpState !== 'undefined' && pvpState.isMultiplayer) {
+            sendPvpPacket({
+              type: 'PLAYER_SURRENDER',
+              senderData: gameState.player,
+              receiverData: gameState.ai
+            });
             syncBoardToOpponent('🏳️ ฝ่ายตรงข้ามประกาศยอมแพ้! คุณเป็นฝ่ายชนะ!');
           }
           if (typeof playSoundEffect === 'function') {
@@ -6100,7 +6105,7 @@ function handlePlayerSurrender() {
             window.BOF_AUDIO.playDefeat();
           }
           setTimeout(() => {
-            showEndMatchModal('💀 คุณพ่ายแพ้ (ยอมแพ้การประลอง)!', 'คุณได้กดยืนยันยอมแพ้ในแมตช์นี้');
+            showEndMatchModal('💀 คุณพ่ายแพ้!', 'คุณได้กดยืนยันยอมแพ้ในแมตช์นี้');
           }, 300);
         }
       },
@@ -8215,6 +8220,25 @@ function checkBothPlayersMulliganReady() {
 function handleIncomingPvpData(data) {
   if (!data || !data.type) return;
 
+  if (data.type === 'PLAYER_SURRENDER') {
+    pvpState.isApplyingRemote = true;
+    gameState.gameOver = true;
+    gameState.pendingAction = null;
+    if (data.senderData) gameState.ai = data.senderData;
+    if (data.receiverData) gameState.player = data.receiverData;
+    gameState.ai.name = 'ฝ่ายตรงข้าม';
+    gameState.player.name = 'Player';
+    disableControls();
+    _originalSetLog('🏳️ ฝ่ายตรงข้ามประกาศยอมแพ้! คุณเป็นฝ่ายชนะ!');
+    _originalRenderGame();
+    if (window.BOF_AUDIO && typeof window.BOF_AUDIO.playVictory === 'function') {
+      try { window.BOF_AUDIO.playVictory(); } catch (e) {}
+    }
+    showEndMatchModal('🏆 คุณชนะ!', 'ฝ่ายตรงข้ามกดยอมแพ้ในแมตช์นี้');
+    pvpState.isApplyingRemote = false;
+    return;
+  }
+
   if (data.type === 'DECLARE_ATTACK') {
     pvpState.isApplyingRemote = true;
     gameState.ai = data.senderData;
@@ -8423,17 +8447,34 @@ function createPvpRoomAsHost() {
     pvpState.conn = conn;
     conn.on('open', () => { conn.send({ type: 'START_PVP_MATCH' }); startPvpMatchBoard('host'); });
     conn.on('data', handleIncomingPvpData);
+    conn.on('close', () => {
+      if (pvpState.isMultiplayer && !gameState.gameOver) {
+        gameState.gameOver = true;
+        disableControls();
+        _originalSetLog('🔌 ฝ่ายตรงข้ามออกจากการเชื่อมต่อ!');
+        showEndMatchModal('🏆 คุณชนะ!', 'ฝ่ายตรงข้ามตัดการเชื่อมต่อไป');
+      }
+    });
   });
 }
 
 function joinPvpRoomAsGuest(codeInput) {
   const code = codeInput.trim();
   if (!code) { alert('กรุณากรอกรหัสห้อง'); return; }
+  pvpState.role = 'guest';
   if (pvpState.peer) pvpState.peer.destroy();
   pvpState.peer = new Peer();
   pvpState.peer.on('open', () => {
     pvpState.conn = pvpState.peer.connect(`my-tcg-room-${code}`);
     pvpState.conn.on('data', handleIncomingPvpData);
+    pvpState.conn.on('close', () => {
+      if (pvpState.isMultiplayer && !gameState.gameOver) {
+        gameState.gameOver = true;
+        disableControls();
+        _originalSetLog('🔌 ฝ่ายตรงข้ามออกจากการเชื่อมต่อ!');
+        showEndMatchModal('🏆 คุณชนะ!', 'ฝ่ายตรงข้ามตัดการเชื่อมต่อไป');
+      }
+    });
   });
   pvpState.peer.on('error', () => { alert('ไม่พบห้องนี้'); });
 }
