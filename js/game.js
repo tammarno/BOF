@@ -396,6 +396,7 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
     return { destroyed: false, reason: 'oat_shield', monster };
   }
 
+  fxCardDestroyed(boardOwner, slotIndex, monster);
   boardOwner.board[slotIndex] = null;
   boardOwner.unitsDestroyedThisTurn = (boardOwner.unitsDestroyedThisTurn || 0) + 1;
   const otherContestant = (boardOwner === gameState.player) ? gameState.ai : gameState.player;
@@ -4900,6 +4901,15 @@ function playAttackVisualAnimation(attacker, defender, attackerSlot, targetType,
 // หน้าตาเท่านั้น: ตัวเลขดาเมจเด้งที่ Leader ของฝั่งที่เสีย HP (เรียกหลังบรรทัดที่ลด hp)
 function fxLeaderDamage(side, amount = 1) {
   if (window.BOFFX && BOFFX.damage) BOFFX.damage(getSlotElement(side === gameState.player, 'leader'), '-' + amount);
+}
+
+// หน้าตาเท่านั้น: การ์ดกำลังออกจากสนามไปสุสาน → ฉากทำลายตามธีมเด็ค (js/card-dissolve.js)
+// เรียกก่อนเอาการ์ดออกจากกระดาน: พลังปัจจุบัน (รวมบัฟ) ยังคำนวณได้ · การ์ดยังอยู่ใน DOM จนกว่าจะวาดกระดานใหม่
+function fxCardDestroyed(side, slotIndex, card) {
+  if (!window.BOFDissolve) return;
+  const slot = getSlotElement(side === gameState.player, slotIndex);
+  const el = slot && slot.querySelector('.card');
+  if (el) window.BOFDissolve.play(el, card, side, getEffectivePower(card, side));
 }
 
 function triggerBelphegorAttackSuccess(attacker, defender, attackingMonster) {
