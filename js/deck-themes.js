@@ -99,6 +99,9 @@
       for (const k of ['player', 'ai']) h[k]?.classList.remove('mat-defeated');
     }
     lastCount = count; wasOver = !!gameState.gameOver;
+    // ฉากแพ้ (สนามซีด) มีความหมายเฉพาะตอนจบเกม: เกมใหม่/โหมดฝึกใหม่ต้องไม่มีค้าง
+    // (เดิมล้างได้เฉพาะเมื่อมีการวาดกระดานตอน gameOver ก่อน ถ้ากดเริ่มใหม่เร็วกว่าฉากจบ 1.6 วิ สนามจะซีดค้าง)
+    if (!gameState.gameOver) for (const k of ['player', 'ai']) h[k]?.classList.remove('mat-defeated');
     for (const key of ['player', 'ai']) {
       const half = h[key];
       if (!half) continue;
@@ -431,6 +434,7 @@
   }
 
   // ---------- ฉากจบเกม: เล่นฉากของผู้ชนะก่อน แล้วค่อยเปิดหน้าต่างสรุปผล ----------
+  const boardShown = () => { const g = document.querySelector('.game-container'); return !g || g.style.display !== 'none'; };
   const SCENE_MS = 1600;
   function wrapEndModal() {
     const orig = window.showEndMatchModal;
@@ -438,12 +442,18 @@
     window.showEndMatchModal = function (title) {
       const args = arguments, self = this;
       try {
+        // game.js เรียกหน้านี้ช้ากว่าจังหวะชนะ ~0.5 วิ ถ้าเริ่มเกม/คอมโบใหม่ไปแล้ว ห้ามเล่นฉากจบทับเกมใหม่ (สนามซีดค้าง)
+        if (gameState && !gameState.gameOver) return;
+        if (!boardShown()) return; // ออกไปล็อบบี้แล้ว: ไม่เล่นฉาก/เสียงจบเกมหลังล็อบบี้
         if (reduceMotion() || !gameState || !gameState.player) return orig.apply(self, args);
         const pDead = gameState.player.leader.hp <= 0, aDead = gameState.ai.leader.hp <= 0;
         const lost = pDead || /พ่ายแพ้|แพ้/.test(String(title || ''));
         const winner = aDead ? 'player' : (lost ? 'ai' : 'player');
         fx.endScene(winner);
-        setTimeout(() => orig.apply(self, args), SCENE_MS);
+        // เกมถูกรีเซ็ตระหว่างฉากจบ (กดเริ่มใหม่/เลือกคอมโบอื่น/กลับล็อบบี้) → ไม่เปิดหน้าต่างผลของเกมเก่าทับเกมใหม่
+        // (เช็กแค่ gameOver: PvP แทนที่ gameState.player ทุกแพ็กเก็ต จึงเทียบ object ไม่ได้)
+        // ออกไปล็อบบี้ระหว่างฉากจบ (ซ่อนกระดานแล้ว) ก็ไม่ต้องเปิดหน้าต่างผลทับล็อบบี้
+        setTimeout(() => { if (gameState.gameOver && boardShown()) orig.apply(self, args); }, SCENE_MS);
       } catch (e) { console.warn('deck-themes end scene', e); return orig.apply(self, args); }
     };
   }

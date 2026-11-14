@@ -6157,6 +6157,12 @@ function triggerPlayerPassTurn() {
   setTimeout(startAITurn, 800);
 }
 
+// เทิร์น AI เดินด้วย setTimeout ต่อกันเป็นทอด: ถ้าเริ่มเกม/โหมดฝึกใหม่ระหว่างนั้น (activeTurn กลับเป็น player)
+// ทอดที่ค้างอยู่ต้องหยุด ไม่งั้น AI เกมเก่าจะลงมือบนกระดานใหม่ (เช่นตียูนิตของบทฝึกถัดไป)
+function aiTurnAborted() {
+  return gameState.gameOver || gameState.activeTurn !== 'ai';
+}
+
 function startAITurn() {
   if (gameState.gameOver) return;
   if (isInteractionBlocked()) {
@@ -6178,7 +6184,7 @@ function startAITurn() {
   executeStartPhase(gameState.ai, () => {
     renderGame();
     setTimeout(() => {
-      if (gameState.gameOver) return;
+      if (aiTurnAborted()) return;
       gameState.phase = 'Main Phase';
       renderGame();
       // เริ่มรันแอ็กชันใน Main Phase ของ AI ทีละ 1 สเต็ป
@@ -6188,9 +6194,9 @@ function startAITurn() {
 }
 
 function onAIMainPhaseDone() {
-  if (gameState.gameOver) return;
+  if (aiTurnAborted()) return;
   setTimeout(() => {
-    if (gameState.gameOver) return;
+    if (aiTurnAborted()) return;
     gameState.phase = 'Battle Phase';
     setLog('⚔️ AI เข้าสู่ Battle Phase เตรียมสั่งยูนิตโจมตี!');
     renderGame();
@@ -6200,7 +6206,7 @@ function onAIMainPhaseDone() {
 
 // ⏳ สมองกล AI ช่วง Main Phase แบบทีละสเต็ป (ทำ 1 อย่าง -> แสดงเอฟเฟกต์ -> รอ 1.2 วินาที -> ทำอย่างถัดไป)
 function aiPlayMainPhase(onMainComplete) {
-  if (gameState.gameOver) return;
+  if (aiTurnAborted()) return;
   // ถ้ามีหน้าต่างคำถาม หรือกำลังรอผู้เล่นเลือกผลของสกิล (เช่น แมมมอน บาปความโลภ) ให้ AI หยุดรอจนกว่าจะเลือกเสร็จสิ้น
   if (isInteractionBlocked()) {
     setTimeout(() => {
@@ -6794,7 +6800,7 @@ function aiCastBestNormalSpell(ai, player, diff) {
 
 // 🧠 สมองกล AI ช่วง Battle Phase (เว้นจังหวะการตีแต่ละตัวให้ผู้เล่นมองเห็นชัดเจน)
 function aiPlayBattlePhase(slotIndex) {
-  if (gameState.gameOver) return;
+  if (aiTurnAborted()) return;
   // ถ้ามีหน้าต่างคำถาม หรือกำลังรอผลของสกิล ให้ AI หยุดรอก่อนโจมตี
   if (isInteractionBlocked()) {
     setTimeout(() => {
@@ -6883,12 +6889,13 @@ function aiPlayBattlePhase(slotIndex) {
 }
 
 function endAITurn() {
-  if (gameState.gameOver) return;
+  if (aiTurnAborted()) return;
   executeEndPhaseCleanup(gameState.ai);
   gameState.phase = 'End Phase';
   renderGame();
 
   setTimeout(() => {
+    if (aiTurnAborted()) return; // มายอาจบเทิร์นไปแล้ว หรือเริ่มเกมใหม่ระหว่างรอ: ห้ามเริ่มเทิร์นผู้เล่นซ้ำ
     gameState.activeTurn = 'player';
     gameState.turnCount += 1;
     startPlayerTurn();
@@ -7316,7 +7323,7 @@ function startAIFirstTurn() {
   executeStartPhase(gameState.ai, () => {
     renderGame();
     setTimeout(() => {
-      if (gameState.gameOver) return;
+      if (aiTurnAborted()) return;
       gameState.phase = 'Main Phase';
       setLog(`🤖 ${gameState.ai.name} เข้าสู่ Main Phase...`);
       renderGame();
@@ -10741,6 +10748,9 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
 
   function checkAndAdvanceGuidedStep() {
     if (!guidedSession || !gameState.player) return;
+    // ensure: สเต็ปที่ต้องคงสภาพกระดานไว้ (เช่นการ์ดบนสุดของกอง) ให้จัดใหม่ทุกครั้งที่วาดกระดาน
+    const activeStep = guidedSession.steps[guidedSession.stepIndex];
+    if (activeStep && typeof activeStep.ensure === 'function') activeStep.ensure();
     if (gameState.pendingAction || isChoiceModalOpen()) {
       updateGuidedVisualPointer();
       return;
@@ -10761,6 +10771,9 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
     }
 
     if (advanced) {
+      // สเต็ปใหม่ที่มี ensure: จัดกระดานทันที ไม่ต้องรอการวาดครั้งถัดไป
+      const nextStep = guidedSession && guidedSession.steps[guidedSession.stepIndex];
+      if (nextStep && typeof nextStep.ensure === 'function') nextStep.ensure();
       renderGuidedCoachBar();
     }
     updateGuidedVisualPointer();
@@ -11174,10 +11187,6 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             isDone: () => {
               const rose = p.board.find(m => m && m.id === 'DM02');
               return !!(rose && rose.state === 'Rest');
-            },
-            onEnterNext: () => {
-              // รับประกันว่าหลังโรเซเลียจั่วการ์ดแล้ว มี "โซเนบุ (DM06)" อยู่ใบบนสุดของกองสำหรับสกิลมายอา!
-              p.deck.push(makeCard('DM06'));
             }
           },
           {
@@ -11185,6 +11194,15 @@ document.addEventListener('DOMContentLoaded', () => initArenaCustomBackground())
             choiceOptionIndex: 0,
             pointerText: '👆 กดปุ่มเปลี่ยนเฟสไปจนจบเทิร์น เพื่อให้ AI โจมตีมา!',
             choicePointerText: '👆 กดใช้สกิล 1 เกมของ "มายอา" เปิดท็อปเจอโซเนบุ!',
+            // โซเนบุต้องอยู่บนสุดตอนมายอาเปิด: โรเซเลียจั่วไปแล้ว และถ้า AI ไม่ตี Leader ในเทิร์นแรก เราจะจั่วต้นเทิร์นถัดไปอีก
+            // จึงจัดให้อยู่บนสุดใหม่ทุกครั้งที่กระดานวาดใหม่ จนกว่าจะใช้สกิลมายอา
+            ensure: () => {
+              if (p.mayaOncePerGameUsed) return;
+              const top = p.deck[p.deck.length - 1];
+              if (top && top.id === 'DM06') return;
+              const i = p.deck.findIndex(c => c && c.id === 'DM06');
+              p.deck.push(i !== -1 ? p.deck.splice(i, 1)[0] : makeCard('DM06'));
+            },
             title: 'สเต็ป 3/3: จบเทิร์น แล้วกดสกิล 1 เกมของ "มายอา" เปิดเจอโซเนบุบังคับจบเทิร์น AI!',
             desc: 'กดปุ่มเปลี่ยนเฟส 2 ครั้งเพื่อจบเทิร์น -> เมื่อ AI โจมตีเข้ามา ให้กดเลือก "🔮 สั่งใช้สกิล 1 เกมของ มายอา" เพื่อเปิดท็อปกองพบ "โซเนบุ" และบังคับจบเทิร์นของ AI ทันที!',
             isDone: () => !!p.mayaOncePerGameUsed
