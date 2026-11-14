@@ -1,0 +1,21 @@
+/* ============================================================================
+   BOF DECK FX (js/deck-fx.js): การ์ดเรืองสีเด็คตอนใช้สกิล + ตัวเลขพลัง/HP เปลี่ยน
+   ============================================================================ */
+.dfx-skill { animation: dfx-skill .7s ease-out; }
+@keyframes dfx-skill {
+  0% { box-shadow: 0 0 0 0 var(--dfx-c), 0 0 0 0 var(--dfx-c); filter: brightness(1); }
+  25% { box-shadow: 0 0 0 3px var(--dfx-c), 0 0 26px 8px var(--dfx-c); filter: brightness(1.35); }
+  100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; filter: brightness(1); }
+}
+
+/* ตัวเลขลอย (พิกัดจอ ไม่หายตอนวาดกระดานใหม่) · เล็กกว่าดาเมจ ไม่บังเลขพลังนาน */
+.dfx-pop {
+  position: fixed; pointer-events: none; z-index: 320; transform: translate(-50%, -50%);
+  font: 900 clamp(20px, 4.4vmin, 34px)/1 system-ui, sans-serif;
+  -webkit-text-stroke: 2px #06210f; paint-order: stroke fill;
+}
+.dfx-pop.is-up, .dfx-pop.is-heal { color: #5ef2a0; text-shadow: 0 2px 0 #06210f, 0 0 12px rgba(94, 242, 160, .85); }
+.dfx-pop.is-down { color: #ff5d73; -webkit-text-stroke-color: #2a0710; text-shadow: 0 2px 0 #2a0710, 0 0 12px rgba(255, 93, 115, .85); }
+.dfx-pop.is-heal { font-size: clamp(26px, 5.6vmin, 42px); }
+
+@media (prefers-reduced-motion: reduce) { .dfx-skill { animation: none; outline: 2px solid var(--dfx-c); } }

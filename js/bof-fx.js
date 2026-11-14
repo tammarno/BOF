@@ -147,15 +147,18 @@
     if (!a.width || !b.width) return;
     const heavy = !!opts.heavy, stop = heavy ? 100 : 70;
     const ax = a.left + a.width / 2, ay = a.top + a.height / 2, bx = b.left + b.width / 2, by = b.top + b.height / 2;
+    // opts.deck = เส้นพุ่ง + จุดปะทะประจำเด็ค (js/deck-fx.js วาดบน canvas) แทนเส้นดาวหางทอง/แดง · จังหวะ hit-stop เท่าเดิม (100ms)
+    const themed = !!(opts.deck && window.DeckFx && DeckFx.strike(opts.deck, { x: ax, y: ay }, { x: bx, y: by }, heavy));
 
     const trail = make('fx-trail' + (opts.ai ? ' is-ai' : ''), document.body);
+    if (themed) trail.style.display = 'none';
     gsap.set(trail, { left: ax, top: ay, width: Math.hypot(bx - ax, by - ay), rotate: Math.atan2(by - ay, bx - ax) * 180 / Math.PI });
     gsap.timeline({ onComplete: () => trail.remove() })
       .fromTo(trail, { scaleX: 0, opacity: 1 }, { scaleX: 1, duration: .1, ease: 'power3.in' })
       .call(() => {
         [from, to].forEach(el => { el.style.animationPlayState = 'paused'; });
         setTimeout(() => [from, to].forEach(el => { el.style.animationPlayState = ''; }), stop);
-        sparks(to, { count: heavy ? 26 : 16, speed: heavy ? 320 : 240, rings: heavy ? 2 : 1, color: '255, 120, 80', color2: GOLD });
+        if (!themed) sparks(to, { count: heavy ? 26 : 16, speed: heavy ? 320 : 240, rings: heavy ? 2 : 1, color: '255, 120, 80', color2: GOLD });
         if (window.BOFHaptic) BOFHaptic(heavy ? 30 : 15);
         const arena = opts.shake || document.getElementById('bof-game-arena');
         // จอสั่นเป็นคลาส CSS ไม่ใช่ gsap: ถ้าถูกตัดกลางทาง กระดานจะไม่ค้างเยื้อง

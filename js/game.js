@@ -364,6 +364,7 @@ function sendOverwrittenMonsterToGrave(contestant, slotIndex) {
     return oldMonster;
   }
   const targetGraveContestant = getCardOriginalOwner(oldMonster, contestant);
+  fxCardDestroyed(contestant, slotIndex, oldMonster);
   contestant.board[slotIndex] = null;
   resetCardStateForZoneChange(oldMonster);
   targetGraveContestant.graveyard.push(oldMonster);
@@ -1346,6 +1347,7 @@ const EffectEngine = {
         }
       }
 
+      fxSkillActivated(sourceCard, caster);
       this.runStepQueue(stepQueue, context, () => {
         renderGame();
         if (onComplete) onComplete();
@@ -3098,6 +3100,7 @@ function removeCardToDarkDimension(contestant, item) {
     const sIdx = contestant.board.findIndex(c => c && c.uid === targetUid);
     if (sIdx !== -1) {
       removed = contestant.board[sIdx];
+      fxCardDestroyed(contestant, sIdx, removed);
       contestant.board[sIdx] = null;
     }
   }
@@ -4242,6 +4245,7 @@ function executeEndPhaseCleanup(activeContestant) {
     if (m.returnFromDarkDimensionId) {
       const baseId = m.returnFromDarkDimensionId;
       const futureName = m.name;
+      fxCardDestroyed(activeContestant, idx, m);
       activeContestant.board[idx] = null;
       resetCardStateForZoneChange(m);
       activeContestant.graveyard.push(m);
@@ -4890,7 +4894,8 @@ function playAttackVisualAnimation(attacker, defender, attackerSlot, targetType,
   setTimeout(() => {
     if (!window.BOFFX || !BOFFX.impact) return;
     const animEl = (side, slot) => { const s = getSlotElement(side, slot); return s && slot !== 'leader' && s.querySelector('.card') || s; };
-    BOFFX.impact(animEl(isAttackerPlayer, attackerSlot), animEl(isDefenderPlayer, defTargetSlot), { heavy: targetType === 'leader', ai: !isAttackerPlayer });
+    const deck = attackerMonster && window.BOFDissolve ? BOFDissolve.deckOf(attackerMonster, attacker) : null;
+    BOFFX.impact(animEl(isAttackerPlayer, attackerSlot), animEl(isDefenderPlayer, defTargetSlot), { heavy: targetType === 'leader', ai: !isAttackerPlayer, deck });
   }, 150);
 
   setTimeout(() => {
@@ -4905,6 +4910,16 @@ function fxLeaderDamage(side, amount = 1) {
 
 // หน้าตาเท่านั้น: การ์ดกำลังออกจากสนามไปสุสาน → ฉากทำลายตามธีมเด็ค (js/card-dissolve.js)
 // เรียกก่อนเอาการ์ดออกจากกระดาน: พลังปัจจุบัน (รวมบัฟ) ยังคำนวณได้ · การ์ดยังอยู่ใน DOM จนกว่าจะวาดกระดานใหม่
+// หน้าตาเท่านั้น: การ์ด/Leader ที่ใช้สกิลเรืองสีเด็ค (js/deck-fx.js) · เวทจากมือไม่มีบนสนาม = เล่นที่ Leader ผู้ร่าย
+function fxSkillActivated(card, caster) {
+  if (!window.DeckFx || !window.BOFDissolve || !card || !caster) return;
+  const isP = caster === gameState.player;
+  const slotIdx = caster.board.findIndex(m => m && m.uid === card.uid);
+  const slot = slotIdx !== -1 ? getSlotElement(isP, slotIdx) : null;
+  const el = (slot && (slot.querySelector('.card') || slot)) || getSlotElement(isP, 'leader');
+  DeckFx.skill(el, BOFDissolve.deckOf(card, caster));
+}
+
 function fxCardDestroyed(side, slotIndex, card) {
   if (!window.BOFDissolve) return;
   const slot = getSlotElement(side === gameState.player, slotIndex);
@@ -7298,6 +7313,7 @@ function renderGame() {
     handContainer.appendChild(cardEl);
   });
   if (window.AimFx) AimFx.refresh(); // ลูกศรเล็ง + ป้ายพรีวิวผล (js/aim-fx.js)
+  if (window.DeckFx) DeckFx.diff(); // พลังขึ้นลง / ฟื้น HP (js/deck-fx.js)
 }
 // หน้าตาเท่านั้น: ไอคอนเส้นของเกม (ไม่มี js/bof-icons.js = ไม่มีไอคอน ข้อความยังอยู่)
 function hudIcon(name) { return window.BOFIcon ? window.BOFIcon(name) : ''; }

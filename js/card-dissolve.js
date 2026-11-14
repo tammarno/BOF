@@ -51,13 +51,19 @@
   // ============================================================================
   // canvas เต็มจอ + rAF เดียว
   // ============================================================================
-  const E = { cv: null, g: null, dpr: 1, parts: [], draws: [], raf: 0, last: 0 };
+  // active = จำนวนฉากที่เล่นอยู่ · lite = หลายใบพร้อมกันหรือมือถือ → ตัด shadowBlur / ลดงาน filter (เฟรมเคยกระตุก 90-190ms ตอนแตก 3 ใบ)
+  const E = { cv: null, g: null, dpr: 1, parts: [], draws: [], raf: 0, last: 0, active: 0, tick: 0 };
+  const lite = () => E.active > 1 || small();
+  const MAX_PARTS = () => (small() ? 260 : 480);
   function ensureCanvas() {
     if (E.cv && E.cv.isConnected) return;
     E.cv = document.createElement('canvas');
     E.cv.className = 'fx-dslv-canvas';
     E.cv.setAttribute('aria-hidden', 'true');
     E.g = E.cv.getContext('2d');
+    // shadowBlur แพงมากบน canvas เต็มจอ: โหมด lite ปิดทุกจุดที่ฉากตั้งค่าไว้ในที่เดียว
+    const sb = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, 'shadowBlur');
+    Object.defineProperty(E.g, 'shadowBlur', { get() { return sb.get.call(this); }, set(v) { sb.set.call(this, lite() ? 0 : v); } });
     document.body.appendChild(E.cv);
     resize();
   }
@@ -68,13 +74,13 @@
   }
   addEventListener('resize', resize);
   function kick() { ensureCanvas(); if (!E.raf) { E.last = 0; E.raf = requestAnimationFrame(loop); } }
-  function addPart(p) { p.age = 0; E.parts.push(p); }
+  function addPart(p) { if (E.parts.length >= MAX_PARTS()) return; p.age = 0; E.parts.push(p); }
   // drawable: { life (วิ), delay, draw(g, k 0..1, age), end }
   function addDraw(d) { d.age = -(d.delay || 0); E.draws.push(d); kick(); return d; }
 
   function loop(now) {
     const dt = E.last ? Math.min(.05, (now - E.last) / 1000) : .016;
-    E.last = now;
+    E.last = now; E.tick++;
     const g = E.g;
     g.setTransform(E.dpr, 0, 0, E.dpr, 0, 0);
     g.clearRect(0, 0, innerWidth, innerHeight);
@@ -472,7 +478,7 @@
          <feComposite in="gray" in2="grad" operator="arithmetic" k2=".45" k3=".6" k4="-.03" result="field"/>`
       : '<feComposite in="gray" in2="gray" operator="arithmetic" k2="1" result="field"/>';
     f.innerHTML = `
-      <feTurbulence type="${o.turb || 'fractalNoise'}" baseFrequency="${freq}" numOctaves="3" seed="${Math.floor(rnd(1, 999))}" result="noise"/>
+      <feTurbulence type="${o.turb || 'fractalNoise'}" baseFrequency="${freq}" numOctaves="${lite() ? 2 : 3}"seed="${Math.floor(rnd(1, 999))}" result="noise"/>
       <feColorMatrix in="noise" type="matrix" values="1.7 0 0 0 -.35  1.7 0 0 0 -.35  1.7 0 0 0 -.35  0 0 0 0 1" result="gray"/>
       ${mix}
       <feColorMatrix in="field" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0" result="nA"/>
@@ -515,7 +521,8 @@
   // เดินค่าเกณฑ์ t จาก 0 → 1 ใน dur วิ (ใช้นาฬิกาเดียวกับ canvas) · จบแล้วลบ filter
   function runDissolve(flt, dur, opts = {}) {
     return addDraw({ life: dur, delay: opts.delay || 0, draw(g, k, age) {
-      flt.set(-.05 + Math.pow(k, opts.pow || 1.6) * 1.12, opts.rim || .07, opts.char == null ? .05 : opts.char);
+      // แก้ attribute = filter คำนวณใหม่ทั้งใบ: โหมด lite อัปเดตเฟรมเว้นเฟรม (ช่วงท้ายอัปเดตเสมอให้หายสนิท)
+      if (!lite() || E.tick % 2 === 0 || k > .9) flt.set(-.05 + Math.pow(k, opts.pow || 1.6) * 1.12, opts.rim || .07, opts.char == null ? .05 : opts.char);
       if (opts.each) opts.each(k, age);
     }, end() { flt.el.remove(); if (opts.end) opts.end(); } });
   }
@@ -831,8 +838,10 @@
     const { host, ghost } = makeGhost(el, rect, key);
     el.style.visibility = 'hidden'; // ช่องเดิมจะถูกวาดใหม่อยู่แล้ว · กันเห็นซ้อนสองใบระหว่างรอ
     let finished = false;
-    const done = () => { if (finished) return; finished = true; (host._flt || []).forEach(f => f.remove()); host.remove(); };
-    setTimeout(done, 3200); // กันค้าง (แท็บถูกซ่อน / rAF หยุด)
+    E.active++;
+    const done = () => { if (finished) return; finished = true; E.active--; (host._flt || []).forEach(f => f.remove()); host.remove(); };
+    const stagger = (E.active - 1) * 90;
+    setTimeout(done, 3200 + stagger); // กันค้าง (แท็บถูกซ่อน / rAF หยุด)
 
     if (reduce()) {
       ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: 'forwards' }).onfinish = done;
@@ -841,8 +850,10 @@
     const lvl = levelOf(card, power);
     const c = { el, rect, host, ghost, lvl, done, W: rect.width, H: rect.height, cx: rect.left + rect.width / 2, cy: rect.top + rect.height / 2, n: (small() ? .6 : 1) * (.75 + lvl * .6) };
     kick();
-    try { SCENES[key](c); } catch (e) { console.warn('[card-dissolve]', e); done(); }
+    // แตกพร้อมกันหลายใบ: เหลื่อมจังหวะทีละ 90ms ไม่ให้ระเบิด + สร้าง filter ตกเฟรมเดียวกัน
+    later(stagger, () => { try { SCENES[key](c); } catch (e) { console.warn('[card-dissolve]', e); done(); } });
   }
 
-  window.BOFDissolve = { play, deckOf, levelOf, _engine: E };
+  // _fx: ให้ js/deck-fx.js วาดบน canvas/rAF/โหมด lite เดียวกัน
+  window.BOFDissolve = { play, deckOf, levelOf, _engine: E, _fx: { addPart, addDraw, shockwave, flash, jagged, strokeBolt, starPath, glowSpr, kick, lite, small } };
 })();
