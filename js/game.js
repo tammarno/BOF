@@ -6012,7 +6012,7 @@ function setupInGameControlBar() {
         if (gameState.lastPlayedCardInfo && gameState.lastPlayedCardInfo.card) {
           selectedLogSpotlight = gameState.lastPlayedCardInfo;
         }
-        renderCombatLogModal();
+        renderCombatLogModal(true);
         logModal.style.display = 'flex';
       }
     };
@@ -6038,7 +6038,6 @@ function setupInGameControlBar() {
     const nextPhaseBtn = document.createElement('button');
     nextPhaseBtn.id = 'btn-pass-turn-inline';
     nextPhaseBtn.className = 'btn';
-    nextPhaseBtn.style.background = '#0284c7';
     nextPhaseBtn.style.marginRight = '8px';
     nextPhaseBtn.textContent = '⚔️ เฟสถัดไป (Battle Phase)';
     nextPhaseBtn.onclick = () => handleNextPhaseButtonClick();
@@ -6047,8 +6046,9 @@ function setupInGameControlBar() {
     const surrenderBtn = document.createElement('button');
     surrenderBtn.id = 'btn-surrender-match';
     surrenderBtn.className = 'btn';
-    surrenderBtn.style.background = '#dc2626';
-    surrenderBtn.textContent = '🏳️ ยอมแพ้';
+    surrenderBtn.title = 'ยอมแพ้';
+    surrenderBtn.setAttribute('aria-label', 'ยอมแพ้');
+    surrenderBtn.innerHTML = `${hudIcon('flag')}<span class="sr-label">ยอมแพ้</span>`;
     surrenderBtn.onclick = () => handlePlayerSurrender();
     parentGroup.appendChild(surrenderBtn);
   }
@@ -7210,40 +7210,47 @@ function renderGame() {
     playerLeaderBox.onmouseleave = () => hideCardTooltip();
   }
 
-  document.getElementById('turn-indicator').textContent = isMobileView
-    ? `${gameState.activeTurn === 'player' ? 'ตาคุณ' : 'ตาคู่แข่ง'} · T${gameState.turnCount}`
-    : `Turn ${gameState.turnCount} (${gameState.activeTurn === 'player' ? 'ตาคุณ' : 'ตาอีกฝ่าย'})`;
-  document.getElementById('phase-indicator').textContent = gameState.phase;
+  // แถบควบคุม (หน้าตา): ไอคอนเส้นจาก js/bof-icons.js + คลาสสถานะให้ css/hud.css ทำสี/โมชั่น
+  // hudHtml เขียนใหม่เฉพาะเมื่อเนื้อหาเปลี่ยน ไม่งั้นโมชั่นของไอคอนเริ่มใหม่ทุกครั้งที่วาดกระดาน
+  const myTurn = gameState.activeTurn === 'player';
+  const turnEl = document.getElementById('turn-indicator');
+  turnEl.textContent = isMobileView
+    ? `${myTurn ? 'ตาคุณ' : 'ตาคู่แข่ง'} · T${gameState.turnCount}`
+    : `Turn ${gameState.turnCount} (${myTurn ? 'ตาคุณ' : 'ตาอีกฝ่าย'})`;
+  turnEl.parentElement.classList.toggle('is-my-turn', myTurn && !gameState.gameOver);
+  const phaseEl = document.getElementById('phase-indicator');
+  const phaseKey = gameState.phase === 'Main Phase' ? 'main' : gameState.phase === 'Battle Phase' ? 'battle' : 'other';
+  phaseEl.dataset.phase = phaseKey;
+  hudHtml(phaseEl, hudIcon(phaseKey === 'main' ? 'bolt' : phaseKey === 'battle' ? 'sword' : 'hourglass') + `<span>${gameState.phase}</span>`);
 
   const normalQuotaEl = document.getElementById('normal-spell-quota');
   const reactionQuotaEl = document.getElementById('reaction-spell-quota');
-  normalQuotaEl.textContent = isMobileView
-    ? `✨ ${player.spellQuota.normalUsed}/1`
-    : `Normal Spell: ${player.spellQuota.normalUsed} / 1`;
-  reactionQuotaEl.textContent = isMobileView
-    ? `🛡️ ${player.spellQuota.reactionUsed}/1`
-    : `Reaction Spell: ${player.spellQuota.reactionUsed} / 1`;
-  normalQuotaEl.title = 'Normal Spell ที่ใช้ในเทิร์นนี้';
-  reactionQuotaEl.title = 'Reaction Spell ที่ใช้ในเทิร์นนี้';
+  const quotaHtml = (icon, used, label) => hudIcon(icon) + `<small class="q-label">${label}</small><b>${used}/1</b>`;
+  hudHtml(normalQuotaEl, quotaHtml('spark', player.spellQuota.normalUsed, isMobileView ? '' : 'Normal Spell'));
+  hudHtml(reactionQuotaEl, quotaHtml('shield', player.spellQuota.reactionUsed, isMobileView ? '' : 'Reaction Spell'));
+  normalQuotaEl.classList.toggle('is-spent', player.spellQuota.normalUsed >= 1);
+  reactionQuotaEl.classList.toggle('is-spent', player.spellQuota.reactionUsed >= 1);
+  normalQuotaEl.title = `Normal Spell ที่ใช้ในเทิร์นนี้: ${player.spellQuota.normalUsed}/1`;
+  reactionQuotaEl.title = `Reaction Spell ที่ใช้ในเทิร์นนี้: ${player.spellQuota.reactionUsed}/1`;
 
   const passBtn = document.getElementById('btn-pass-turn-inline');
   if (passBtn) {
     const isWaitingDefense = (typeof pvpState !== 'undefined' && pvpState.waitingForDefense);
     passBtn.disabled = (gameState.activeTurn !== 'player' || gameState.gameOver || isWaitingDefense);
-    // มือถือ: ข้อความสั้นลงแต่ยังขึ้นต้น "เฟสถัดไป" ให้ตรงกับโหมดฝึกสอน
+    // มือถือ: ข้อความสั้นลงแต่ยังขึ้นต้น "เฟสถัดไป" ให้ตรงกับโหมดฝึกสอน · Main = ปุ่มสีฟ้า (โหมดฝึกอ้างถึงสีนี้)
+    let state, icon, label;
     if (isWaitingDefense) {
-      passBtn.textContent = isMobileView ? '⏳ รออีกฝ่ายป้องกัน' : '⏳ รออีกฝ่ายป้องกัน...';
-      passBtn.style.background = '#475569';
+      state = 'wait'; icon = 'hourglass'; label = isMobileView ? 'รออีกฝ่ายป้องกัน' : 'รออีกฝ่ายป้องกัน...';
     } else if (gameState.phase === 'Main Phase') {
-      passBtn.textContent = isMobileView ? '⚔️ เฟสถัดไป · ต่อสู้' : '⚔️ เฟสถัดไป (Battle Phase)';
-      passBtn.style.background = '#0284c7';
+      state = 'main'; icon = 'sword'; label = isMobileView ? 'เฟสถัดไป · ต่อสู้' : 'เฟสถัดไป (Battle Phase)';
     } else if (gameState.phase === 'Battle Phase') {
-      passBtn.textContent = isMobileView ? '⏭️ เฟสถัดไป · จบเทิร์น' : '⏭️ เฟสถัดไป (จบเทิร์น)';
-      passBtn.style.background = '#d97706';
+      state = 'battle'; icon = 'skip'; label = isMobileView ? 'เฟสถัดไป · จบเทิร์น' : 'เฟสถัดไป (จบเทิร์น)';
     } else {
-      passBtn.textContent = isMobileView ? '⏳ รอคู่แข่ง' : '⏳ รอเทิร์นฝ่ายตรงข้าม...';
-      passBtn.style.background = '#475569';
+      state = 'wait'; icon = 'hourglass'; label = isMobileView ? 'รอคู่แข่ง' : 'รอเทิร์นฝ่ายตรงข้าม...';
     }
+    passBtn.style.background = '';
+    passBtn.dataset.state = state;
+    hudHtml(passBtn, `<span class="pb-ico">${hudIcon(icon)}</span><span class="pb-label">${label}</span><span class="pb-shine" aria-hidden="true"></span>`);
   }
 
   renderBoardSlots('ai-board', ai, false);
@@ -7280,7 +7287,12 @@ function renderGame() {
     cardEl.addEventListener('click', () => handleHandCardClick(idx));
     handContainer.appendChild(cardEl);
   });
+  if (window.AimFx) AimFx.refresh(); // ลูกศรเล็ง + ป้ายพรีวิวผล (js/aim-fx.js)
 }
+// หน้าตาเท่านั้น: ไอคอนเส้นของเกม (ไม่มี js/bof-icons.js = ไม่มีไอคอน ข้อความยังอยู่)
+function hudIcon(name) { return window.BOFIcon ? window.BOFIcon(name) : ''; }
+function hudHtml(el, html) { if (el && el._hudHtml !== html) { el._hudHtml = html; el.innerHTML = html; } }
+
 function renderMulliganModal() {
   const listEl = document.getElementById('mulligan-card-list');
   listEl.innerHTML = '';
@@ -8570,59 +8582,56 @@ function ensureCombatLogSpotlightContainer() {
   return spot;
 }
 
-function renderCombatLogSpotlight(spotEl) {
+// ประวัติการต่อสู้ (หน้าตา): การ์ดเด่นแบบย่อ + รายการแบ่งตามเทิร์น · สไตล์อยู่ที่ css/hud.css
+const CL_CAT_ICON = { ATTACK: 'sword', SPELL: 'spark', SUMMON: 'summon' };
+const CL_LEAD_EMOJI = /^\s*(?:\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic})*\s*)+/u;
+
+function renderCombatLogSpotlight(spotEl, pop = false) {
   if (!spotEl) return;
   const info = selectedLogSpotlight || gameState.lastPlayedCardInfo;
-  if (!info || !info.card) {
-    spotEl.innerHTML = `
-      <div class="combat-spot-empty">
-        <span>🃏 ยังไม่มีการ์ดที่เพิ่งทำงานในแมตช์นี้ — เมื่อมีการร่ายเวท ใช้สกิล หรืออัญเชิญการ์ด ข้อมูลสกิลจะไฮไลต์ตรงนี้ทันที!</span>
-      </div>
-    `;
-    return;
-  }
+  // ยังไม่มีการ์ดทำงาน: ไม่ต้องมีกล่องว่างมากินที่
+  spotEl.hidden = !(info && info.card);
+  if (spotEl.hidden) { spotEl.innerHTML = ''; return; }
 
   const c = info.card;
   const desc = c.desc || (typeof getCardDescription === 'function' ? getCardDescription(c) : 'ไม่มีความสามารถ');
-  const sideText = info.isAI ? '🤖 ฝ่ายตรงข้ามใช้' : '👤 ฝั่งเราใช้';
   const sideCls = info.isAI ? 'is-ai' : 'is-player';
   const statText = c.type === 'Monster'
-    ? `⚔️ Power ${c.power}${c.tribe ? ` · เผ่า${c.tribe}` : ''}`
-    : (c.type === 'Leader' ? `👑 Leader · HP ${c.maxHp}` : `✨ ${c.type}`);
+    ? `${hudIcon('sword')}<span>Power <b>${c.power}</b>${c.tribe ? ` · ${c.tribe}` : ''}</span>`
+    : (c.type === 'Leader' ? `${hudIcon('crown')}<span>Leader · HP <b>${c.maxHp}</b></span>` : `${hudIcon('spark')}<span>${c.type}</span>`);
 
   spotEl.innerHTML = `
-    <div class="combat-spot-card ${sideCls}">
-      <div class="combat-spot-art-wrap" id="combat-spot-art-trigger" title="คลิกเพื่อดูการ์ดใบใหญ่ 3D">
-        <img src="${c.image || ''}" alt="${c.name}">
-        <span class="combat-spot-zoom-hint">🔍 ซูม</span>
-      </div>
-      <div class="combat-spot-body">
-        <div class="combat-spot-head">
-          <span class="combat-spot-badge ${sideCls}">${sideText} · เทิร์น ${info.turn || 1}</span>
-          <span class="combat-spot-stat">${statText}</span>
+    <div class="cl-spot ${sideCls}">
+      <button type="button" class="cl-spot-art" title="ดูการ์ดใบใหญ่">
+        <img src="${c.image || ''}" alt="">
+        <span class="cl-spot-zoom">${hudIcon('eye')}</span>
+      </button>
+      <div class="cl-spot-body">
+        <div class="cl-spot-top">
+          <span class="cl-side ${sideCls}">${info.isAI ? 'คู่แข่ง' : 'ฝั่งเรา'} · เทิร์น ${info.turn || 1}</span>
+          <span class="cl-rarity rarity-${c.rarity || 'N'}">${c.rarity || 'N'}</span>
         </div>
-        <div class="combat-spot-title-row">
-          <strong class="combat-spot-name">${c.name}</strong>
-          <span class="combat-spot-rarity rarity-${c.rarity || 'N'}">${c.rarity || 'N'}</span>
-        </div>
-        <div class="combat-spot-action-summary">⚡ ${info.actionSubText || info.message || ''}</div>
-        <div class="combat-spot-skill-highlight">
-          <div class="combat-spot-skill-label">📜 ไฮไลต์ความสามารถของการ์ดใบนี้:</div>
-          <div class="combat-spot-skill-text">${desc}</div>
-        </div>
+        <strong class="cl-spot-name"></strong>
+        <div class="cl-spot-stat">${statText}</div>
+        <p class="cl-spot-skill" title="แตะเพื่ออ่านทั้งหมด"></p>
       </div>
     </div>
   `;
+  spotEl.querySelector('.cl-spot-name').textContent = c.name;
+  const skill = spotEl.querySelector('.cl-spot-skill');
+  skill.textContent = desc;
+  skill.onclick = () => skill.classList.toggle('is-open');
 
-  const artTrigger = spotEl.querySelector('#combat-spot-art-trigger');
+  const artTrigger = spotEl.querySelector('.cl-spot-art');
   if (artTrigger && typeof window.openCardDetailModal === 'function') {
-    artTrigger.onclick = () => {
-      window.openCardDetailModal(c, null, artTrigger);
-    };
+    artTrigger.onclick = () => window.openCardDetailModal(c, null, artTrigger);
+  }
+  if (pop && window.gsap && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    gsap.fromTo(spotEl.firstElementChild, { scale: .96, opacity: .4 }, { scale: 1, opacity: 1, duration: .3, ease: 'back.out(2)', clearProps: 'transform,opacity' });
   }
 }
 
-function renderCombatLogModal() {
+function renderCombatLogModal(animate = false) {
   const listEl = document.getElementById('combat-log-list');
   if (!listEl) return;
   listEl.innerHTML = '';
@@ -8631,82 +8640,55 @@ function renderCombatLogModal() {
   renderCombatLogSpotlight(spotEl);
 
   const history = Array.isArray(gameState.matchLogHistory) ? gameState.matchLogHistory : [];
+  // ตัวนับบนปุ่มกรอง + บรรทัดสรุปใต้หัวข้อ
+  document.querySelectorAll('.combat-filter-btn').forEach(btn => {
+    const f = btn.dataset.filter || 'ALL';
+    const n = f === 'ALL' ? history.length : history.filter(item => item.category === f).length;
+    let cnt = btn.querySelector('.cl-count');
+    if (!cnt) { cnt = document.createElement('b'); cnt.className = 'cl-count'; btn.appendChild(cnt); }
+    cnt.textContent = n;
+    btn.classList.toggle('is-empty', n === 0);
+  });
+  const sub = document.getElementById('combat-log-sub');
+  if (sub) sub.textContent = `${history.length} เหตุการณ์ · เทิร์นปัจจุบัน ${gameState.turnCount || 1}`;
+
   const filtered = activeCombatLogFilter === 'ALL'
     ? history
     : history.filter(item => item.category === activeCombatLogFilter);
 
   if (filtered.length === 0) {
-    listEl.innerHTML = '<div style="color:#64748b;text-align:center;padding:30px;font-size:14px;">ยังไม่มีประวัติในหมวดหมู่นี้</div>';
+    listEl.innerHTML = `<div class="cl-empty">${hudIcon('scroll')}<span>ยังไม่มีเหตุการณ์ในหมวดนี้</span></div>`;
     return;
   }
 
-  // แสดงรายการล่าสุดไว้ด้านบนสุดเพื่อให้อ่านย้อนหลังบนมือถือได้ง่ายทันที หรือเรียงตามลำดับพร้อมเลื่อนลงล่างสุด
+  let lastTurn = null;
+  const rows = [];
   filtered.forEach(item => {
+    if (item.turn !== lastTurn) {
+      lastTurn = item.turn;
+      const sep = document.createElement('div');
+      sep.className = 'cl-turn';
+      sep.innerHTML = `<span>เทิร์น ${item.turn}</span>`;
+      listEl.appendChild(sep);
+    }
     const cardObj = item.cardId && typeof CARD_DATABASE !== 'undefined'
       ? CARD_DATABASE.find(c => c.id === item.cardId)
       : null;
+    const cat = CL_CAT_ICON[item.category] ? item.category.toLowerCase() : 'other';
 
-    const row = document.createElement('div');
-    row.className = `combat-log-row ${item.isAI ? 'is-ai' : 'is-player'} ${cardObj ? 'has-card' : ''}`;
+    const row = document.createElement(cardObj ? 'button' : 'div');
+    if (cardObj) row.type = 'button';
+    row.className = `cl-row ${item.isAI ? 'is-ai' : 'is-player'} cat-${cat}${cardObj ? ' has-card' : ''}`;
+    row.innerHTML = `<span class="cl-dot">${hudIcon(CL_CAT_ICON[item.category] || 'bell')}</span><span class="cl-msg"></span>`;
+    row.querySelector('.cl-msg').textContent = String(item.message || '').replace(CL_LEAD_EMOJI, '');
+    row.title = `${item.isAI ? 'คู่แข่ง' : 'ฝั่งเรา'} · ${item.time || ''}`;
 
     if (cardObj) {
       const thumb = document.createElement('img');
-      thumb.className = 'combat-log-thumb';
+      thumb.className = 'cl-thumb';
       thumb.src = cardObj.image || '';
-      thumb.alt = cardObj.name;
+      thumb.alt = '';
       row.appendChild(thumb);
-    }
-
-    const contentWrap = document.createElement('div');
-    contentWrap.className = 'combat-log-row-main';
-
-    const topMeta = document.createElement('div');
-    topMeta.className = 'combat-log-row-badges';
-
-    // 1. ชิปบอกเลขเทิร์น
-    const turnBadge = document.createElement('span');
-    turnBadge.className = 'combat-chip is-turn';
-    turnBadge.textContent = `เทิร์น ${item.turn}`;
-
-    // 2. ชิปบอกฝั่ง (เรา vs คู่แข่ง)
-    const sideBadge = document.createElement('span');
-    sideBadge.className = `combat-chip ${item.isAI ? 'is-side-ai' : 'is-side-player'}`;
-    sideBadge.textContent = item.isAI ? '🤖 คู่แข่ง' : '👤 ฝั่งเรา';
-
-    // 3. ชิปประเภทการกระทำ (โจมตี / เวท / อัญเชิญ / ระบบ)
-    const catBadge = document.createElement('span');
-    catBadge.className = `combat-chip is-cat-${(item.category || 'OTHER').toLowerCase()}`;
-    if (item.category === 'ATTACK') {
-      catBadge.textContent = '⚔️ โจมตี';
-    } else if (item.category === 'SPELL') {
-      catBadge.textContent = '✨ เวท/สกิล';
-    } else if (item.category === 'SUMMON') {
-      catBadge.textContent = '🃏 อัญเชิญ';
-    } else {
-      catBadge.textContent = '📢 ระบบ';
-    }
-
-    const timeSpan = document.createElement('span');
-    timeSpan.className = 'combat-log-time';
-    timeSpan.textContent = item.time;
-
-    topMeta.append(turnBadge, sideBadge, catBadge);
-    if (cardObj) {
-      const inspectHint = document.createElement('span');
-      inspectHint.className = 'combat-chip is-inspect-hint';
-      inspectHint.textContent = `🔍 แตะดูสกิล "${cardObj.name}"`;
-      topMeta.appendChild(inspectHint);
-    }
-    topMeta.appendChild(timeSpan);
-
-    const textSpan = document.createElement('div');
-    textSpan.className = 'combat-log-msg';
-    textSpan.textContent = item.message;
-
-    contentWrap.append(topMeta, textSpan);
-    row.appendChild(contentWrap);
-
-    if (cardObj) {
       row.onclick = () => {
         selectedLogSpotlight = {
           card: cardObj,
@@ -8718,14 +8700,20 @@ function renderCombatLogModal() {
           category: item.category,
           time: item.time
         };
-        renderCombatLogSpotlight(spotEl);
+        listEl.querySelectorAll('.cl-row.is-selected').forEach(r => r.classList.remove('is-selected'));
+        row.classList.add('is-selected');
+        renderCombatLogSpotlight(spotEl, true);
       };
     }
-
     listEl.appendChild(row);
+    rows.push(row);
   });
 
   listEl.scrollTop = listEl.scrollHeight;
+  // เปิดหน้าต่าง: แถวล่าสุดไหลเข้าทีละแถว (เฉพาะ ~10 แถวสุดท้ายที่มองเห็น)
+  if (animate && window.gsap && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    gsap.from(rows.slice(-10), { x: -14, opacity: 0, duration: .28, stagger: .03, delay: .08, ease: 'power2.out', clearProps: 'transform,opacity' });
+  }
 }
 
 function initCombatLogAndAudioControls() {
@@ -8734,7 +8722,7 @@ function initCombatLogAndAudioControls() {
   const logModal = document.getElementById('combat-log-modal');
   if (btnOpenLog && logModal) {
     btnOpenLog.onclick = () => {
-      renderCombatLogModal();
+      renderCombatLogModal(true);
       logModal.style.display = 'flex';
     };
   }
@@ -8744,15 +8732,18 @@ function initCombatLogAndAudioControls() {
     };
   }
 
+  // ไอคอนของหน้าต่างประวัติ (data-ico ใน index.html)
+  document.querySelectorAll('#combat-log-modal [data-ico]').forEach(el => el.insertAdjacentHTML('afterbegin', hudIcon(el.dataset.ico)));
+
   // Filter buttons
   document.querySelectorAll('.combat-filter-btn').forEach(btn => {
     btn.onclick = () => {
       document.querySelectorAll('.combat-filter-btn').forEach(b => {
         b.classList.remove('is-active');
-        b.style.background = '#334155';
+        b.setAttribute('aria-selected', 'false');
       });
       btn.classList.add('is-active');
-      btn.style.background = '#3b82f6';
+      btn.setAttribute('aria-selected', 'true');
       activeCombatLogFilter = btn.dataset.filter || 'ALL';
       renderCombatLogModal();
     };
@@ -8763,9 +8754,11 @@ function initCombatLogAndAudioControls() {
   if (btnSound && window.BOF_AUDIO) {
     const syncBoardSoundBtn = () => {
       const on = window.BOF_AUDIO.isSoundEnabled();
-      btnSound.textContent = on ? '🔊' : '🔇';
+      btnSound.innerHTML = window.BOFIcon ? hudIcon(on ? 'sound' : 'mute') : (on ? '🔊' : '🔇');
       btnSound.title = on ? 'เสียง: เปิด (คลิกเพื่อปิด)' : 'เสียง: ปิด (คลิกเพื่อเปิด)';
-      btnSound.style.background = on ? '#334155' : '#7f1d1d';
+      btnSound.setAttribute('aria-label', btnSound.title);
+      btnSound.style.background = '';
+      btnSound.classList.toggle('is-muted', !on);
     };
     btnSound.onclick = () => {
       window.BOF_AUDIO.toggleSound();

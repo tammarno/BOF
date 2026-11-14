@@ -98,3 +98,73 @@
   50% { transform: translate(calc(var(--amp) * -1), calc(var(--amp) * .4)); }
   75% { transform: translate(calc(var(--amp) * .5), 0); }
 }
+
+/* ลูกศรเล็งโค้ง (js/aim-fx.js): SVG เต็มจอ ไม่รับคลิก
+   ชั้น: รัศมีเบลอ → แกนไล่สี (จางที่ผู้โจมตี สว่างที่หัว) → ลูกศรเล็กไหลไปหาเป้า → หัวลูกศร → วงพัลส์ที่ผู้โจมตี
+   สี (--aim) ตามผล: ทอง = ยังไม่ล็อก/ตี Leader, เขียว = ชนะ, แดง = แพ้, ส้ม = เสมอ */
+.aim-arrow {
+  --aim: #ffd77a; --aim-rgb: 255, 215, 122;
+  position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 240; overflow: visible;
+  opacity: 0; transition: opacity .14s ease-out;
+}
+.aim-arrow.is-on { opacity: 1; }
+.aim-arrow.is-win { --aim: #5ef2a0; --aim-rgb: 94, 242, 160; }
+.aim-arrow.is-lose { --aim: #ff5d73; --aim-rgb: 255, 93, 115; }
+.aim-arrow.is-tie { --aim: #ffb04a; --aim-rgb: 255, 176, 74; }
+.aim-arrow .a-glow { fill: none; stroke: rgba(var(--aim-rgb), .6); stroke-width: 22; stroke-linecap: round; filter: url(#aim-blur); }
+.aim-arrow .a-core { fill: none; stroke: url(#aim-grad); stroke-width: 7; stroke-linecap: round; }
+.aim-arrow .a-edge { fill: none; stroke: rgba(255, 255, 255, .75); stroke-width: 1.2; stroke-linecap: round; stroke-dasharray: 2 10; }
+.aim-arrow .g0 { stop-color: var(--aim); stop-opacity: .15; }
+.aim-arrow .g1 { stop-color: var(--aim); stop-opacity: 1; }
+.aim-arrow .g2 { stop-color: #fff; stop-opacity: 1; }
+.aim-arrow .a-flow path { fill: #fff; stroke: var(--aim); stroke-width: 1; paint-order: stroke; }
+.aim-arrow .a-head path { fill: var(--aim); stroke: #fff; stroke-width: 1.6; stroke-linejoin: round; filter: drop-shadow(0 0 6px rgba(var(--aim-rgb), .95)); }
+.aim-arrow .a-head .h-in { fill: #fff; stroke: none; filter: none; opacity: .9; }
+.aim-arrow .a-origin circle { fill: none; stroke: var(--aim); stroke-width: 2; transform-box: fill-box; transform-origin: center; }
+.aim-arrow .a-origin .o-pulse { animation: aim-pulse 1.1s ease-out infinite; }
+.aim-arrow .a-origin .o-dot { fill: #fff; stroke: var(--aim); stroke-width: 3; }
+@keyframes aim-pulse { from { transform: scale(.4); opacity: .9; } to { transform: scale(2.2); opacity: 0; } }
+/* ยิงจริง: ลำแสงหนาวาบแล้วจาง */
+.aim-arrow.is-fire { transition: opacity .22s ease-in .06s; opacity: 0; }
+.aim-arrow.is-fire .a-core { stroke-width: 12; transition: stroke-width .08s; }
+.aim-arrow.is-fire .a-glow { stroke-width: 40; transition: stroke-width .08s; }
+
+/* กรอบล็อกเป้า: มุม 4 ด้านพุ่งเข้ามาหมุนเข้าที่ แล้วหายใจเบาๆ */
+.aim-lock {
+  --aim: #ffd77a; position: fixed; pointer-events: none; z-index: 241; opacity: 0;
+  transition: left .12s ease-out, top .12s ease-out, width .12s ease-out, height .12s ease-out;
+}
+.aim-lock.is-win { --aim: #5ef2a0; } .aim-lock.is-lose { --aim: #ff5d73; } .aim-lock.is-tie { --aim: #ffb04a; }
+.aim-lock.is-on { opacity: 1; animation: aim-lock-in .26s cubic-bezier(.2, 1.4, .4, 1) both, aim-breathe 1.2s ease-in-out .26s infinite alternate; }
+.aim-lock i { position: absolute; width: 26%; max-width: 18px; aspect-ratio: 1; border: 0 solid var(--aim); filter: drop-shadow(0 0 4px var(--aim)); }
+.aim-lock i:nth-child(1) { left: 0; top: 0; border-width: 3px 0 0 3px; border-top-left-radius: 6px; }
+.aim-lock i:nth-child(2) { right: 0; top: 0; border-width: 3px 3px 0 0; border-top-right-radius: 6px; }
+.aim-lock i:nth-child(3) { right: 0; bottom: 0; border-width: 0 3px 3px 0; border-bottom-right-radius: 6px; }
+.aim-lock i:nth-child(4) { left: 0; bottom: 0; border-width: 0 0 3px 3px; border-bottom-left-radius: 6px; }
+@keyframes aim-lock-in { from { transform: scale(1.6) rotate(-35deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes aim-breathe { to { transform: scale(1.06); } }
+/* ป้ายของเป้าที่ล็อกอยู่ขยายเด่นขึ้น */
+.aim-chip.is-focus { transform: translateX(-50%) scale(1.18); box-shadow: 0 0 12px currentColor, 0 2px 8px rgba(0, 0, 0, .5); z-index: 9; }
+
+/* ป้ายพรีวิวผล "2:3 แพ้" ใต้เป้า · มือถือช่องแคบ จึงตัวเล็กลง */
+.aim-chip {
+  position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); z-index: 8; pointer-events: none; white-space: nowrap;
+  padding: 2px 7px; border-radius: 999px; font: 800 12px/1.25 system-ui, sans-serif; color: #fff;
+  background: rgba(11, 14, 36, .94); border: 1.5px solid var(--fx-gold); box-shadow: 0 2px 8px rgba(0, 0, 0, .5);
+  transition: transform .15s ease-out, box-shadow .15s;
+}
+.aim-chip i { font-style: normal; }
+html.is-mobile .aim-chip { padding: 1px 4px; font-size: 10px; bottom: -8px; }
+.aim-chip.is-win { border-color: var(--fx-good); } .aim-chip.is-win i { color: var(--fx-good); }
+.aim-chip.is-lose { border-color: var(--fx-bad); } .aim-chip.is-lose i { color: var(--fx-bad); }
+.aim-chip.is-tie { border-color: #ffb04a; } .aim-chip.is-tie i { color: #ffb04a; }
+.aim-chip.is-hit { border-color: var(--fx-bad); color: var(--fx-bad); }
+
+/* ขอบแดงเตือน: ยูนิตนี้จะถูกทำลายถ้าโจมตี */
+.card.aim-doomed { outline: 3px solid var(--fx-bad) !important; outline-offset: 1px; box-shadow: 0 0 16px rgba(255, 93, 115, .85) !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .aim-arrow .a-origin .o-pulse { animation: none; opacity: 0; }
+  .aim-lock.is-on { animation: none; }
+  .aim-lock { transition: none; }
+}

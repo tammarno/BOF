@@ -17,6 +17,9 @@
 
   function cleanup(modal) {
     live.forEach(t => t && t.kill && t.kill()); live = [];
+    // แผงหน้าจบเกมห่อหัวข้อ/คำอธิบาย/ปุ่มของ game.js ไว้: แกะคืนก่อนลบ .um-x ไม่งั้นของเดิมหายไปด้วย
+    modal.querySelectorAll('.um-end-panel').forEach(p => p.replaceWith(...p.childNodes));
+    modal.querySelectorAll('.um-end-ico').forEach(n => n.remove());
     modal.querySelectorAll('.um-x').forEach(n => n.remove());
     document.querySelectorAll('.um-spark').forEach(n => n.remove());
     if (window.BOFParticles) window.BOFParticles.clear(); // กระดาษสีของฉากชนะไม่ค้างไปหน้าต่างถัดไป
@@ -43,6 +46,63 @@
     const ring = document.createElement('div'); ring.className = 'um-choice-icon um-x'; ring.setAttribute('aria-hidden', 'true');
     ring.innerHTML = `<span class="um-ico-glyph">${glyph}</span>`;
     return ring;
+  }
+
+  // ตราหน้าจบเกม: วงแหวนวาดเส้นเข้า + วงประหมุน + รัศมีแสง (ชนะ) / รอยร้าว (แพ้) · ลูกแรกคือแกนไอคอน (แอนิเมชันลอยใช้ firstChild)
+  function endEmblem(victory) {
+    const e = document.createElement('div');
+    e.className = 'um-choice-icon um-emblem um-x ' + (victory ? 'is-win' : 'is-lose');
+    e.setAttribute('aria-hidden', 'true');
+    const ticks = [...Array(8)].map((_, i) => `<rect x="58" y="3" width="4" height="4" transform="rotate(${i * 45} 60 60) rotate(45 60 5)"/>`).join('');
+    e.innerHTML = `<span class="em-core">${BOFIcon(victory ? 'crown' : 'skull')}</span>
+      <svg class="em-ring" viewBox="0 0 120 120"><circle class="em-r1" cx="60" cy="60" r="55"/><circle class="em-r2" cx="60" cy="60" r="47"/><g class="em-ticks">${ticks}</g>
+      ${victory ? '' : '<path class="em-crack" d="M72 14 L64 38 L74 50 L58 72 L66 84 L56 106"/>'}</svg>
+      ${victory ? '<span class="em-rays"></span>' : ''}`;
+    return e;
+  }
+
+  // แผงสรุปผล: ห่อหัวข้อ/คำอธิบาย/ปุ่ม · ดึงรางวัลเหรียญออกจากคำอธิบายมาเป็นตัวเลขนับขึ้น · สรุป 3 ค่า (เทิร์น, HP สองฝั่ง)
+  function endPanel(modal, box, h2, desc, victory) {
+    const btns = modal.querySelector('#choice-modal-buttons');
+    const panel = document.createElement('div'); panel.className = 'um-end-panel';
+    // ห่อพรีวิวการ์ด (ถ้ามี) ไปด้วย: ตอนแกะคืนลำดับเดิมจะได้เป็น หัวข้อ → คำอธิบาย → พรีวิว → ปุ่ม
+    h2.before(panel); panel.append(h2, desc);
+    const preview = modal.querySelector('#choice-modal-preview');
+    if (preview) panel.append(preview);
+
+    const m = desc.textContent.match(/\(?\s*ได้รับรางวัล[^+]*\+\s*(\d+)[^)]*\)?/);
+    if (m) desc.textContent = desc.textContent.replace(m[0], '').trim();
+
+    const gs = typeof gameState !== 'undefined' ? gameState : null;
+    if (gs && gs.player && gs.ai) {
+      const hp = s => Math.max(0, (s.leader && s.leader.hp) || 0);
+      const stats = document.createElement('div'); stats.className = 'um-end-stats um-x';
+      stats.innerHTML = [['เทิร์น', gs.turnCount || 1, ''], ['HP เรา', hp(gs.player) + '<small>/6</small>', 'is-me'], ['HP คู่แข่ง', hp(gs.ai) + '<small>/6</small>', 'is-foe']]
+        .map(([k, v, c]) => `<div class="um-stat-tile ${c}"><b>${v}</b><span>${k}</span></div>`).join('');
+      panel.append(stats);
+    }
+    if (m) {
+      const rw = document.createElement('div'); rw.className = 'um-end-reward um-x';
+      rw.innerHTML = `${BOFIcon('coin')}<b data-to="${m[1]}">+0</b><span>Coins</span>`;
+      panel.append(rw);
+      const b = rw.querySelector('b'), to = +m[1];
+      if (reduce) b.textContent = '+' + to;
+      else { const o = { v: 0 }; live.push(gsap.to(o, { v: to, duration: 1.1, delay: victory ? 1 : 1.2, ease: 'power2.out', onUpdate: () => { b.textContent = '+' + Math.round(o.v); } })); }
+    }
+    const extras = panel.querySelectorAll('.um-stat-tile, .um-end-reward');
+    if (!reduce && extras.length) live.push(gsap.from(extras, { y: 14, scale: .9, opacity: 0, duration: .4, stagger: .08, delay: victory ? .7 : 1, ease: 'back.out(1.8)', clearProps: 'transform,opacity' }));
+    if (!reduce) live.push(gsap.fromTo(panel, { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: .5, delay: victory ? .45 : .7, ease: 'power3.out', clearProps: 'transform,opacity' }));
+    if (btns) {
+      panel.append(btns);
+      // อีโมจิหน้าปุ่ม → ไอคอนเส้นของเกม
+      btns.querySelectorAll('.btn').forEach(bt => {
+        const ico = /🔄|เริ่มเล่นใหม่/.test(bt.textContent) ? 'rematch' : /🏠|ล็อบบี้/.test(bt.textContent) ? 'home' : '';
+        if (!ico) return;
+        const label = bt.textContent.replace(EMOJI, '').trim();
+        bt.textContent = label;
+        bt.insertAdjacentHTML('afterbegin', `<span class="um-end-ico">${BOFIcon(ico)}</span>`);
+      });
+    }
   }
 
   function findCard(title) {
@@ -159,13 +219,14 @@
 
     if (victory || defeat) {
       modal.classList.add('um-end', victory ? 'um-victory' : 'um-defeat');
-      const ring = iconRing(glyph || (victory ? '🏆' : '💀'));
+      const ring = window.BOFIcon ? endEmblem(victory) : iconRing(glyph || (victory ? '🏆' : '💀'));
       const word = document.createElement('span'); word.className = 'um-end-word um-x';
       const W = victory ? 'VICTORY' : 'DEFEAT';
       word.innerHTML = [...W].map(c => `<span class="um-end-char">${c}</span>`).join('');
       word.setAttribute('aria-label', W);
       h2.textContent = text;
       box.insertBefore(word, h2); box.insertBefore(ring, word);
+      if (window.BOFIcon) endPanel(modal, box, h2, desc, victory);
       const glow = document.createElement('div'); glow.className = 'um-end-glow um-x'; glow.style.top = (word.offsetTop + 10) + 'px'; box.insertBefore(glow, ring);
       if (victory) { const burst = document.createElement('div'); burst.className = 'um-burst um-x'; box.prepend(burst); }
       else { const vig = document.createElement('div'); vig.className = 'um-vignette um-x'; modal.prepend(vig); }

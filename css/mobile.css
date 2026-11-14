@@ -171,11 +171,8 @@ html.is-mobile #bof-game-arena #btn-last-card-pill .last-card-pill-meta { displa
 html.is-mobile #bof-game-arena #btn-last-card-pill .last-card-pill-img { width: 28px; height: 38px; border-radius: 4px; object-fit: cover; }
 
 /* ยอมแพ้: ไอคอนอย่างเดียว ไม่แย่งสายตา (ชื่อปุ่มยังอ่านได้ด้วย screen reader) */
-html.is-mobile #bof-game-arena #btn-surrender-match {
-  flex: 0 0 var(--m-tap) !important; width: var(--m-tap); padding: 0 !important; font-size: 0 !important;
-  background: rgba(30, 41, 59, .9) !important; border: 1px solid rgba(248, 113, 113, .55) !important;
-}
-html.is-mobile #bof-game-arena #btn-surrender-match::before { content: '🏳️'; font-size: 18px; }
+html.is-mobile #bof-game-arena #btn-surrender-match { flex: 0 0 var(--m-tap) !important; width: var(--m-tap); padding: 0 !important; font-size: 20px !important; }
+html.is-mobile #bof-game-arena #btn-surrender-match .sr-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
 /* =============================================================================
    4. หน้าต่างเลือก/ยืนยันระหว่างเกม (#custom-choice-modal) → แผ่นเลื่อนขึ้นจากล่าง
@@ -458,3 +455,24 @@ html.is-mobile .bof-coach-desc { font-size: 13px; line-height: 1.5; margin-top: 
 html.is-mobile .bof-coach-actions { flex-direction: row; gap: 6px; }
 html.is-mobile .bof-coach-btn { flex: 1; min-height: 38px; font-size: 12.5px !important; padding: 6px 4px !important; justify-content: center; gap: 6px; }
 html.is-mobile .bof-guided-pointer-badge { font-size: 10.5px; }
+
+/* =============================================================================
+   HUD v2 บนมือถือ (css/hud.css): หน้าจบเกมกะทัดรัด · ประวัติการต่อสู้เป็นแผ่นล่าง · ไม่ใช้ blur/เงาหนัก
+   ============================================================================= */
+html.is-mobile #bof-game-arena .quota-badges span { gap: 4px; }
+html.is-mobile #bof-game-arena #btn-pass-turn-inline { gap: 6px; }
+html.is-mobile #custom-choice-modal.um-end .um-emblem { width: 92px; height: 92px; font-size: 44px; margin-bottom: 4px; }
+html.is-mobile #custom-choice-modal.um-end .um-end-word { font-size: clamp(40px, 13vw, 64px); }
+html.is-mobile .um-end-panel { margin-top: 10px; padding: 16px 14px 14px; border-radius: 18px; }
+html.is-mobile #custom-choice-modal.um-end .um-end-panel #choice-modal-title { font-size: 18px; }
+html.is-mobile #custom-choice-modal.um-end .um-end-panel #choice-modal-desc { font-size: 13px; margin-bottom: 10px; }
+html.is-mobile .um-stat-tile { padding: 7px 4px; }
+html.is-mobile .um-stat-tile b { font-size: 18px; }
+html.is-mobile #custom-choice-modal.um-end #choice-modal-buttons .btn { min-height: var(--m-tap); width: 100%; }
+html.is-mobile #combat-log-modal .cl-v2 { width: 100% !important; max-height: 88dvh !important; border-radius: 22px 22px 0 0 !important; border-bottom: 0 !important; }
+html.is-mobile #combat-log-modal .cl-v2::before {
+  content: ''; display: block; width: 40px; height: 4px; margin: 8px auto 0; border-radius: 999px; background: rgba(255, 255, 255, .22); flex: none;
+}
+html.is-mobile .cl-head { padding: 8px 14px 10px; }
+html.is-mobile .combat-filter-btn { height: 36px; }
+html.is-mobile #combat-log-list { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }

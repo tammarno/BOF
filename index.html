@@ -22,6 +22,7 @@
   <link rel="stylesheet" href="css/deck-themes.css">
   <link rel="stylesheet" href="css/quests.css">
   <link rel="stylesheet" href="css/bof-fx.css">
+  <link rel="stylesheet" href="css/hud.css">
   <link rel="stylesheet" href="css/howto.css">
   <link rel="stylesheet" href="css/mobile.css">
   <script>document.documentElement.classList.add('lm-pre');setTimeout(function(){document.documentElement.classList.remove('lm-pre')},900);window.addEventListener('pageshow',function(){document.documentElement.classList.remove('lm-pre')});</script>
@@ -688,21 +689,24 @@
     </div>
   </div>
 
-  <!-- หน้าต่างประวัติการต่อสู้ (Combat Log Modal) -->
+  <!-- หน้าต่างประวัติการต่อสู้ (Combat Log Modal) · หน้าตาอยู่ที่ css/hud.css · ไอคอน/ตัวนับใส่โดย game.js -->
   <div class="modal-overlay" id="combat-log-modal" style="display: none; z-index: 300;">
-    <div class="modal-box combat-log-box" style="max-width: 600px; width: 95%; max-height: 85vh; display: flex; flex-direction: column;">
-      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 10px;">
-        <h2 style="color: #38bdf8; font-size: 18px; margin: 0;">📜 ประวัติการต่อสู้ (Combat History)</h2>
-        <button type="button" id="btn-close-combat-log" class="bof-auth-close-x" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;">✕</button>
+    <div class="modal-box combat-log-box cl-v2">
+      <div class="cl-head">
+        <span class="cl-head-ico" data-ico="scroll"></span>
+        <div class="cl-head-text">
+          <h2>ประวัติการต่อสู้</h2>
+          <small id="combat-log-sub">Combat History</small>
+        </div>
+        <button type="button" id="btn-close-combat-log" class="cl-close" aria-label="ปิด" data-ico="close"></button>
       </div>
-      <div class="combat-log-filters" style="display: flex; gap: 6px; padding: 10px 0; border-bottom: 1px solid #1e293b; overflow-x: auto;">
-        <button class="btn combat-filter-btn is-active" data-filter="ALL" style="padding: 4px 10px; font-size: 12px; background: #3b82f6;">ทั้งหมด</button>
-        <button class="btn combat-filter-btn" data-filter="ATTACK" style="padding: 4px 10px; font-size: 12px; background: #334155;">⚔️ โจมตี</button>
-        <button class="btn combat-filter-btn" data-filter="SPELL" style="padding: 4px 10px; font-size: 12px; background: #334155;">✨ เวท/สกิล</button>
-        <button class="btn combat-filter-btn" data-filter="SUMMON" style="padding: 4px 10px; font-size: 12px; background: #334155;">🃏 อัญเชิญ</button>
+      <div class="combat-log-filters" role="tablist">
+        <button class="combat-filter-btn is-active" data-filter="ALL" data-ico="all" role="tab">ทั้งหมด</button>
+        <button class="combat-filter-btn" data-filter="ATTACK" data-ico="sword" role="tab">โจมตี</button>
+        <button class="combat-filter-btn" data-filter="SPELL" data-ico="spark" role="tab">เวท/สกิล</button>
+        <button class="combat-filter-btn" data-filter="SUMMON" data-ico="summon" role="tab">อัญเชิญ</button>
       </div>
-      <div id="combat-log-list" style="flex: 1; overflow-y: auto; padding: 10px 0; display: flex; flex-direction: column; gap: 8px; min-height: 250px; max-height: 55vh;">
-      </div>
+      <div id="combat-log-list"></div>
     </div>
   </div>
 
@@ -747,7 +751,8 @@
   <script src="js/cards/oat.js"></script>
   <script src="js/cards/schema.js"></script>
   <script src="js/audio.js"></script>
-  <script src="js/game.js?v=20261114c"></script>
+  <script src="js/bof-icons.js"></script>
+  <script src="js/game.js?v=20261114e"></script>
   <script src="js/hand-shuffle.js"></script>
   <script src="js/summon-fx.js"></script>
   <script src="js/card-drag.js"></script>
@@ -765,6 +770,7 @@
   <script src="js/flow-motion.js"></script>
   <script src="js/fx-particles.js"></script>
   <script src="js/bof-fx.js"></script>
+  <script src="js/aim-fx.js"></script>
   <script src="js/combo-replays-data.js"></script>
   <script src="js/combo-replay.js"></script>
   <script src="js/howto-motion.js"></script>

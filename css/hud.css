@@ -1,0 +1,275 @@
+/* ============================================================================
+   BOF HUD v2: แถบควบคุมในเกม · หน้าจบเกม · ประวัติการต่อสู้
+   ไอคอนเส้นจาก js/bof-icons.js (currentColor) · โมชั่นด้วย transform/opacity · เคารพ reduced motion
+   กฎเฉพาะมือถืออยู่ใน css/mobile.css (โหลดหลังไฟล์นี้) — ไฟล์นี้ใช้ได้ทั้ง PC และมือถือ
+   ============================================================================ */
+.bof-i { width: 1em; height: 1em; flex: none; display: inline-block; vertical-align: -.15em; overflow: visible; }
+
+/* ---------------------------------------------------------------------------
+   1. แถบควบคุม
+   --------------------------------------------------------------------------- */
+/* ตาเรา: จุดเขียวเต้นหน้าข้อความเทิร์น */
+.turn-phase-group #turn-indicator { display: inline-flex; align-items: center; gap: 7px; }
+.turn-phase-group #turn-indicator::before {
+  content: ''; width: 8px; height: 8px; border-radius: 50%; flex: none;
+  background: #64748b; box-shadow: 0 0 0 0 rgba(94, 242, 160, 0); transition: background .3s;
+}
+.turn-phase-group.is-my-turn #turn-indicator::before { background: #5ef2a0; animation: hud-dot 1.6s ease-out infinite; }
+@keyframes hud-dot { 0% { box-shadow: 0 0 0 0 rgba(94, 242, 160, .7); } 100% { box-shadow: 0 0 0 9px rgba(94, 242, 160, 0); } }
+
+/* ป้ายเฟส: ไอคอน + ชื่อเฟส · สีตามเฟส */
+#phase-indicator {
+  display: inline-flex; align-items: center; gap: 6px; transition: color .3s, border-color .3s, background .3s;
+  background: rgba(56, 189, 248, .1) !important; color: #7dd3fc !important; border: 1px solid rgba(56, 189, 248, .45) !important;
+}
+#phase-indicator .bof-i { font-size: 1.15em; }
+#phase-indicator[data-phase="battle"] { background: rgba(251, 146, 60, .12) !important; color: #fdba74 !important; border-color: rgba(251, 146, 60, .55) !important; }
+#phase-indicator[data-phase="battle"] .bof-i { animation: hud-clash .5s cubic-bezier(.3, 1.6, .5, 1) both; }
+#phase-indicator[data-phase="other"] { background: rgba(148, 163, 184, .1) !important; color: #cbd5e1 !important; border-color: rgba(148, 163, 184, .35) !important; }
+@keyframes hud-clash { from { transform: scale(.4) rotate(-40deg); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* โควตาเวท: ไอคอน + ตัวนับ · ยังใช้ได้ = ไอคอนเรือง · ใช้แล้ว = จาง */
+.quota-badges span {
+  display: inline-flex !important; align-items: center; gap: 5px;
+  background: rgba(255, 255, 255, .05) !important; border: 1px solid rgba(160, 175, 255, .18) !important; border-radius: 999px !important;
+  color: #e2e6f8; transition: opacity .3s, border-color .3s;
+}
+.quota-badges span b { font-weight: 800; font-variant-numeric: tabular-nums; }
+.quota-badges .q-label:empty { display: none; }
+.quota-badges .q-label { color: #aab1d8; font-size: .92em; font-weight: 600; }
+#normal-spell-quota .bof-i { color: #ffd77a; filter: drop-shadow(0 0 4px rgba(255, 215, 122, .7)); animation: hud-twinkle 2.6s ease-in-out infinite; }
+#reaction-spell-quota .bof-i { color: #7fd3ff; filter: drop-shadow(0 0 4px rgba(127, 211, 255, .7)); }
+.quota-badges span.is-spent { opacity: .5; }
+.quota-badges span.is-spent .bof-i { filter: grayscale(1); animation: none; }
+@keyframes hud-twinkle { 0%, 100% { transform: scale(1) rotate(0); } 50% { transform: scale(1.18) rotate(12deg); } }
+
+/* ปุ่มเฟส: ปุ่มหลักของจอ · ไล่สีตามสถานะ + แสงกวาด + ไอคอนเคลื่อนไหวต่อเฟส */
+#btn-pass-turn-inline {
+  display: inline-flex !important; align-items: center; justify-content: center; gap: 8px;
+  position: relative; overflow: hidden; isolation: isolate; color: #fff !important; border: 0 !important;
+  font-weight: 800; letter-spacing: .01em; text-shadow: 0 1px 2px rgba(0, 0, 0, .35);
+  background: linear-gradient(135deg, #38bdf8, #0369a1) !important;
+  box-shadow: 0 6px 18px rgba(2, 132, 199, .35), inset 0 1px 0 rgba(255, 255, 255, .3) !important;
+  transition: transform .12s ease, filter .2s, box-shadow .3s;
+}
+#btn-pass-turn-inline[data-state="battle"] {
+  background: linear-gradient(135deg, #fbbf24, #ea580c) !important;
+  box-shadow: 0 6px 18px rgba(234, 88, 12, .4), inset 0 1px 0 rgba(255, 255, 255, .35) !important;
+}
+#btn-pass-turn-inline[data-state="wait"], #btn-pass-turn-inline:disabled {
+  background: linear-gradient(135deg, #475569, #273244) !important; box-shadow: none !important; color: #cbd5e1 !important;
+}
+#btn-pass-turn-inline:not(:disabled):hover { filter: brightness(1.08); }
+#btn-pass-turn-inline:not(:disabled):active { transform: scale(.97); }
+#btn-pass-turn-inline .pb-ico { display: inline-grid; place-items: center; font-size: 1.3em; line-height: 0; }
+#btn-pass-turn-inline .pb-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#btn-pass-turn-inline .pb-shine {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, .45) 50%, transparent 65%);
+  transform: translateX(-100%);
+}
+#btn-pass-turn-inline:not(:disabled) .pb-shine { opacity: 1; animation: hud-shine 3.2s ease-in-out infinite; }
+@keyframes hud-shine { 0%, 55% { transform: translateX(-100%); } 85%, 100% { transform: translateX(100%); } }
+/* ไอคอน: ดาบไขว้ฟันเข้าหากัน · ลูกศรขยับไปข้างหน้า · นาฬิกาทรายพลิก */
+#btn-pass-turn-inline[data-state="main"]:not(:disabled) .bof-i-sword { animation: hud-swing 2.4s ease-in-out infinite; transform-origin: 50% 85%; }
+#btn-pass-turn-inline[data-state="battle"]:not(:disabled) .i-a1 { animation: hud-nudge 1.2s ease-in-out infinite; }
+#btn-pass-turn-inline[data-state="battle"]:not(:disabled) .i-a2 { animation: hud-nudge 1.2s ease-in-out .12s infinite; }
+#btn-pass-turn-inline .bof-i-hourglass { animation: hud-flip 2.4s cubic-bezier(.6, 0, .3, 1) infinite; }
+@keyframes hud-swing { 0%, 70%, 100% { transform: rotate(0); } 78% { transform: rotate(-14deg) scale(1.1); } 88% { transform: rotate(8deg) scale(1.05); } }
+@keyframes hud-nudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(2.5px); } }
+@keyframes hud-flip { 0%, 60% { transform: rotate(0); } 85%, 100% { transform: rotate(180deg); } }
+
+/* เสียง: คลื่นเสียงกระเพื่อม · ปิดเสียง = แดงหม่น */
+#btn-toggle-sound {
+  display: inline-grid !important; place-items: center; color: #e2e6f8;
+  background: rgba(255, 255, 255, .06) !important; border: 1px solid rgba(160, 175, 255, .2) !important;
+}
+#btn-toggle-sound .bof-i { font-size: 1.35em; }
+#btn-toggle-sound .i-wave { animation: hud-wave 1.8s ease-in-out infinite; }
+#btn-toggle-sound .i-w2 { animation-delay: .25s; }
+#btn-toggle-sound.is-muted { color: #fca5a5; background: rgba(127, 29, 29, .35) !important; border-color: rgba(248, 113, 113, .45) !important; }
+@keyframes hud-wave { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+
+/* ยอมแพ้: ไม่แย่งสายตา · ชี้/กด = ธงโบก */
+#btn-surrender-match {
+  display: inline-flex !important; align-items: center; justify-content: center; gap: 6px; color: #fca5a5 !important;
+  background: rgba(30, 41, 59, .85) !important; border: 1px solid rgba(248, 113, 113, .45) !important;
+}
+#btn-surrender-match .bof-i { font-size: 1.2em; }
+#btn-surrender-match:hover .i-cloth, #btn-surrender-match:active .i-cloth { animation: hud-wave-flag .6s ease-in-out infinite alternate; transform-origin: 0 50%; }
+@keyframes hud-wave-flag { to { transform: skewY(-6deg) scaleX(.92); } }
+
+/* ---------------------------------------------------------------------------
+   2. หน้าจบเกม (#custom-choice-modal.um-end) — ต่อยอด css/choice-ui.css
+   --------------------------------------------------------------------------- */
+#custom-choice-modal.um-end .um-emblem {
+  --c: 243, 201, 105; width: 124px; height: 124px; margin: 0 auto 10px; font-size: 58px;
+  background: radial-gradient(circle at 50% 38%, rgba(var(--c), .3), rgba(10, 12, 28, .96) 68%);
+  border: 0; box-shadow: 0 0 46px rgba(var(--c), .35), 0 12px 30px rgba(0, 0, 0, .55);
+}
+#custom-choice-modal.um-defeat .um-emblem { --c: 248, 92, 92; }
+.um-emblem .em-core { position: relative; z-index: 2; display: inline-grid; place-items: center; line-height: 0; color: rgb(var(--c)); filter: drop-shadow(0 0 10px rgba(var(--c), .8)); }
+.um-victory .um-emblem .em-core { color: #ffe39a; }
+.um-emblem .em-ring { position: absolute; inset: -12px; width: calc(100% + 24px); height: calc(100% + 24px); z-index: 1; overflow: visible; }
+.um-emblem .em-ring circle { fill: none; stroke: rgb(var(--c)); }
+.um-emblem .em-r1 { stroke-width: 1.4; stroke-dasharray: 3 6; opacity: .7; transform-box: fill-box; transform-origin: center; animation: em-spin 18s linear infinite; }
+.um-emblem .em-r2 { stroke-width: 2.6; stroke-dasharray: 296; stroke-dashoffset: 296; animation: em-draw .9s cubic-bezier(.6, 0, .2, 1) .15s forwards; filter: drop-shadow(0 0 4px rgba(var(--c), .9)); }
+.um-emblem .em-ticks { fill: rgb(var(--c)); transform-box: view-box; transform-origin: 60px 60px; animation: em-spin 26s linear infinite reverse; }
+.um-emblem .em-crack { fill: none; stroke: #ffd0d0; stroke-width: 2.4; stroke-linejoin: round; stroke-dasharray: 120; stroke-dashoffset: 120;
+  filter: drop-shadow(0 0 4px rgba(255, 60, 60, .95)); animation: em-draw .35s ease-in .6s forwards; }
+.um-emblem .em-rays {
+  position: absolute; inset: -70%; z-index: 0; border-radius: 50%; pointer-events: none; opacity: .55;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 227, 154, .35) 0 6deg, transparent 6deg 22deg);
+  -webkit-mask: radial-gradient(circle, #000 18%, transparent 62%); mask: radial-gradient(circle, #000 18%, transparent 62%);
+  animation: em-spin 22s linear infinite;
+}
+@keyframes em-spin { to { transform: rotate(360deg); } }
+@keyframes em-draw { to { stroke-dashoffset: 0; } }
+
+/* แผงสรุปผล */
+.um-end-panel {
+  --c: 243, 201, 105; position: relative; margin: 14px auto 0; max-width: 560px; padding: 20px 22px 18px; border-radius: 20px; overflow: hidden;
+  background: linear-gradient(180deg, rgba(24, 28, 60, .88), rgba(10, 12, 28, .94));
+  border: 1px solid rgba(var(--c), .3); box-shadow: 0 18px 50px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+.um-defeat .um-end-panel { --c: 248, 113, 113; }
+.um-end-panel::before { /* เส้นแสงขอบบนวิ่งผ่าน */
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(var(--c), .95), transparent); background-size: 50% 100%; background-repeat: no-repeat;
+  animation: um-edge-run 3.4s ease-in-out infinite;
+}
+@keyframes um-edge-run { from { background-position: -60% 0; } to { background-position: 160% 0; } }
+#custom-choice-modal.um-end .um-end-panel #choice-modal-title { margin: 0 0 4px; font-size: 21px; }
+#custom-choice-modal.um-end .um-end-panel #choice-modal-desc { margin: 0 0 14px; font-size: 14px; line-height: 1.55; }
+.um-end-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 12px; }
+.um-stat-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 9px 6px; border-radius: 14px;
+  background: rgba(255, 255, 255, .045); border: 1px solid rgba(160, 175, 255, .14);
+}
+.um-stat-tile b { font: 800 22px/1 var(--font-display, system-ui); color: #fff; font-variant-numeric: tabular-nums; }
+.um-stat-tile b small { font-size: .55em; color: #8b93bf; font-weight: 600; }
+.um-stat-tile span { font-size: 11.5px; color: #aab1d8; }
+.um-stat-tile.is-me b { color: #5ef2a0; } .um-stat-tile.is-foe b { color: #ff8a9a; }
+.um-end-reward {
+  display: inline-flex; align-items: center; gap: 7px; margin: 0 auto 14px; padding: 6px 14px 6px 8px; border-radius: 999px;
+  background: linear-gradient(135deg, rgba(255, 215, 122, .18), rgba(255, 170, 60, .08)); border: 1px solid rgba(255, 215, 122, .5);
+  color: #ffe39a; font-weight: 800;
+}
+.um-end-reward .bof-i { font-size: 22px; animation: um-coin 2.6s ease-in-out 1s infinite; }
+.um-end-reward b { font-size: 18px; font-variant-numeric: tabular-nums; min-width: 3ch; text-align: right; }
+.um-end-reward span { font-size: 13px; color: #f3d48a; font-weight: 600; }
+@keyframes um-coin { 0%, 70%, 100% { transform: rotateY(0); } 85% { transform: rotateY(180deg); } }
+.um-end-panel { text-align: center; }
+#custom-choice-modal.um-end .um-end-panel #choice-modal-buttons { margin-top: 0; }
+#custom-choice-modal.um-end #choice-modal-buttons .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.um-end-ico { display: inline-grid; place-items: center; font-size: 1.25em; line-height: 0; transition: transform .35s cubic-bezier(.3, 1.5, .5, 1); }
+#choice-modal-buttons .btn:hover .um-end-ico { transform: rotate(-25deg) scale(1.1); }
+#choice-modal-buttons .btn:hover .bof-i-home { transform: none; }
+#choice-modal-buttons .btn:hover .um-end-ico:has(.bof-i-rematch) { transform: rotate(-180deg); }
+
+/* ---------------------------------------------------------------------------
+   3. ประวัติการต่อสู้ (#combat-log-modal .cl-v2)
+   --------------------------------------------------------------------------- */
+#combat-log-modal .cl-v2 {
+  max-width: 560px; width: 95%; max-height: 86vh; display: flex; flex-direction: column; overflow: hidden;
+  padding: 0 !important; border-radius: 22px !important; color: #e2e6f8; text-align: left;
+  background: linear-gradient(180deg, #161b3e, #0b0e24) !important; border: 1px solid rgba(243, 201, 105, .22) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .55) !important;
+}
+.cl-head { display: flex; align-items: center; gap: 12px; padding: 16px 16px 12px 18px; }
+.cl-head-ico {
+  width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 22px; flex: none; color: #ffe39a;
+  background: radial-gradient(circle at 50% 30%, rgba(243, 201, 105, .35), rgba(243, 201, 105, .08)); border: 1px solid rgba(243, 201, 105, .45);
+}
+.cl-head-text { flex: 1; min-width: 0; }
+.cl-head h2 { margin: 0; font: 700 18px/1.2 var(--font-display, system-ui); color: #fff; }
+.cl-head small { display: block; margin-top: 2px; font-size: 12px; color: #8b93bf; }
+.cl-close {
+  width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 18px; flex: none; cursor: pointer;
+  color: #aab1d8; background: rgba(255, 255, 255, .06); border: 1px solid rgba(160, 175, 255, .16); transition: transform .2s, color .2s, background .2s;
+}
+.cl-close:hover { color: #fff; background: rgba(255, 255, 255, .12); transform: rotate(90deg); }
+
+#combat-log-modal .combat-log-filters {
+  display: flex; gap: 6px; padding: 0 14px 12px; overflow-x: auto; scrollbar-width: none; border: 0 !important;
+}
+#combat-log-modal .combat-log-filters::-webkit-scrollbar { display: none; }
+.combat-filter-btn {
+  display: inline-flex; align-items: center; gap: 6px; flex: none; height: 34px; padding: 0 10px 0 12px; border-radius: 999px; cursor: pointer;
+  font: 600 13px/1 inherit; color: #c9cde6; background: rgba(255, 255, 255, .05); border: 1px solid rgba(160, 175, 255, .16);
+  transition: background .2s, color .2s, border-color .2s, transform .12s;
+}
+.combat-filter-btn .bof-i { font-size: 1.1em; }
+.combat-filter-btn:active { transform: scale(.96); }
+.combat-filter-btn .cl-count { min-width: 20px; padding: 2px 6px; border-radius: 999px; font-size: 11px; text-align: center; background: rgba(255, 255, 255, .1); }
+.combat-filter-btn.is-active { color: #1a1405; border-color: transparent; background: linear-gradient(135deg, #f7d77f, #e0a83c); box-shadow: 0 4px 14px rgba(243, 201, 105, .3); }
+.combat-filter-btn.is-active .cl-count { background: rgba(26, 20, 5, .18); }
+.combat-filter-btn.is-empty:not(.is-active) { opacity: .5; }
+
+/* การ์ดเด่น (ย่อ) */
+#combat-log-spotlight { padding: 0 14px 12px; }
+#combat-log-spotlight[hidden] { display: none !important; }
+.cl-spot {
+  --side: 94, 234, 212; position: relative; display: grid; grid-template-columns: 62px 1fr; gap: 12px; padding: 10px; border-radius: 16px;
+  background: linear-gradient(90deg, rgba(var(--side), .1), rgba(255, 255, 255, .03) 55%); border: 1px solid rgba(var(--side), .28);
+}
+.cl-spot.is-ai { --side: 255, 107, 129; }
+.cl-spot-art { position: relative; padding: 0; border: 0; background: none; cursor: zoom-in; width: 62px; height: 86px; border-radius: 9px; overflow: hidden; box-shadow: 0 6px 16px rgba(0, 0, 0, .45); }
+.cl-spot-art img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s; }
+.cl-spot-art:hover img { transform: scale(1.08); }
+.cl-spot-zoom { position: absolute; right: 4px; bottom: 4px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; color: #fff; background: rgba(11, 14, 36, .8); }
+.cl-spot-body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cl-spot-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cl-side { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; color: rgb(var(--side)); background: rgba(var(--side), .14); }
+.cl-rarity { font: 800 10.5px/1 system-ui; padding: 3px 7px; border-radius: 6px; color: #fff; background: #475569; letter-spacing: .04em; }
+.cl-rarity.rarity-R { background: linear-gradient(135deg, #38bdf8, #2563eb); }
+.cl-rarity.rarity-SR { background: linear-gradient(135deg, #c084fc, #7c3aed); }
+.cl-rarity.rarity-SSR { background: linear-gradient(135deg, #fde68a, #f59e0b); color: #2a1a00; }
+.cl-spot-name { font: 700 16px/1.25 var(--font-display, system-ui); color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-spot-stat { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #aab1d8; }
+.cl-spot-stat b { color: #ffe39a; }
+.cl-spot-skill {
+  margin: 2px 0 0; font-size: 12.5px; line-height: 1.5; color: #c9cde6; cursor: pointer;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.cl-spot-skill.is-open { display: block; }
+
+/* รายการ: แบ่งตามเทิร์น · ไอคอนบอกประเภท · แถบสีบอกฝั่ง */
+#combat-log-list {
+  flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 0 14px 16px; min-height: 200px;
+  display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(160, 175, 255, .1);
+}
+.cl-turn {
+  position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 10px 0 4px;
+  font: 700 11px/1 var(--font-display, system-ui); letter-spacing: .08em; color: #f3c969;
+  background: linear-gradient(180deg, #0f1330 65%, rgba(15, 19, 48, 0));
+}
+.cl-turn::before, .cl-turn::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(243, 201, 105, .4), transparent); }
+.cl-row {
+  --side: 94, 234, 212; --cat: 148, 163, 184;
+  position: relative; display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 10px;
+  width: 100%; padding: 8px 10px 8px 12px; border-radius: 12px; text-align: left; color: inherit; font: inherit;
+  background: rgba(255, 255, 255, .035); border: 1px solid transparent; transition: background .2s, border-color .2s, transform .12s;
+}
+.cl-row::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: rgb(var(--side)); }
+.cl-row.is-ai { --side: 255, 107, 129; }
+.cl-row.cat-attack { --cat: 255, 138, 101; } .cl-row.cat-spell { --cat: 196, 160, 255; } .cl-row.cat-summon { --cat: 255, 215, 122; }
+.cl-dot { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 15px; color: rgb(var(--cat)); background: rgba(var(--cat), .14); border: 1px solid rgba(var(--cat), .35); }
+.cl-msg { font-size: 13px; line-height: 1.45; color: #e2e6f8; overflow-wrap: anywhere; }
+.cl-row.cat-other { background: transparent; padding-top: 5px; padding-bottom: 5px; }
+.cl-row.cat-other .cl-msg { font-size: 12px; color: #8b93bf; }
+.cl-row.cat-other .cl-dot { width: 22px; height: 22px; font-size: 12px; justify-self: center; }
+.cl-row.has-card { cursor: pointer; }
+.cl-row.has-card:hover { background: rgba(255, 255, 255, .07); }
+.cl-row.has-card:active { transform: scale(.99); }
+.cl-row.is-selected { border-color: rgba(243, 201, 105, .6); background: rgba(243, 201, 105, .08); }
+.cl-thumb { width: 30px; height: 42px; border-radius: 5px; object-fit: cover; box-shadow: 0 3px 8px rgba(0, 0, 0, .4); }
+.cl-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 0; color: #64748b; font-size: 14px; }
+.cl-empty .bof-i { font-size: 34px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .turn-phase-group.is-my-turn #turn-indicator::before, #normal-spell-quota .bof-i, #btn-pass-turn-inline .pb-shine,
+  #btn-pass-turn-inline .bof-i, #btn-pass-turn-inline .bof-i *, #btn-toggle-sound .i-wave, #phase-indicator .bof-i,
+  .um-emblem .em-r1, .um-emblem .em-ticks, .um-emblem .em-rays, .um-end-panel::before, .um-end-reward .bof-i { animation: none !important; }
+  .um-emblem .em-r2, .um-emblem .em-crack { animation: none; stroke-dashoffset: 0; }
+}
