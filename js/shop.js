@@ -844,62 +844,17 @@
     return cardEl;
   }
 
-  /* ---------------- ฉากแอนิเมชันเปิดซองสุ่มการ์ด (🌌 วงเวทมิติพลังงาน) ---------------- */
+  /* ---------------- ฉากเปิดซอง: ลากฉีกซองฟอยล์ (js/pack-open.js) ---------------- */
+  const PACK_LABEL = { pack_jit: ['จิต', 'JIT'], pack_nuea: ['เหนือ', 'NUEA'], pack_doom: ['สิ้นโลก', 'DOOM'], pack_dino: ['ไดโน', 'DINO'], pack_demon: ['ปีศาจ', 'DEMON'], pack_oat: ['โอ๊ต', 'OAT'] };
   function playPackOpeningAnimation(pack, packCount, highestRarity, onComplete) {
     const stage = document.getElementById('bof-pack-anim-stage');
-    if (!stage) {
-      if (onComplete) onComplete();
-      return;
-    }
-
-    const glowMap = {
-      N: pack.color || '#8f97b8',
-      R: '#4fa7ff',
-      SR: '#ff5a6e',
-      SSR: '#facc15'
-    };
-    const glowColor = glowMap[highestRarity] || pack.color || '#facc15';
-
-    stage.className = 'bof-pack-anim-stage is-playing bof-anim-style-portal';
-    stage.style.setProperty('--anim-glow', glowColor);
-
-    stage.innerHTML = `
-      <div class="bof-portal-ring"></div>
-      <div class="bof-portal-ring-inner"></div>
-      <div class="bof-anim-pack-wrap">
-        <div class="bof-anim-pack-body"><img src="${pack.image}" alt="${pack.name}"></div>
-      </div>
-      <div class="bof-anim-burst-flash"></div>
-      <div class="bof-anim-caption">🌌 กำลังอัญเชิญมิติ ${pack.name} (${packCount} ซอง)...</div>
-    `;
-
-    requestAnimationFrame(() => {
-      stage.classList.add('is-active');
-    });
-
-    if (window.BOF_AUDIO) window.BOF_AUDIO.playPackOpen();
-
-    // อนุภาคตอนวงเวทระเบิด (ตรงกับ .bof-anim-burst-flash ที่ 0.9s) · แรงขึ้นตามระดับสูงสุดที่ได้
-    const fxTimer = setTimeout(() => packBurstFx(stage, highestRarity), 900);
-
-    let finished = false;
-    const closeAnim = () => {
-      if (finished) return;
-      finished = true;
-      clearTimeout(fxTimer);
-      stage.className = 'bof-pack-anim-stage';
-      stage.style.display = 'none';
-      stage.innerHTML = '';
-      stage.onclick = null;
-      if (onComplete) onComplete();
-    };
-
-    // หน่วงเวลา 450ms ก่อนรับคลิกข้าม เพื่อป้องกัน click event จากปุ่มเปิดซองกระเด็นมาปิดแอนิเมชันทันที
-    setTimeout(() => {
-      stage.onclick = closeAnim;
-    }, 450);
-
-    setTimeout(closeAnim, 2100);
+    const done = () => { if (onComplete) onComplete(); };
+    if (!stage || !window.BOFPackOpen) { done(); return; }
+    const [short, en] = PACK_LABEL[pack.id] || [pack.name, 'BOF'];
+    window.BOFPackOpen.play(stage, {
+      image: pack.image, color: pack.color || '#3ee08f', name: pack.name, short, en,
+      count: packCount, top: highestRarity, cards: CARDS_PER_PACK * packCount, perPack: CARDS_PER_PACK
+    }).then(done);
   }
 
   // เปิดซองสุ่มตามสายเด็ค (รองรับทั้ง 1 ซอง = 5 ใบ และ 10 ซอง = 50 ใบ ลดราคา 10%)
@@ -946,8 +901,6 @@
       drawn.push(granted);
     }
 
-    if (window.BOF_AUDIO) window.BOF_AUDIO.playPackOpen();
-
     // เรียงลำดับการ์ดจากความแรร์น้อยไปมาก (ซ้ายไปขวา: N -> R -> SR -> SSR)
     drawn.sort((a, b) => {
       const ra = RARITY_ORDER[a.card.rarity] || 0;
@@ -971,16 +924,6 @@
   }
 
   /* ---------------- อนุภาค (js/fx-particles.js) ---------------- */
-  const RARITY_RGB = { N: '203, 213, 225', R: '124, 192, 255', SR: '255, 133, 151', SSR: '253, 224, 71' };
-  function packBurstFx(stage, rarity) {
-    const fx = window.BOFParticles;
-    if (!fx || !stage.isConnected) return;
-    const x = innerWidth / 2, y = innerHeight / 2, color = RARITY_RGB[rarity] || RARITY_RGB.N;
-    const lvl = { N: 0, R: 1, SR: 2, SSR: 3 }[rarity] || 0;
-    fx.burst(stage, x, y, { count: 24 + lvl * 14, radius: 120 + lvl * 40, speed: 420 + lvl * 80, size: 16, life: .9, gravity: 120, color, color2: '255, 255, 255' });
-    if (lvl >= 2) fx.burst(stage, x, y, { count: 30, rings: 1, radius: 220, speed: 260, size: 12, life: 1, gravity: 40, color, delay: .15, stagger: .2 });
-    if (lvl === 3) fx.burst(stage, x, y + 40, { count: 50, rings: 0, angle: -Math.PI / 2, spread: 1.4, speed: 760, size: 14, life: .95, gravity: 800, color, color2: '255, 255, 255', delay: .1, stagger: .25 });
-  }
   // พลิกการ์ด: N เงียบ (เปิด 10 ซองจะได้ไม่รก) · R/SR/SSR ตาม BOFParticles.rarity
   function flipFx(wrap, rarity) {
     const fx = window.BOFParticles, stage = document.getElementById('bof-reveal-stage');
@@ -1074,6 +1017,7 @@
     wrap.classList.add('is-flipped');
     const item = wrap._revealItem;
     if (window.BOF_AUDIO) window.BOF_AUDIO.playCardDraw();
+    if (item && item.card.rarity === 'SSR' && window.BOFPackOpen) window.BOFPackOpen.ssrSpot(wrap); // ไฟส่องใบ SSR
     // SSR ฉลองเสมอแม้เป็นใบซ้ำ (ใบซ้ำจะแตกเป็นชาร์ดตามหลัง)
     if (item && (!item.shards || item.card.rarity === 'SSR') && motionOK()) setTimeout(() => flipFx(wrap, item.card.rarity), 280);
     if (item && item.shards) setTimeout(() => shatterToShards(wrap, item), 600); // รอให้พลิกเสร็จ (0.55s) ก่อนแตก

@@ -1,0 +1,102 @@
+/* ============================================================================
+   BOF PACK OPEN (js/pack-open.js): ฉากเปิดซอง — ซองฟอยล์หนา ลากฉีก แสงลอดปากซอง · x10 ซองแตกต่อกันรวมพลัง · สแปลช
+   ทุกกฎอยู่ใต้ .pko (กล่องที่ JS สร้างใน #bof-pack-anim-stage) ไม่กระทบส่วนอื่นของเกม
+   ============================================================================ */
+.pko { --deck: #3ee08f; --deck-rgb: 62, 224, 143; --rar: #fde047; --rar-rgb: 253, 224, 71; --D: 30px; position: absolute; inset: 0; overflow: hidden; color: #fff; font-family: Kanit, system-ui, sans-serif; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; }
+.pko { position: fixed; inset: 0; overflow: hidden; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; }
+.pko img { -webkit-user-drag: none; user-drag: none; pointer-events: none; }
+.pko-bg { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 42%, rgba(var(--deck-rgb), .2), transparent 55%), radial-gradient(ellipse at 50% 120%, #2a0f22 0%, transparent 60%), linear-gradient(#0b0d1c, #05060d); }
+.pko-bg::after { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px); background-size: 44px 44px; mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%); }
+.pko-scene, .pko-fx { position: absolute; inset: 0; }
+.pko-light { position: absolute; inset: 0; z-index: 21; pointer-events: none; }
+.pko-fx { pointer-events: none; z-index: 30; }
+
+/* ============ ซองหนา (CSS 3 มิติ) ============ */
+.pko .pz-wrap { position: absolute; left: 50%; top: 46%; width: 230px; height: 330px; margin: -165px 0 0 -115px; perspective: 1000px; }
+.pko .pz-ground { position: absolute; left: 6%; right: 6%; bottom: -34px; height: 30px; border-radius: 50%; background: radial-gradient(ellipse, rgba(0,0,0,.65), transparent 70%); filter: blur(4px); }
+.pko .pouch { position: absolute; inset: 0; transform-style: preserve-3d; will-change: transform; }
+.pko .pz-front { position: absolute; inset: 0; transform-style: preserve-3d; transform: translateZ(calc(var(--D) / 2)); }
+.pko .FOIL, .pko .pz-body, .pko .pz-top { background: linear-gradient(115deg, #8d939e 0%, #f4f6fa 18%, #a7adb8 34%, #eef1f6 52%, #8f96a3 70%, #e9ecf2 86%, #9aa1ad 100%); }
+.pko .pz-body { position: absolute; left: 0; right: 0; top: 46px; bottom: 0; border-radius: 3px 3px 10px 10px; overflow: visible; }
+.pko .pz-clip { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }
+/* ความหนา: ชั้นซ้อนไล่ไปด้านหลัง แต่ละชั้นหดเข้าเล็กน้อย = ขอบโค้งแบบหมอน (เอียงมุมไหนก็ไม่หลุดเป็นแผ่น) */
+.pko .pz-stack { position: absolute; inset: 0; transform-style: preserve-3d; pointer-events: none; }
+.pko .pz-stack i { position: absolute; left: calc(var(--k) * 1.3px); right: calc(var(--k) * 1.3px); top: calc(46px + var(--k) * .8px); bottom: calc(var(--k) * 1.3px);
+  border-radius: calc(8px + var(--k) * 1.6px); transform: translateZ(calc(var(--D) / 2 - var(--k) * var(--D) / 8));
+  background: linear-gradient(115deg, hsl(220 7% calc(70% - var(--k) * 5%)), hsl(220 10% calc(88% - var(--k) * 5%)) 45%, hsl(220 7% calc(66% - var(--k) * 5%))); }
+/* ปากซอง: ช่องมืดด้านในซอง (เห็นหลังแถบบนขาด) */
+.pko .pz-mouth { position: absolute; left: 8px; right: 8px; top: -5px; height: 12px; z-index: 8; border-radius: 50%; opacity: 0; background: radial-gradient(ellipse at 50% 40%, #000 0 55%, #1b1f2c 80%, transparent 100%); }
+.pko .pz-ml, .pko .pz-mr { position: absolute; top: 0; width: 1px; height: 1px; pointer-events: none; }
+.pko .pz-ml { left: 8px; } .pz-mr { right: 8px; }
+/* เงาทรงหมอน (พองตรงกลาง มืดที่ขอบ) */
+.pko .pz-pillow { position: absolute; inset: 0; z-index: 4; pointer-events: none; border-radius: inherit;
+  background: radial-gradient(ellipse 60% 50% at 42% 38%, rgba(255,255,255,.32), transparent 62%), radial-gradient(ellipse 75% 70% at 50% 50%, transparent 55%, rgba(0,0,0,.42) 100%); }
+.pko .pz-top { position: absolute; left: 0; right: 0; top: 0; height: 48px; border-radius: 10px 10px 2px 2px; overflow: hidden; transform-origin: 100% 100%; box-shadow: 0 2px 0 rgba(0,0,0,.25); }
+.pko .pz-top::before, .pko .pz-body::after { content: ''; position: absolute; left: 0; right: 0; height: 18px; background: repeating-linear-gradient(90deg, rgba(0,0,0,.18) 0 2px, rgba(255,255,255,.18) 2px 3px, transparent 3px 5px); }
+.pko .pz-top::before { top: 0; } .pz-body::after { bottom: 0; }
+.pko .pz-notch { position: absolute; left: -2px; top: 26px; width: 12px; height: 10px; background: #05060d; clip-path: polygon(0 0, 100% 50%, 0 100%); }
+.pko .pz-dots { position: absolute; left: 12px; right: 12px; bottom: 6px; border-top: 2px dashed rgba(40, 44, 60, .45); }
+.pko .pz-tab { position: absolute; left: 14px; top: 22px; font: 700 10px/1 Kanit; color: #1b1f2b; letter-spacing: .1em; }
+.pko .pz-no { position: absolute; right: 12px; top: 10px; font: 900 26px/1 Kanit; color: rgba(30, 34, 46, .55); letter-spacing: -.02em; }
+.pko .pz-art { position: absolute; left: 14px; right: 14px; top: 20px; bottom: 26px; border-radius: 6px; overflow: hidden; background: #111; box-shadow: 0 0 0 1px rgba(255,255,255,.45), inset 0 0 22px rgba(0,0,0,.55), 0 4px 10px rgba(0,0,0,.35); }
+.pko .pz-art img { width: 100%; height: 170%; object-fit: cover; object-position: 50% 0; filter: saturate(1.15) contrast(1.05); }
+.pko .pz-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(160deg, rgba(var(--deck-rgb), 0) 40%, rgba(var(--deck-rgb), .55) 100%); mix-blend-mode: screen; }
+/* เส้นนูนกรอบการ์ดที่อยู่ในซอง (ดันฟอยล์ให้นูน) */
+.pko .pz-emboss { position: absolute; left: 24px; right: 24px; top: 30px; bottom: 36px; z-index: 3; border-radius: 9px; pointer-events: none; box-shadow: inset 2px 2px 0 rgba(255,255,255,.35), inset -2px -2px 0 rgba(0,0,0,.3), 0 0 0 1px rgba(0,0,0,.15); }
+.pko .pz-title { position: absolute; left: 22px; top: 30px; z-index: 5; writing-mode: vertical-rl; font: 900 54px/1 Kanit; color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.55); }
+.pko .pz-brand { position: absolute; left: 0; right: 0; bottom: 34px; z-index: 5; text-align: center; font: 900 italic 22px/1 Kanit; color: #fff; letter-spacing: .06em; text-shadow: 0 2px 0 #000; }
+.pko .pz-brand small { display: block; font: 700 10px/1.6 Kanit; letter-spacing: .3em; opacity: .85; }
+.pko .pz-sheen { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: overlay; z-index: 6;
+  background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,.8) 45%, rgba(255,255,255,.15) 52%, transparent 62%) calc(var(--sx, .5) * 100%) 0 / 260% 100% no-repeat; }
+.pko .pz-seam { position: absolute; left: 0; top: 44px; height: 2px; width: 0; z-index: 7; border-radius: 2px; background: #fff; box-shadow: 0 0 6px 1px rgba(var(--rar-rgb), .9); }
+.pko .x10 { position: absolute; right: -18px; top: -18px; z-index: 9; transform: translateZ(40px); font: 900 italic 26px/1 Kanit; padding: 6px 10px; border-radius: 10px; color: #1a1300; background: linear-gradient(135deg, #ffe58a, #f2b93b); box-shadow: 0 6px 16px rgba(0,0,0,.5); }
+
+/* ============ สแปลช ============ */
+.pko .splash { position: absolute; inset: 0; z-index: 20; overflow: hidden; background: linear-gradient(120deg, #120a14, #1c0c18 45%, #0d0c1d); }
+.pko .splash .stripes { position: absolute; inset: -50%; background: repeating-linear-gradient(-28deg, rgba(var(--deck-rgb), .06) 0 26px, transparent 26px 60px); }
+.pko .splash .big { position: absolute; left: 4%; font: 900 clamp(70px, 17vw, 190px)/.82 Kanit; letter-spacing: -.03em; color: rgb(var(--deck-rgb)); text-transform: uppercase; white-space: nowrap; }
+.pko .splash .big.l1 { top: 13%; } .splash .big.l2 { top: 41%; color: transparent; -webkit-text-stroke: 2px rgba(var(--deck-rgb), .85); }
+/* ลายมือสะอาด: ขาวคม เงาเยื้องแข็ง ไม่เรืองนีออน + ปาดพู่กันสีเด็คขีดใต้ */
+.pko .splash .script { position: absolute; left: 9%; top: 30%; transform: rotate(-10deg); white-space: nowrap; }
+.pko .splash .script b { position: relative; z-index: 2; font: 400 clamp(46px, 10vw, 104px)/1 Yellowtail, cursive; color: #fff; text-shadow: 3px 4px 0 rgba(0, 0, 0, .5); }
+.pko .splash .script svg { position: absolute; left: -4%; bottom: -14%; width: 108%; height: 46%; z-index: 1; overflow: visible; }
+.pko .splash .script path { fill: none; stroke: rgb(var(--deck-rgb)); stroke-width: 9; stroke-linecap: round; opacity: .9; }
+.pko .splash .cap { position: absolute; left: 5%; bottom: 13%; font: 700 14px/1.4 Kanit; letter-spacing: .35em; color: rgba(255,255,255,.8); }
+.pko .splash .pz-wrap { left: 68%; top: 52%; }
+.pko .splash .sweep { position: absolute; inset: 0; z-index: 5; background: linear-gradient(100deg, transparent 40%, rgba(255,255,255,.4) 50%, transparent 60%) -100% 0 / 220% 100% no-repeat; mix-blend-mode: overlay; pointer-events: none; }
+.pko .blackout { position: absolute; inset: 0; z-index: 25; background: #000; }
+
+.pko .beam { position: absolute; z-index: 21; width: 160px; margin-left: -80px; top: -10%; bottom: -10%; background: linear-gradient(90deg, transparent, rgba(var(--rar-rgb), .5) 40%, rgba(255,255,255,.85) 50%, rgba(var(--rar-rgb), .5) 60%, transparent); filter: blur(6px); transform-origin: 50% 100%; mix-blend-mode: screen; pointer-events: none; }
+.pko .rays { position: absolute; width: 1600px; height: 1600px; margin: -800px; z-index: 19; background: repeating-conic-gradient(rgba(var(--rar-rgb), .14) 0 6deg, transparent 6deg 18deg); mask-image: radial-gradient(circle, #000 10%, transparent 55%); pointer-events: none; }
+.pko .flash { position: absolute; inset: 0; z-index: 35; background: #fff; pointer-events: none; }
+.pko .ssr-stamp { position: absolute; z-index: 36; font: 900 italic 64px/1 Kanit; color: #fff36b; -webkit-text-stroke: 3px #7a4b00; paint-order: stroke fill; text-shadow: 0 6px 0 rgba(0,0,0,.35); pointer-events: none; white-space: nowrap; }
+.pko .dim { position: absolute; inset: 0; z-index: 23; background: #000; pointer-events: none; }
+
+/* ============ x10: แสงวาบปากซอง + แกนพลังงานรวม ============ */
+.pko .mouth-flash { position: absolute; width: 230px; height: 26px; margin: -13px 0 0 -115px; border-radius: 50%; background: radial-gradient(ellipse, #fff 0 18%, rgba(var(--c), .85) 40%, rgba(var(--c), 0) 72%); filter: blur(1px); }
+.pko .streak { position: absolute; width: 90px; height: 3px; margin: -1.5px 0 0 -90px; transform-origin: 100% 50%; border-radius: 3px; background: linear-gradient(90deg, rgba(var(--c), 0), rgba(var(--c), .9) 70%, #fff); box-shadow: 0 0 8px rgba(var(--c), .9); }
+.pko .core { position: absolute; width: 140px; height: 140px; margin: -70px 0 0 -70px; }
+.pko .core b { position: absolute; inset: 30px; border-radius: 50%; background: radial-gradient(circle, #fff 0 22%, rgba(var(--c), .95) 45%, rgba(var(--c), .35) 68%, rgba(var(--c), 0) 75%); box-shadow: 0 0 40px 12px rgba(var(--c), .55); animation: core-flicker .12s steps(2) infinite; }
+.pko .core i { position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(var(--c), .9); box-shadow: 0 0 10px rgba(var(--c), .8), inset 0 0 10px rgba(var(--c), .5); }
+.pko .core { perspective: 400px; } .core .r2 { inset: 12px; border-style: dashed; }
+.pko .core .r1, .pko .core .r2 { transform-style: preserve-3d; }
+@keyframes core-flicker { 50% { filter: brightness(1.25); } }
+.pko .pulse-ring { position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 2px solid rgba(var(--c), .95); box-shadow: 0 0 14px rgba(var(--c), .8); }
+.pko .pulse-ring.big { border-width: 3px; }
+
+/* ปุ่มข้ามฉาก */
+.pko .pko-skip { position: absolute; right: 16px; top: 16px; z-index: 60; font: 600 13px Kanit, system-ui; color: #fff; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.25); border-radius: 18px; padding: 6px 14px; cursor: pointer; }
+.pko .pko-skip:focus-visible { outline: 2px solid #f3c969; outline-offset: 2px; }
+@media (max-width: 640px) { .pko .pz-wrap { transform: scale(.82); } .pko .splash .pz-wrap { left: 62%; top: 60%; } }
+
+/* SSR บนหน้าผลการเปิดซอง: ไฟส่อง (ซ้อนบน #bof-reveal-stage ชั่วคราว) */
+.pko-spot { position: fixed; inset: 0; z-index: 10006; pointer-events: none; --rar-rgb: 253, 224, 71; }
+.pko-spot .dim { position: absolute; inset: 0; background: #000; }
+.pko-spot .rays { position: absolute; width: 1600px; height: 1600px; margin: -800px; background: repeating-conic-gradient(rgba(var(--rar-rgb), .14) 0 6deg, transparent 6deg 18deg); mask-image: radial-gradient(circle, #000 10%, transparent 55%); }
+.pko-spot .beam { position: absolute; width: 160px; margin-left: -80px; top: -10%; bottom: -10%; background: linear-gradient(90deg, transparent, rgba(var(--rar-rgb), .5) 40%, rgba(255,255,255,.85) 50%, rgba(var(--rar-rgb), .5) 60%, transparent); filter: blur(6px); transform-origin: 50% 100%; mix-blend-mode: screen; }
+.pko-spot .ssr-stamp { position: absolute; font: 900 italic 64px/1 Kanit, system-ui; color: #fff36b; -webkit-text-stroke: 3px #7a4b00; paint-order: stroke fill; text-shadow: 0 6px 0 rgba(0,0,0,.35); white-space: nowrap; }
+.pko-spot .flash { position: absolute; inset: 0; background: #fff; }
+@keyframes hint-pulse { 50% { opacity: .55; } }
+.pko .pko-hint { position: absolute; left: 50%; bottom: 12%; translate: -50% 0; z-index: 40; font-size: 15px; letter-spacing: .04em; color: rgba(255,255,255,.85); text-shadow: 0 2px 8px #000; opacity: 0; transition: opacity .25s; pointer-events: none; white-space: nowrap; }
+.pko .pko-hint.on { opacity: 1; animation: hint-pulse 1.1s ease-in-out infinite; }
+.pko:focus { outline: none; }
