@@ -168,3 +168,29 @@ html.is-mobile .aim-chip { padding: 1px 4px; font-size: 10px; bottom: -8px; }
   .aim-lock.is-on { animation: none; }
   .aim-lock { transition: none; }
 }
+
+/* หลังการ์ดระหว่างพลิก (BOFFX.flip): ทับหน้าการ์ดครึ่งแรกของการหมุน · ใช้ลายหลังการ์ดที่ผู้เล่นเลือกในร้านค้า */
+.fx-flip-back {
+  position: absolute; inset: 0; z-index: 30; pointer-events: none; border-radius: inherit;
+  background: var(--bof-card-back-url, url('../images/card-back.png')) center / cover no-repeat, #141938;
+  box-shadow: inset 0 0 0 2px rgba(243, 201, 105, .55);
+  transform: scaleX(-1); /* การ์ดหมุนเกิน 90° ภาพจะกลับด้าน: กลับอีกทีให้อ่านถูก */
+}
+
+/* ============================================================================
+   การ์ด 3D บนสนาม (js/card-3d.js): เอียงตามเมาส์ / แตะค้างบนมือถือ · ยกตัวมีเงาตก · การ์ด Rest ไม่เอียง
+   ============================================================================ */
+.board-slots .card:not(.Rest), .leader-card-slot > .card { transition: transform .4s cubic-bezier(.2, .9, .3, 1.2), box-shadow .3s; }
+.board-slots .card.holo-live:not(.Rest), .leader-card-slot > .card.holo-live {
+  transform: perspective(520px) translateY(-5px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(1.04);
+  transition: transform .08s linear, box-shadow .3s;
+  box-shadow: calc(var(--px, 0) * -16px) calc(10px - var(--py, 0) * 12px) 18px rgba(0, 0, 0, .5);
+  z-index: 5;
+}
+/* แตะค้างบนมือถือ: ยุบลงเล็กน้อยแทนการยกตัว */
+.board-slots .card.c3d-press:not(.Rest), .leader-card-slot > .card.c3d-press {
+  transform: perspective(520px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(.97);
+  transition: transform .12s ease-out;
+}
+/* การ์ดที่เลือกบนมือ: เอนเข้าหาผู้เล่นเล็กน้อย (เอียงตามเมาส์ยังทับได้ตามปกติ) */
+#player-hand .card.selected-hand:not(.holo-live) { --rx: 8deg; }

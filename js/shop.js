@@ -1479,7 +1479,8 @@
     if (cbItem) {
       document.documentElement.dataset.cardBack = cbItem.styleId || 'default';
       const rawImg = cbItem.image || 'images/card-back.png';
-      const cssUrl = rawImg.startsWith('data:') ? `url("${rawImg}")` : `url('${encodeURI(rawImg)}')`;
+      // URL เต็ม: url() ในตัวแปร CSS ถูกตีความเทียบกับไฟล์ css ที่ใช้ตัวแปร (css/images/... = 404) ไม่ใช่เทียบกับหน้าเว็บ
+      const cssUrl = rawImg.startsWith('data:') ? `url("${rawImg}")` : `url('${new URL(rawImg, document.baseURI).href}')`;
       document.documentElement.style.setProperty('--bof-card-back-url', cssUrl);
     }
 

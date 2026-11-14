@@ -14,6 +14,7 @@
    BOFFX.sparks(el, opts)        — ประกายเพชรทองที่กลาง el (ผ่าน BOFParticles.burst)
    BOFFX.impact(from, to, opts)  — โจมตีปะทะ: เส้นดาวหาง + hit-stop + จอสั่น (opts.heavy = ตี Leader, opts.ai = สีแดง) · ไม่คืน timeline
    BOFFX.damage(el, text)        — ตัวเลขดาเมจแดงเด้งแล้วลอยขึ้นเหนือ el
+   BOFFX.flip(el, opts)          — พลิกการ์ด 3D จากหลังการ์ดเป็นหน้าการ์ด (จั่วการ์ด / คู่แข่งเปิดการ์ด) · คืน Promise
    ============================================================================ */
 (function () {
   if (typeof gsap === 'undefined') return;
@@ -181,5 +182,28 @@
       .to(d, { y: -26, opacity: 0, duration: .55, ease: 'power1.in' }, '+=.25');
   }
 
-  window.BOFFX = { ease, seal, slam, shatter, beam, link, pop, touch, tapAt, sparks, impact, damage };
+  // พลิกการ์ด 3D: เริ่มเห็นหลังการ์ด (หมุน 180° → 90°) แล้วถอดหลังออกตอนการ์ดตั้งฉาก หมุนต่อ 90° → 0° เห็นหน้าการ์ด
+  // ไม่ต้องพึ่ง backface-visibility ของลูกทุกชั้น · ใช้ WAAPI กับ transform ของ el (จบแล้วคืน transform เดิมของ CSS)
+  // opts: delay (วิ), lift (px), dur (วิ, ทั้งหมด) · reduced motion = ไม่ทำอะไร
+  function flip(el, opts = {}) {
+    if (!el || !el.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
+    const dur = (opts.dur || .46) * 1000, half = dur / 2, delay = (opts.delay || 0) * 1000, lift = opts.lift == null ? 10 : opts.lift;
+    const back = make('fx-flip-back', el);
+    const base = getComputedStyle(el).transform;
+    const keep = base && base !== 'none' ? ' ' + base : '';
+    const P = 'perspective(700px) ';
+    const a1 = el.animate([
+      { transform: `${P}translateY(0) rotateY(180deg) scale(.92)${keep}` },
+      { transform: `${P}translateY(-${lift}px) rotateY(90deg) scale(1.04)${keep}` }
+    ], { duration: half, delay, easing: 'cubic-bezier(.5, 0, .9, .6)', fill: 'backwards' });
+    return a1.finished.then(() => {
+      back.remove();
+      return el.animate([
+        { transform: `${P}translateY(-${lift}px) rotateY(90deg) scale(1.04)${keep}`, filter: 'brightness(1.9)' },
+        { transform: `${P}translateY(0) rotateY(0deg) scale(1)${keep}`, filter: 'brightness(1)' }
+      ], { duration: half * 1.25, easing: 'cubic-bezier(.2, .9, .3, 1.25)' }).finished;
+    }).catch(() => back.remove());
+  }
+
+  window.BOFFX = { ease, seal, slam, shatter, beam, link, pop, touch, tapAt, sparks, impact, damage, flip };
 })();

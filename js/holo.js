@@ -360,7 +360,14 @@
       const ids = p.hand.map(c => c.uid);
       if (prevHand && !reduceMotion) {
         const els = document.querySelectorAll('#player-hand .card');
-        ids.forEach((u, i) => { if (u !== undefined && !prevHand.has(u) && els[i]) els[i].classList.add('fx-holo-draw'); });
+        // บินเข้ามือ (CSS translate/scale) + พลิกจากหลังการ์ด (BOFFX.flip ใช้ transform จึงไม่ชนกัน) · จั่วหลายใบ = ไล่ทีละใบ
+        let k = 0;
+        ids.forEach((u, i) => {
+          if (u === undefined || prevHand.has(u) || !els[i]) return;
+          els[i].classList.add('fx-holo-draw');
+          if (window.BOFFX && BOFFX.flip) BOFFX.flip(els[i], { delay: .08 + k * .09, lift: 0, dur: .5 });
+          k++;
+        });
       }
       prevHand = new Set(ids);
     }
