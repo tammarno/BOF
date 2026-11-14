@@ -397,7 +397,7 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
     return { destroyed: false, reason: 'oat_shield', monster };
   }
 
-  fxCardDestroyed(boardOwner, slotIndex, monster);
+  fxCardDestroyed(boardOwner, slotIndex, monster, isFromBattle, isByEnemyEffect);
   boardOwner.board[slotIndex] = null;
   boardOwner.unitsDestroyedThisTurn = (boardOwner.unitsDestroyedThisTurn || 0) + 1;
   const otherContestant = (boardOwner === gameState.player) ? gameState.ai : gameState.player;
@@ -4917,14 +4917,33 @@ function fxSkillActivated(card, caster) {
   const slotIdx = caster.board.findIndex(m => m && m.uid === card.uid);
   const slot = slotIdx !== -1 ? getSlotElement(isP, slotIdx) : null;
   const el = (slot && (slot.querySelector('.card') || slot)) || getSlotElement(isP, 'leader');
-  DeckFx.skill(el, BOFDissolve.deckOf(card, caster));
+  const deck = BOFDissolve.deckOf(card, caster);
+  fxLastKiller = { side: caster, deck, ts: Date.now() };
+  DeckFx.skill(el, deck);
 }
 
-function fxCardDestroyed(side, slotIndex, card) {
+// หน้าตาเท่านั้น: ฉากการ์ดถูกทำลายใช้ธีมเด็คของ "ผู้ทำลาย" (การ์ดที่ชนะในการต่อสู้ / สกิลล่าสุด / Leader ฝ่ายตรงข้าม)
+let fxBattle = null, fxLastKiller = null;
+function fxSetBattle(a, monA, b, monB) {
+  if (!window.BOFDissolve) return;
+  fxBattle = { a, deckA: BOFDissolve.deckOf(monA, a), deckB: BOFDissolve.deckOf(monB, b), ts: Date.now() };
+}
+function fxKillerDeck(side, isFromBattle, isByEnemyEffect) {
+  const fresh = (x, ms) => x && Date.now() - x.ts < ms;
+  if (isFromBattle && fresh(fxBattle, 3000)) return side === fxBattle.a ? fxBattle.deckB : fxBattle.deckA;
+  if (fresh(fxLastKiller, 6000)) return fxLastKiller.deck;
+  if (isByEnemyEffect) {
+    const other = side === gameState.player ? gameState.ai : gameState.player;
+    return other && other.leader ? BOFDissolve.deckOf(other.leader, other) : null;
+  }
+  return null; // ไม่รู้ผู้ทำลาย: ใช้เด็คของการ์ดเอง
+}
+
+function fxCardDestroyed(side, slotIndex, card, isFromBattle = false, isByEnemyEffect = false) {
   if (!window.BOFDissolve) return;
   const slot = getSlotElement(side === gameState.player, slotIndex);
   const el = slot && slot.querySelector('.card');
-  if (el) window.BOFDissolve.play(el, card, side, getEffectivePower(card, side));
+  if (el) window.BOFDissolve.play(el, card, side, getEffectivePower(card, side), fxKillerDeck(side, isFromBattle, isByEnemyEffect));
 }
 
 function triggerBelphegorAttackSuccess(attacker, defender, attackingMonster) {
@@ -5636,6 +5655,7 @@ function proceedToStandardIntercept(attacker, defender, attackerSlot, onComplete
 function compareAndDestroyMonsters(contestantA, slotA, contestantB, slotB, onAfterCombat = null) {
   const monsterA = contestantA.board[slotA];
   const monsterB = contestantB.board[slotB];
+  if (monsterA && monsterB) fxSetBattle(contestantA, monsterA, contestantB, monsterB);
   if (!monsterA || !monsterB) {
     if (onAfterCombat) onAfterCombat('');
     return '';

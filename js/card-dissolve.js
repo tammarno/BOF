@@ -9,11 +9,11 @@
    - ความแรง (lvl 0..1) ตามพลัง + ระดับความแรร์ → จำนวนอนุภาค ขนาดคลื่นกระแทก แรงสั่นจอ
 
    จิต        ชาร์จสายฟ้าคลานทั่วการ์ด → ระเบิดสายฟ้าฟาดออกรอบทิศ → สลายขอบไฟฟ้า (พลังสูง = สายรุ้ง)
-   เหนือ      ง้างรับ → ดาบฟันเฉียงผ่า → การ์ดขาดสองท่อนไถลแยก ร่วงเป็นฝุ่น · ธงขาดปลิว
-   วันสิ้นโลก  เวลาหยุด หน้าปัดหมุนย้อน → แตกเป็นเศษเวลาค้างกลางอากาศ → ถูกดูดเข้าหลุมดำ → แสงม่วงทองระเบิด
+   เหนือ      ประกายดาบ → ฟันโค้งไขว้ X → วงดาบทองสองชั้นหมุนสวนกัน → แตกเป็นพายุเศษลายภาพ กลีบทองหมุนวน
+   วันสิ้นโลก  วงแหวนเวลาสามระนาบ → การ์ดร้าว แตกแล้วเศษค้างกลางอากาศ → ดูดเข้าจุดเดียว → ระเบิดวงขีดนาฬิกา
    ไดโน       ขากรรไกรงับ → กรงเล็บสามเส้นข่วนเรืองแดง → แตกเป็นหินอำพันตกกระดอน · รอยเท้ายักษ์ประทับพื้นร้าว
-   ปีศาจ      วงเวทเจ็ดแฉกใต้การ์ด ตาแดงวาบ → ไฟนรกเผาจากล่างขึ้นบน ควันดำ ถ่านลอย → เสาเพลิงพุ่ง
-   โอ๊ต       ยืดหดการ์ตูน → ระเบิดคอมิก + คำอุทาน → แตกเป็นชิ้นขอบดำหมุนปลิว ดาว จุดฮาล์ฟโทน
+   ปีศาจ      ดวงตาซาตานจ้องจนการ์ดลุกเป็นไฟดำแดง → ตาหลับฉับ → รอยแยกแสงแดงแนวตั้งระเบิดเป็นไฟ
+   โอ๊ต       ไฟต์ติ้งเกม: คอมโบ 4 ฮิต + ตัวนับ → หมัดเสย การ์ดลอยหมุน → แตกเป็นพิกเซล + K.O.!
 
    reduced motion = จางหาย 0.2 วิ
    ============================================================================ */
@@ -25,7 +25,6 @@
   const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
   const easeOut = k => 1 - Math.pow(1 - k, 3);
   const easeIn = k => k * k * k;
-  const NUMERALS = ['XII', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI'];
   const LEADER_DECK = { L01: 'jit', L02: 'nuea', L03: 'doom', L04: 'dino', L05: 'demon', L06: 'oat' };
   const RARITY_LVL = { N: 0, R: .3, SR: .65, SSR: 1, Legend: 1 };
 
@@ -198,13 +197,14 @@
   }
 
   // ---------- ของที่วาดบน canvas ใช้ร่วมหลายเด็ค ----------
-  function shockwave(cx, cy, r0, r1, rgb, life, width = 6, delay = 0) {
+  // squash < 1 = วงแบนตามพื้น (มุมมองเอียง)
+  function shockwave(cx, cy, r0, r1, rgb, life, width = 6, delay = 0, squash = 1) {
     addDraw({ life, delay, draw(g, k) {
       const r = Math.max(.1, r0 + (r1 - r0) * easeOut(k));
       g.globalCompositeOperation = 'lighter'; g.globalAlpha = (1 - k) * .9;
       g.strokeStyle = `rgb(${rgb})`; g.lineWidth = width * (1 - k * .7);
       g.shadowColor = `rgb(${rgb})`; g.shadowBlur = 18;
-      g.beginPath(); g.arc(cx, cy, r, 0, 7); g.stroke();
+      g.beginPath(); g.ellipse(cx, cy, r, r * squash, 0, 0, 7); g.stroke();
     } });
   }
   function flash(cx, cy, r, rgb, life, delay = 0) {
@@ -212,6 +212,70 @@
       g.globalCompositeOperation = 'lighter'; g.globalAlpha = (1 - k) * (k < .15 ? k / .15 : 1);
       const s = r * (1 + k * .6); g.drawImage(glowSpr(rgb), cx - s, cy - s, s * 2, s * 2);
     } });
+  }
+  // คลื่นพื้นทรงโดม: วงรีแบน ขอบสว่าง ไล่จางเข้าด้านใน
+  function groundRing(cx, cy, r0, r1, rgb, life, squash = .34, delay = 0) {
+    addDraw({ life, delay, draw(g, k) {
+      const r = Math.max(.1, r0 + (r1 - r0) * easeOut(k));
+      g.globalCompositeOperation = 'lighter'; g.globalAlpha = (1 - k) * .8;
+      g.translate(cx, cy); g.scale(1, squash);
+      const gr = g.createRadialGradient(0, 0, r * .5, 0, 0, r);
+      gr.addColorStop(0, `rgba(${rgb},0)`); gr.addColorStop(.85, `rgba(${rgb},.32)`); gr.addColorStop(1, `rgba(${rgb},.9)`);
+      g.fillStyle = gr; g.beginPath(); g.arc(0, 0, r, 0, 7); g.fill();
+    } });
+  }
+  // ระเบิดหนามแบบอนิเมะ: สามเหลี่ยมเรียวพุ่งออกรอบทิศ แกนขาว + แสงกลาง
+  function spikeBurst(cx, cy, r, rgb, life = .32, n = 14, delay = 0, core = '255, 255, 255') {
+    const sp = [...Array(n)].map(() => ({ a: rnd(0, Math.PI * 2), L: rnd(.45, 1), w: rnd(.05, .11) }));
+    addDraw({ life, delay, draw(g, k) {
+      const grow = easeOut(Math.min(1, k / .3)), thin = 1 - Math.max(0, (k - .25) / .75);
+      g.globalCompositeOperation = 'lighter'; g.globalAlpha = thin; g.translate(cx, cy);
+      const tri = (c, s, L, w) => { g.beginPath(); g.moveTo(-s * w, c * w); g.lineTo(c * L, s * L); g.lineTo(s * w, -c * w); g.closePath(); g.fill(); };
+      sp.forEach(o => {
+        const L = r * o.L * (.4 + grow * .6), w = r * o.w * thin, c = Math.cos(o.a), s = Math.sin(o.a);
+        g.fillStyle = `rgba(${rgb},.85)`; tri(c, s, L, w);
+        g.fillStyle = `rgba(${core},.95)`; tri(c, s, L * .7, w * .4);
+      });
+      const s = r * .5 * (1 - k * .5); g.drawImage(glowSpr(rgb), -s, -s, s * 2, s * 2);
+    } });
+  }
+  // ดาบฟันโค้งเสี้ยวจันทร์: กวาดตามแนวโค้ง a0→a1 รอบ (cx,cy) หนากลางเรียวปลาย หางค่อยหายตาม · rot หมุนทั้งวง · squash บีบแกน y
+  function crescent(o) {
+    const { cx, cy, r, a0 = -1.1, a1 = 1.1, w = 14, rgb = '255, 200, 120', life = .32, delay = 0, rot = 0, squash = 1, core = '255, 255, 255' } = o;
+    const N = 26;
+    addDraw({ life, delay, draw(g, k) {
+      const p = easeOut(Math.min(1, k / .35)), u0 = Math.max(0, p - .8);
+      g.globalCompositeOperation = 'lighter'; g.globalAlpha = 1 - Math.max(0, (k - .35) / .65);
+      g.translate(cx, cy); g.rotate(rot); g.scale(1, squash);
+      const band = (thick, col) => {
+        g.beginPath();
+        for (let i = 0; i <= N; i++) { const u = u0 + (p - u0) * i / N, a = a0 + (a1 - a0) * u, R = r + thick * Math.sin(Math.PI * u) * (.3 + .7 * i / N) / 2; i ? g.lineTo(Math.cos(a) * R, Math.sin(a) * R) : g.moveTo(Math.cos(a) * R, Math.sin(a) * R); }
+        for (let i = N; i >= 0; i--) { const u = u0 + (p - u0) * i / N, a = a0 + (a1 - a0) * u, R = r - thick * Math.sin(Math.PI * u) * (.3 + .7 * i / N) / 2; g.lineTo(Math.cos(a) * R, Math.sin(a) * R); }
+        g.closePath(); g.fillStyle = col; g.fill();
+      };
+      band(w * 2, `rgba(${rgb},.4)`); band(w, `rgba(${rgb},.95)`); band(w * .36, `rgba(${core},1)`);
+    } });
+  }
+  // แสงเลนส์สี่แฉก (แฉกนอนยาวกว่า) · วาดในเฟรมนั้น (เรียกจากใน draw)
+  function flare(g, cx, cy, L, rgb, a) {
+    if (L < 1 || a <= 0) return;
+    g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = a;
+    [[L, L * .03], [L * .55, L * .024]].forEach(([len, w], i) => {
+      g.save(); g.translate(cx, cy); if (i) g.rotate(Math.PI / 2);
+      const gr = g.createLinearGradient(-len, 0, len, 0);
+      gr.addColorStop(0, `rgba(${rgb},0)`); gr.addColorStop(.5, 'rgba(255,255,255,1)'); gr.addColorStop(1, `rgba(${rgb},0)`);
+      g.fillStyle = gr; g.beginPath(); g.moveTo(-len, 0); g.lineTo(0, -w * 2); g.lineTo(len, 0); g.lineTo(0, w * 2); g.closePath(); g.fill();
+      g.restore();
+    });
+    const s = L * .22; g.drawImage(glowSpr(rgb), cx - s, cy - s, s * 2, s * 2);
+    g.restore();
+  }
+  // จอมืดขอบแดง/ดำชั่วครู่ (ใช้ครั้งละอันเดียว)
+  function vignette(ms, col) {
+    if (document.querySelector('.fx-dslv-vig')) return;
+    const v = document.createElement('div'); v.className = 'fx-dslv-vig'; v.style.setProperty('--vig', col); document.body.appendChild(v);
+    v.animate([{ opacity: 0 }, { opacity: 1, offset: .2 }, { opacity: 1, offset: .75 }, { opacity: 0 }], { duration: ms, fill: 'forwards' }).onfinish = () => v.remove();
+    setTimeout(() => v.remove(), ms + 500);
   }
   function jagged(x1, y1, x2, y2, segs, amp) {
     const pts = [[x1, y1]], dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
@@ -429,6 +493,13 @@
     return out;
   }
 
+  // ตารางสี่เหลี่ยม (พิกเซลแตกแบบเกมอาร์เคด) รูปแบบเดียวกับ shardsOf
+  function gridOf(w, h, cols, rows) {
+    const out = [], hw = w / cols / 2, hh = h / rows / 2;
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) out.push({ cx: (i + .5) * w / cols, cy: (j + .5) * h / rows, poly: [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]] });
+    return out;
+  }
+
   // ============================================================================
   // ร่างโคลน + SVG filter สลาย
   // ============================================================================
@@ -544,6 +615,96 @@
   // ============================================================================
   // ฉากประจำเด็ค · c = { el, rect, cx, cy, W, H, host, ghost, lvl, n (ตัวคูณจำนวนอนุภาค), done }
   // ============================================================================
+  // ---------- ตัวช่วยฉากเหนือ/สิ้นโลก/ปีศาจ (ใช้ร่วมกับ js/deck-fx.js ผ่าน _fx) ----------
+  const TAU = Math.PI * 2, GOLD = '255, 196, 92', WH = '240, 244, 255', VI = '196, 186, 255', RED = '255, 40, 30';
+  function comet(a, b, rgb, w = 7, life = .26) {
+    const ang = Math.atan2(b.y - a.y, b.x - a.x), nx = -Math.sin(ang), ny = Math.cos(ang);
+    addDraw({ life, draw(g, k) {
+      const m = easeOut(Math.min(1, k / .4)), t = Math.max(0, m - .5);
+      const hx = a.x + (b.x - a.x) * m, hy = a.y + (b.y - a.y) * m, tx = a.x + (b.x - a.x) * t, ty = a.y + (b.y - a.y) * t;
+      g.globalCompositeOperation = 'lighter'; g.globalAlpha = 1 - Math.max(0, (k - .4) / .6);
+      const tri = (ww, col0, col1) => { const gr = g.createLinearGradient(tx, ty, hx, hy); gr.addColorStop(0, col0); gr.addColorStop(1, col1); g.fillStyle = gr; g.beginPath(); g.moveTo(tx, ty); g.lineTo(hx + nx * ww, hy + ny * ww); g.lineTo(hx - nx * ww, hy - ny * ww); g.closePath(); g.fill(); };
+      tri(w, `rgba(${rgb},0)`, `rgba(${rgb},.85)`); tri(w * .32, 'rgba(255,255,255,0)', 'rgba(255,255,255,1)');
+      const s = w * 2.6; g.drawImage(glowSpr(rgb), hx - s, hy - s, s * 2, s * 2);
+    } });
+  }
+  function arcClip(st, len, a0, a1) {
+    st = ((st % TAU) + TAU) % TAU; const segs = st + len > TAU ? [[st, TAU], [0, st + len - TAU]] : [[st, st + len]];
+    return segs.map(([s, e]) => [Math.max(s, a0), Math.min(e, a1)]).filter(([s, e]) => e > s);
+  }
+  function sparksAlong(x0, y0, x1, y1, n, rgb) {
+    const nx = -(y1 - y0), ny = x1 - x0, L = Math.hypot(nx, ny) || 1;
+    for (let i = 0; i < n; i++) { const t = Math.random(), s = Math.random() < .5 ? 1 : -1, v = rnd(80, 300); addPart({ kind: 'streak', x: x0 + (x1 - x0) * t, y: y0 + (y1 - y0) * t, vx: nx / L * v * s + rnd(-50, 50), vy: ny / L * v * s + rnd(-60, 20), g: 420, drag: 1.5, life: rnd(.3, .55), size: rnd(1.2, 2.2), rgb }); }
+  }
+  function wrapPiece(slot, el) { const w = document.createElement('div'); w.className = 'fx-dslv-half'; slot.appendChild(w); w.appendChild(el); return w; }
+  function nueaPrelude(c) {
+    accent(c.host, 'is-glint', '<i></i>');
+    c.pose = c.ghost.animate([{ transform: 'none' }, { transform: 'translateY(-5px) rotate(-2deg) scale(1.03)' }], { duration: 150, easing: 'ease-out', fill: 'forwards' });
+    const R = c.H * .62;
+    [[1, 150], [-1, 290]].forEach(([dir, at]) => later(at, () => {
+      const rot = dir > 0 ? -.8 : Math.PI + .8;
+      crescent({ cx: c.cx - Math.cos(rot) * R * .8, cy: c.cy - Math.sin(rot) * R * .8, r: R, a0: -1.15 * dir, a1: 1.15 * dir, rot, w: 17, rgb: GOLD, life: .34 });
+      settle(c.pose);
+      c.pose = c.ghost.animate([{ transform: `translate(${dir * 9}px, 3px) rotate(${dir * 3.5}deg)`, filter: 'brightness(1.8)' }, { transform: `translate(${dir * 3}px, 1px) rotate(${dir * 1.2}deg)`, filter: 'brightness(1)' }], { duration: 150, easing: 'ease-out', fill: 'forwards' });
+      for (let i = 0; i < 12 * c.n; i++) { const a = rnd(0, TAU), v = rnd(140, 360); addPart({ kind: 'streak', x: c.cx, y: c.cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40, g: 520, drag: 1.6, life: rnd(.22, .4), size: rnd(1.2, 2), rgb: '255, 220, 150' }); }
+      buzz(18); shake(false);
+    }));
+  }
+  function holeDraw(g, cx, cy, R, s, age, SQ, orb, dt) {
+    const h = R * .2 * s;
+    const disk = (a0, a1, mul) => {
+      g.lineCap = 'round';
+      for (let j = 0; j < 6; j++) {
+        const rr = R * (.42 + j * .11) * s, spin = age * (5 - j * .5);
+        for (let q = 0; q < 3; q++) {
+          const st = spin + q * 2.1 + j;
+          arcClip(st, 1.5 - j * .1, a0, a1).forEach(([s0, e0]) => {
+            const mid = (s0 + e0) / 2, dop = .55 + .45 * -Math.cos(mid); // ฝั่งซ้ายสว่างกว่า (เข้าหาผู้ดู)
+            g.strokeStyle = `rgba(${j % 2 ? VI : WH},${(.8 - j * .1) * mul * dop})`; g.lineWidth = (3.2 - j * .4) * (mul > .7 ? 1 : .8);
+            g.beginPath(); g.ellipse(cx, cy, rr, rr * SQ, 0, s0, e0); g.stroke();
+          });
+        }
+      }
+    };
+    const orbs = front => orb.forEach(o => {
+      if ((Math.sin(o.a) > 0) !== front) return;
+      const x = cx + Math.cos(o.a) * o.r * s, y = cy + Math.sin(o.a) * o.r * SQ * s, depth = .75 + .25 * Math.sin(o.a);
+      if (o.rock) { g.globalCompositeOperation = 'source-over'; g.fillStyle = `rgba(150,150,165,${.9 * depth})`; g.fillRect(x - o.sz * depth, y - o.sz * depth, o.sz * 2 * depth, o.sz * 2 * depth); g.globalCompositeOperation = 'lighter'; }
+      else { const x2 = cx + Math.cos(o.a - .3) * o.r * s, y2 = cy + Math.sin(o.a - .3) * o.r * SQ * s; g.strokeStyle = `rgba(${WH},${.85 * depth})`; g.lineWidth = o.sz * .7 * depth; g.beginPath(); g.moveTo(x2, y2); g.lineTo(x, y); g.stroke(); }
+    });
+    orb.forEach(o => { o.r = Math.max(R * .22, o.r - R * .35 * dt); o.a += o.sp * (R / o.r) * dt * 1.5; });
+    // หมอกมืด
+    g.save(); g.translate(cx, cy); g.scale(1, .55);
+    const hz = g.createRadialGradient(0, 0, 0, 0, 0, R * 1.15 * s); hz.addColorStop(0, 'rgba(0,0,0,.8)'); hz.addColorStop(.55, 'rgba(6,6,16,.4)'); hz.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = hz; g.beginPath(); g.arc(0, 0, R * 1.15 * s, 0, TAU); g.fill(); g.restore();
+    g.globalCompositeOperation = 'lighter';
+    disk(Math.PI, TAU, .55); orbs(false);
+    // แสงจานด้านหลังถูกเลนส์ดัดโค้งข้ามหัวหลุม (และใต้หลุมจางๆ)
+    g.strokeStyle = 'rgba(255,255,255,.95)'; g.lineWidth = 2.4; g.beginPath(); g.ellipse(cx, cy, h * 1.8, h * 1.45, 0, Math.PI * 1.04, Math.PI * 1.96); g.stroke();
+    g.strokeStyle = `rgba(${VI},.5)`; g.lineWidth = 1.4; g.beginPath(); g.ellipse(cx, cy, h * 1.65, h * 1.2, 0, Math.PI * .1, Math.PI * .9); g.stroke();
+    // ทรงกลมดำ + วงโฟตอนบางคม
+    g.globalCompositeOperation = 'source-over'; g.fillStyle = '#000'; g.beginPath(); g.arc(cx, cy, h, 0, TAU); g.fill();
+    g.globalCompositeOperation = 'lighter'; g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 1.3; g.beginPath(); g.arc(cx, cy, h * 1.06, 0, TAU); g.stroke();
+    disk(0, Math.PI, 1); orbs(true);
+  }
+  function eye(g, x, y, W, H, open, pupil, glow) {
+    if (open <= .01) return;
+    const lid = () => { g.beginPath(); g.moveTo(x - W, y); g.quadraticCurveTo(x, y - H * 2 * open, x + W, y); g.quadraticCurveTo(x, y + H * 2 * open, x - W, y); g.closePath(); };
+    g.globalCompositeOperation = 'lighter'; g.globalAlpha = glow; g.drawImage(glowSpr(RED), x - W * 1.3, y - W * .8, W * 2.6, W * 1.6);
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+    g.save(); lid(); g.clip();
+    g.fillStyle = '#140003'; g.fillRect(x - W, y - H * 2, W * 2, H * 4);
+    const ir = H * 1.15, iris = g.createRadialGradient(x, y, ir * .1, x, y, ir);
+    iris.addColorStop(0, '#fff2a8'); iris.addColorStop(.35, '#ff8a1e'); iris.addColorStop(.75, '#c4100e'); iris.addColorStop(1, '#3a0002');
+    g.fillStyle = iris; g.beginPath(); g.arc(x, y, ir, 0, TAU); g.fill();
+    g.strokeStyle = 'rgba(80, 0, 0, .55)'; g.lineWidth = 1;
+    for (let i = 0; i < 16; i++) { const a = i / 16 * TAU; g.beginPath(); g.moveTo(x + Math.cos(a) * ir * .95, y + Math.sin(a) * ir * .95); g.lineTo(x + Math.cos(a + .15) * ir * .45, y + Math.sin(a + .15) * ir * .45); g.stroke(); }
+    g.fillStyle = '#000'; g.beginPath(); g.ellipse(x, y, ir * .2 * pupil, ir * .95, 0, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.85)'; g.beginPath(); g.ellipse(x - ir * .35, y - ir * .35, ir * .12, ir * .07, -.5, 0, TAU); g.fill();
+    g.restore();
+    g.globalCompositeOperation = 'lighter'; g.strokeStyle = 'rgba(255, 60, 30, .95)'; g.lineWidth = 2; lid(); g.stroke();
+  }
+
   const SCENES = {
     // ---------------- จิต: สายฟ้า (พลังสูง = สายรุ้ง) ----------------
     jit(c) {
@@ -609,109 +770,76 @@
       });
     },
 
-    // ---------------- เหนือ: ดาบฟันผ่าสองท่อน ----------------
+    // ---------------- เหนือ: ฟันโค้งไขว้ X → วงดาบทองสองชั้นหมุนสวนกัน → การ์ดแตกเป็นพายุเศษลายภาพ กลีบทองหมุนวน ----------------
     nuea(c) {
-      const pre = c.ghost.animate([{ transform: 'none' }, { transform: 'translateY(-6px) rotate(-3deg) scale(1.03)' }], { duration: 180, easing: 'cubic-bezier(.3,0,.2,1)', fill: 'forwards' });
-      const dir = Math.random() < .5 ? 1 : -1; // ทิศฟัน
-      // เส้นฟัน (พิกัดเทียบการ์ด 0..1) ทแยงผ่านกลางการ์ด เลยขอบออกไปเล็กน้อย
-      const ax = dir > 0 ? -.15 : 1.15, bx = dir > 0 ? 1.15 : -.15, ay = rnd(.05, .25), by = rnd(.75, .95);
-      const A = [c.rect.left + ax * c.W, c.rect.top + ay * c.H], B = [c.rect.left + bx * c.W, c.rect.top + by * c.H];
-      later(180, () => {
-        buzz(30); shake(c.lvl > .5);
-        addDraw({ life: .36, draw(g, k) { // แสงดาบวาดผ่าน
-          const m = Math.min(1, k / .35), x = A[0] + (B[0] - A[0]) * m, y = A[1] + (B[1] - A[1]) * m;
-          g.globalCompositeOperation = 'lighter'; g.globalAlpha = 1 - Math.max(0, (k - .35) / .65);
-          g.lineCap = 'round'; g.shadowColor = '#ffb347'; g.shadowBlur = 22;
-          g.strokeStyle = 'rgba(255, 190, 90, .8)'; g.lineWidth = 12 * (1 - k * .6); g.beginPath(); g.moveTo(A[0], A[1]); g.lineTo(x, y); g.stroke();
-          g.strokeStyle = '#fffaf0'; g.lineWidth = 3; g.stroke();
-        } });
-        const nx0 = -(B[1] - A[1]), ny0 = B[0] - A[0], L0 = Math.hypot(nx0, ny0) || 1;
-        for (let i = 0; i < 26 * c.n; i++) {
-          const t = Math.random(), x = A[0] + (B[0] - A[0]) * t, y = A[1] + (B[1] - A[1]) * t;
-          const s = Math.random() < .5 ? 1 : -1, v = rnd(80, 300);
-          addPart({ kind: 'streak', x, y, vx: nx0 / L0 * v * s + rnd(-40, 40), vy: ny0 / L0 * v * s + rnd(-60, 20), g: 400, drag: 1.5, life: rnd(.3, .6), size: rnd(1.2, 2.2), rgb: '255, 200, 110' });
-        }
-        // ขาดสองท่อน: โคลนอีกใบ ตัดสองใบด้วย clip-path ตามเส้นฟัน แล้วไถลแยกตั้งฉากกับแนวฟัน
-        const pct = (x, y) => `${(x * 100).toFixed(1)}% ${(y * 100).toFixed(1)}%`;
-        // ปลายซ้าย (Lx<0) / ปลายขวา (Rx>1) ของเส้นฟัน: ท่อนบน = เหนือเส้น, ท่อนล่าง = ใต้เส้น (ไล่จุดตามเข็มนาฬิกา ไม่ไขว้กัน)
-        const [Lx, Ly, Rx, Ry] = dir > 0 ? [ax, ay, bx, by] : [bx, by, ax, ay];
-        const top = `polygon(-20% -20%, 120% -20%, ${pct(Rx, Ry)}, ${pct(Lx, Ly)})`;
-        const bot = `polygon(${pct(Lx, Ly)}, ${pct(Rx, Ry)}, 120% 120%, -20% 120%)`;
-        settle(pre);
-        // clip-path อยู่ที่การ์ด (นิ่ง) ส่วนการไถลอยู่ที่กล่องห่อ: clip-path + WAAPI บนตัวเดียวกันอาจวาดไม่ขึ้น
-        const slot = c.ghost.parentElement;
-        const half = el => { const w = document.createElement('div'); w.className = 'fx-dslv-half'; slot.appendChild(w); w.appendChild(el); return w; };
-        const twin = c.ghost.cloneNode(true);
-        c.ghost.style.clipPath = top; twin.style.clipPath = bot;
-        const hTop = half(c.ghost), hBot = half(twin);
-        const nx = -(by - ay) * c.H, ny = (bx - ax) * c.W, L = Math.hypot(nx, ny) || 1, ux = nx / L, uy = ny / L;
-        const slide = (el, s, rot) => el.animate([
-          { transform: 'translate(0px,0px) rotate(0deg)', opacity: 1 },
-          { transform: `translate(${ux * 10 * s}px, ${uy * 10 * s}px) rotate(${rot * .3}deg)`, opacity: 1, offset: .25 },
-          { transform: `translate(${ux * 30 * s}px, ${uy * 30 * s + 40}px) rotate(${rot}deg)`, opacity: 0 },
-        ], { duration: 900, easing: 'cubic-bezier(.3,.1,.5,1)', fill: 'forwards' });
-        slide(hTop, -1, -9 * dir); slide(hBot, 1, 11 * dir).onfinish = c.done;
-        // ฝุ่นตามแนวขาด + ฝุ่นฟุ้งที่ฐาน + ธงขาดปลิว
-        addDraw({ life: .8, draw(g, k) {
-          if (Math.random() < .5) return;
-          for (let i = 0; i < 3; i++) {
-            const t = Math.random(), x = A[0] + (B[0] - A[0]) * t, y = A[1] + (B[1] - A[1]) * t + k * 40;
-            addPart({ kind: Math.random() < .3 ? 'chip' : 'smoke', x, y, vx: rnd(-30, 30), vy: rnd(10, 60), g: 160, life: rnd(.5, .9), size: rnd(3, 8), rgb: '170, 130, 90', fill: 'rgb(160, 110, 60)', rot: rnd(0, 6), vr: rnd(-6, 6), grow: .8 });
-          }
-        } });
-        for (let i = 0; i < 9 * c.n; i++) addPart({ kind: 'smoke', x: c.cx + rnd(-c.W * .6, c.W * .6), y: c.rect.bottom + rnd(-6, 6), vx: rnd(-60, 60), vy: rnd(-40, -10), drag: 1.2, life: rnd(.8, 1.3), size: rnd(10, 18), grow: 1.4, rgb: '150, 120, 85', alpha: .8 });
-        const flag = ['rgb(176, 32, 38)', 'rgb(240, 163, 71)', 'rgb(250, 236, 200)'];
-        for (let i = 0; i < 12 * c.n; i++) addPart({ kind: 'shred', x: c.cx + rnd(-c.W * .4, c.W * .4), y: c.cy + rnd(-c.H * .3, c.H * .2), vx: rnd(-140, 140), vy: rnd(-200, -60), g: 260, drag: 1.4, wob: rnd(0, 6), life: rnd(.9, 1.4), size: rnd(4, 8), fill: flag[i % 3], rot: rnd(0, 6), vr: rnd(-8, 8) });
+      c.tex = cardTexture(c.el, c.W, c.H);
+      nueaPrelude(c);
+      later(500, () => {
+        settle(c.pose); buzz(30); shake(false);
+        c.pose = c.ghost.animate([{ transform: 'rotate(0deg) scale(1)' }, { transform: 'rotate(-18deg) scale(1.05)', filter: 'brightness(1.7)' }], { duration: 260, fill: 'forwards' });
+        crescent({ cx: c.cx, cy: c.cy, r: c.H * .64, a0: -Math.PI / 2, a1: -Math.PI / 2 + TAU * 1.05, w: 18, rgb: GOLD, life: .46 });
+        crescent({ cx: c.cx, cy: c.cy, r: c.H * .5, a0: Math.PI / 2, a1: Math.PI / 2 - TAU * 1.05, w: 11, rgb: '255, 240, 200', life: .46, delay: .07 });
+      });
+      later(790, () => {
+        settle(c.pose); c.ghost.style.visibility = 'hidden';
+        buzz(42); shake(true);
+        flash(c.cx, c.cy, c.W * 1.1, GOLD, .3);
+        spikeBurst(c.cx, c.cy, c.W * 1.3, GOLD, .36, 16);
+        groundRing(c.cx, c.rect.bottom, 4, c.W * 2.1, GOLD, .5);
+        const tex = c.tex;
+        shardsOf(c.W, c.H, 4, 5).forEach(s => {
+          const dx = s.cx - c.W / 2, dy = s.cy - c.H / 2;
+          addPart({ kind: 'shard', x: c.rect.left + s.cx, y: c.rect.top + s.cy, vx: -dy * 5 + dx * 3, vy: dx * 5 + dy * 3, drag: 1.8, g: 260, life: rnd(.8, 1.1), size: 1, poly: s.poly, cx: s.cx, cy: s.cy, tex, rot: 0, vr: rnd(8, 14), sc: 1, shrink: .5, edge: 'rgba(255, 214, 120, .95)', edgeW: 1.4 });
+        });
+        const petal = ['rgb(255, 214, 120)', 'rgb(176, 32, 38)', 'rgb(250, 236, 200)'];
+        for (let i = 0; i < 22 * c.n; i++) { const a = rnd(0, TAU), r = rnd(10, c.W * .6); addPart({ kind: 'shred', x: c.cx + Math.cos(a) * r, y: c.cy + Math.sin(a) * r, vx: -Math.sin(a) * 260 + Math.cos(a) * 60, vy: Math.cos(a) * 260 + Math.sin(a) * 60, drag: 1.6, g: 90, wob: rnd(0, 6), life: rnd(.9, 1.4), size: rnd(2.5, 5), fill: petal[i % 3], rot: rnd(0, 6), vr: rnd(-8, 8) }); }
+        later(1000, c.done);
       });
     },
 
-    // ---------------- วันสิ้นโลก: เวลาหยุด → หลุมดำ ----------------
+    // ---------------- วันสิ้นโลก: วงแหวนเวลาเอียงสามระนาบ → การ์ดร้าวแสงลอด แตกแล้วเศษค้าง (เวลาหยุด) → ดูดเข้าจุดเดียว → ระเบิดวงขีดนาฬิกา ----------------
     doom(c) {
-      const pre = c.ghost.animate([
-        { filter: 'none', transform: 'none' },
-        { filter: 'grayscale(1) sepia(.5) hue-rotate(220deg) brightness(.9) contrast(1.2)', transform: 'scale(.98)' },
-      ], { duration: 340, easing: 'ease-out', fill: 'forwards' });
-      accent(c.host, 'is-clock', `<svg viewBox="-60 -60 120 120"><circle r="56" class="ring"/><circle r="48" class="ring dash"/>${NUMERALS.map((n, k) => {
-        const a = (k * 30 - 90) * Math.PI / 180;
-        return `<text x="${(41 * Math.cos(a)).toFixed(1)}" y="${(41 * Math.sin(a) + 3).toFixed(1)}">${n}</text>`;
-      }).join('')}<line class="hand h1" x1="0" y1="6" x2="0" y2="-44"/><line class="hand h2" x1="0" y1="4" x2="0" y2="-30"/><circle r="3" class="pin"/></svg>`);
-      for (let i = 0; i < 3; i++) shockwave(c.cx, c.cy, c.W * .9, c.W * .25, '190, 150, 255', .4, 2, i * .1); // ระลอกเวลาหดเข้า
-      const tex = cardTexture(c.el, c.W, c.H);
-      const cols = small() ? 4 : 5, rows = small() ? 5 : 7;
-      const voidR = Math.max(c.W, c.H) * (.32 + c.lvl * .12);
-      later(360, () => {
-        buzz(20);
-        settle(pre);
-        c.ghost.style.visibility = 'hidden';
-        flash(c.cx, c.cy, c.W * .9, '200, 170, 255', .3);
-        // เศษเวลา: ค้างกลางอากาศ (ลอยช้า) → ถูกดูดเข้าจุดกลาง
-        shardsOf(c.W, c.H, cols, rows).forEach(s => {
-          const ox = s.cx - c.W / 2, oy = s.cy - c.H / 2;
-          const p = { kind: 'shard', x: c.rect.left + s.cx, y: c.rect.top + s.cy, vx: ox * .35, vy: oy * .35, drag: 2.2, life: 1.15, size: 1, poly: s.poly, cx: s.cx, cy: s.cy, tex, rot: 0, vr: rnd(-.6, .6), sc: 1, edge: 'rgba(214, 184, 255, .95)', edgeW: 1.2, tint: 'rgba(120, 80, 200, .22)', fadeIn: .02 };
-          addPart(p);
-          later(380, () => { p.pull = { x: c.cx, y: c.cy, k: 38 }; p.drag = 4.5; p.vr = rnd(-12, 12); p.shrink = .9; });
-        });
-        // หลุมดำ: ขยาย หมุนวงแหวนทอง แล้วยุบ
-        addDraw({ life: 1.05, delay: .3, draw(g, k) {
-          const r = voidR * (k < .7 ? easeOut(k / .7) : 1 - easeIn((k - .7) / .3));
-          if (r <= .5) return;
-          const gr = g.createRadialGradient(c.cx, c.cy, 0, c.cx, c.cy, r * 1.6);
-          gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(.55, 'rgba(10,0,20,1)'); gr.addColorStop(.62, 'rgba(180,140,255,.95)'); gr.addColorStop(.72, 'rgba(232,201,119,.5)'); gr.addColorStop(1, 'rgba(120,60,200,0)');
-          g.fillStyle = gr; g.beginPath(); g.arc(c.cx, c.cy, r * 1.6, 0, 7); g.fill();
-          g.globalCompositeOperation = 'lighter'; g.strokeStyle = 'rgba(232, 201, 119, .8)'; g.lineWidth = 1.5;
-          for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(c.cx, c.cy, r * (1.15 + i * .18), k * 9 + i * 2, k * 9 + i * 2 + 2.2); g.stroke(); }
-        } });
-        later(1100, () => {
-          buzz(24); shake(c.lvl > .5);
-          flash(c.cx, c.cy, c.W * (1.3 + c.lvl), '232, 201, 119', .5);
-          shockwave(c.cx, c.cy, 4, c.W * (1.8 + c.lvl), '200, 160, 255', .6, 6);
-          shockwave(c.cx, c.cy, 4, c.W * (1.2 + c.lvl), '232, 201, 119', .55, 3, .05);
-          for (let i = 0; i < 36 * c.n; i++) {
-            const a = rnd(0, Math.PI * 2), v = rnd(60, 260);
-            addPart({ kind: 'glow', x: c.cx, y: c.cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v, drag: 2, g: -30, life: rnd(.6, 1.1), size: rnd(2, 4.5), rgb: Math.random() < .5 ? '200, 160, 255' : '232, 201, 119' });
+      c.tex = cardTexture(c.el, c.W, c.H);
+      const R = Math.max(c.W, c.H) * .62, rings = [[0, .3, 1.2], [1.05, .3, -1.6], [-1.05, .3, 2]];
+      const pre = c.ghost.animate([{ filter: 'none', transform: 'none' }, { filter: 'grayscale(1) brightness(1.35)', transform: 'scale(.98)' }], { duration: 300, fill: 'forwards' });
+      addDraw({ life: 1.5, draw(g, k, age) {
+        const open = easeOut(Math.min(1, age / .3)), shrink = 1 - easeIn(clamp((age - .95) / .35)) * .95;
+        g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
+        rings.forEach(([rot, sq, sp], j) => {
+          const r = R * (1 - j * .1) * open * shrink, spin = age * sp * (age > .95 ? 3 : 1);
+          g.save(); g.translate(c.cx, c.cy); g.rotate(rot);
+          g.strokeStyle = `rgba(${j % 2 ? VI : WH},.35)`; g.lineWidth = 1.2; g.beginPath(); g.ellipse(0, 0, r, r * sq, 0, 0, TAU); g.stroke();
+          for (let i = 0; i < 24; i++) {
+            const t = i / 24 * TAU + spin, front = Math.sin(t) > 0, x = Math.cos(t) * r, y = Math.sin(t) * r * sq, len = i % 6 ? 3 : 7;
+            g.strokeStyle = `rgba(${WH},${front ? .95 : .3})`; g.lineWidth = i % 6 ? 1.2 : 2.2;
+            g.beginPath(); g.moveTo(x, y); g.lineTo(x * (1 + len / r), y * (1 + len / r)); g.stroke();
           }
-          later(650, c.done);
+          g.restore();
         });
+      } });
+      const cracks = [...Array(6)].map(() => { const pts = [[rnd(.4, .6), rnd(.4, .6)]]; const a = rnd(0, TAU); for (let i = 0; i < 5; i++) { const p = pts[pts.length - 1]; pts.push([p[0] + Math.cos(a + rnd(-.6, .6)) * .12, p[1] + Math.sin(a + rnd(-.6, .6)) * .1]); } return pts; });
+      addDraw({ life: .5, delay: .3, draw(g, k) { // การ์ดร้าว แสงขาวลอด
+        g.globalCompositeOperation = 'lighter'; g.lineCap = 'round'; g.lineJoin = 'round'; g.shadowColor = '#fff'; g.shadowBlur = 8;
+        cracks.forEach(pts => { const m = Math.max(2, Math.ceil(pts.length * Math.min(1, k * 2.2))); g.strokeStyle = 'rgba(255,255,255,.95)'; g.lineWidth = 1.6; g.beginPath(); pts.slice(0, m).forEach(([x, y], i) => { const X = c.rect.left + x * c.W, Y = c.rect.top + y * c.H; i ? g.lineTo(X, Y) : g.moveTo(X, Y); }); g.stroke(); });
+      } });
+      const parts = [];
+      later(760, () => { // แตก → ค้างกลางอากาศ
+        settle(pre); c.ghost.style.visibility = 'hidden'; buzz(20);
+        flash(c.cx, c.cy, c.W * .7, WH, .2);
+        shardsOf(c.W, c.H, 4, 5).forEach(s => { const p = { kind: 'shard', x: c.rect.left + s.cx, y: c.rect.top + s.cy, vx: (s.cx - c.W / 2) * .6, vy: (s.cy - c.H / 2) * .6, drag: 6, life: 1.1, size: 1, poly: s.poly, cx: s.cx, cy: s.cy, tex: c.tex, rot: 0, vr: rnd(-.4, .4), sc: 1, edge: 'rgba(240,244,255,.95)', edgeW: 1.2, tint: 'rgba(200,205,255,.3)', fadeIn: .01 }; parts.push(p); addPart(p); });
+      });
+      later(1080, () => parts.forEach(p => { p.pull = { x: c.cx, y: c.cy, k: 70 }; p.drag = 5; p.vr = rnd(-14, 14); p.shrink = 1; }));
+      addDraw({ life: .5, delay: 1.0, draw(g, k) { const s = 4 + Math.sin(k * 40) * 1.5; g.globalCompositeOperation = 'lighter'; g.globalAlpha = Math.min(1, k * 4); g.drawImage(glowSpr(WH), c.cx - s * 4, c.cy - s * 4, s * 8, s * 8); } });
+      later(1480, () => { // ระเบิดวงขีดเวลา
+        buzz(32); shake(true);
+        spikeBurst(c.cx, c.cy, R * 1.1, WH, .34, 14);
+        shockwave(c.cx, c.cy, 4, R * 2, WH, .5, 3);
+        addDraw({ life: .7, draw(g, k) {
+          const r = R * .2 + R * 1.9 * easeOut(k); g.globalCompositeOperation = 'lighter'; g.globalAlpha = 1 - k;
+          for (let i = 0; i < 36; i++) { const t = i / 36 * TAU, len = i % 3 ? 5 : 11; g.strokeStyle = i % 3 ? `rgba(${VI},.9)` : 'rgba(255,255,255,1)'; g.lineWidth = i % 3 ? 1.4 : 2.4; g.beginPath(); g.moveTo(c.cx + Math.cos(t) * r, c.cy + Math.sin(t) * r); g.lineTo(c.cx + Math.cos(t) * (r + len), c.cy + Math.sin(t) * (r + len)); g.stroke(); }
+        } });
+        for (let i = 0; i < 24 * c.n; i++) { const a = rnd(0, TAU), v = rnd(100, 300); addPart({ kind: 'glow', x: c.cx, y: c.cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v, drag: 2.4, life: rnd(.5, .8), size: rnd(1.5, 3), rgb: i % 2 ? WH : VI }); }
+        later(750, c.done);
       });
     },
 
@@ -755,86 +883,107 @@
       });
     },
 
-    // ---------------- ปีศาจ: วงเวทเจ็ดแฉก + ไฟนรก ----------------
+    // ---------------- ปีศาจ: ดวงตาซาตานลืมเหนือการ์ด รูม่านตาหดแคบ จ้องจนลุกเป็นไฟดำแดง → ตาหลับฉับ → รอยแยกแสงแดงแนวตั้งระเบิดเป็นไฟ ----------------
     demon(c) {
-      const hept = [...Array(7)].map((_, i) => { const a = (i * 3 / 7) * Math.PI * 2 - Math.PI / 2; return `${(Math.cos(a) * 40).toFixed(1)},${(Math.sin(a) * 40).toFixed(1)}`; }).join(' ');
-      const runes = [...Array(14)].map((_, i) => `<rect x="-2" y="-51" width="4" height="7" transform="rotate(${(i / 14 * 360).toFixed(1)})"/>`).join('');
-      accent(c.host, 'is-sigil', `<svg viewBox="-60 -60 120 120"><circle r="56" class="ring"/><circle r="46" class="ring thin"/><g class="runes">${runes}</g><polygon class="star" points="${hept}"/></svg>`);
-      accent(c.host, 'is-eyes', '<i></i><i></i>');
-      const pre = c.ghost.animate([{ filter: 'none' }, { filter: 'brightness(.55) saturate(1.8) sepia(.4) hue-rotate(-30deg) contrast(1.3)' }], { duration: 300, easing: 'ease-in', fill: 'forwards' });
-      later(260, () => {
-        buzz(26); shake(c.lvl > .5);
-        const flt = makeFilter({ edge: '#ff6a2a', freq: .065, bias: 'up', bloom: 3.4, char: '#0a0204' }, c.W, c.H);
+      vignette(2100, 'rgba(25, 0, 0, .72)');
+      const EW = c.W * 1.15, EH = c.H * .16, ex = c.cx, ey = c.rect.top - c.H * .2, CLOSE = 1.25;
+      addDraw({ life: 1.45, draw(g, k, age) {
+        const open = age < .3 ? easeOut(age / .3) : age < CLOSE ? 1 : 1 - clamp((age - CLOSE) / .08);
+        const pupil = 1 - easeOut(clamp((age - .4) / .12)) * .65;
+        eye(g, ex, ey + Math.sin(age * 3) * 1.5, EW, EH, open, pupil, .55 * open);
+      } });
+      const pre = c.ghost.animate([{ filter: 'none' }, { filter: 'brightness(.55) saturate(1.6) sepia(.5) hue-rotate(-35deg) contrast(1.3)' }], { duration: 400, fill: 'forwards' });
+      later(520, () => { // จ้อง → ไฟดำแดง
+        buzz(26); shake(false);
+        addDraw({ life: .35, draw(g, k) { g.globalCompositeOperation = 'lighter'; g.globalAlpha = (1 - k) * .9; const gr = g.createLinearGradient(ex, ey, c.cx, c.cy); gr.addColorStop(0, 'rgba(255,60,30,.9)'); gr.addColorStop(1, 'rgba(255,60,30,0)'); g.fillStyle = gr; g.beginPath(); g.moveTo(ex - 3, ey); g.lineTo(c.rect.left, c.rect.bottom); g.lineTo(c.rect.right, c.rect.bottom); g.lineTo(ex + 3, ey); g.fill(); } });
+        const flt = makeFilter({ edge: '#ff2a1a', freq: .065, bias: 'up', bloom: 3, char: '#000000' }, c.W, c.H);
         applyFilter(c.ghost, flt, pre);
-        const dur = 1.0;
-        runDissolve(flt, dur, {
-          rim: .1, char: .09, pow: 1.15,
-          each(k) {
-            const lineY = c.rect.bottom - c.H * Math.min(1, k * 1.15); // แนวไฟ (ไหม้จากล่างขึ้นบน)
-            const n = Math.round((3 + c.lvl * 3) * c.n);
-            for (let i = 0; i < n; i++) {
-              addPart({ kind: 'glow', x: c.rect.left + rnd(-.05, 1.05) * c.W, y: lineY + rnd(-6, 10), vx: rnd(-15, 15), vy: rnd(-160, -70), wob: rnd(0, 6), life: rnd(.35, .7), size: rnd(5, 10), shrink: .7, rgb: Math.random() < .35 ? '255, 200, 90' : '255, 70, 30' });
-            }
-            if (Math.random() < .5) addPart({ kind: 'smoke', x: c.rect.left + rnd(0, c.W), y: lineY - rnd(0, 20), vx: rnd(-20, 20), vy: rnd(-90, -40), life: rnd(.8, 1.3), size: rnd(8, 14), grow: 1.6, rgb: '20, 6, 10', alpha: .9 });
-            if (Math.random() < .4) addPart({ kind: 'glow', x: c.rect.left + rnd(0, c.W), y: lineY, vx: rnd(-40, 40), vy: rnd(-220, -120), g: 60, wob: rnd(0, 6), life: rnd(.8, 1.4), size: rnd(1.5, 3), rgb: '255, 160, 60' });
-          },
-        });
-        later(dur * 1000 - 120, () => { // เสาเพลิงพุ่งตอนท้าย
-          buzz(30);
-          addDraw({ life: .6, draw(g, k) {
-            const h = c.H * (1.6 + c.lvl) * easeOut(Math.min(1, k * 2.2)), w = c.W * .7 * (1 - k * .5);
-            if (h < 1) return;
-            const gr = g.createLinearGradient(0, c.rect.bottom, 0, c.rect.bottom - h);
-            gr.addColorStop(0, 'rgba(255, 220, 140, .95)'); gr.addColorStop(.35, 'rgba(255, 70, 30, .8)'); gr.addColorStop(.8, 'rgba(90, 0, 20, .4)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
-            g.globalCompositeOperation = 'lighter'; g.globalAlpha = 1 - easeIn(k);
-            g.fillStyle = gr; g.beginPath(); g.ellipse(c.cx, c.rect.bottom - h / 2, w / 2, h / 2, 0, 0, 7); g.fill();
-          } });
-          shockwave(c.cx, c.rect.bottom, c.W * .2, c.W * 1.3, '255, 70, 30', .5, 5);
-          later(700, c.done);
+        runDissolve(flt, .8, { rim: .1, char: .12, pow: 1.1, each(k) {
+          const lineY = c.rect.bottom - c.H * Math.min(1, k * 1.15);
+          for (let i = 0; i < 4 * c.n; i++) addPart({ kind: 'glow', x: c.rect.left + rnd(-.05, 1.05) * c.W, y: lineY + rnd(-6, 8), vx: rnd(-12, 12), vy: rnd(-150, -60), wob: rnd(0, 6), life: rnd(.3, .6), size: rnd(4, 8), shrink: .7, rgb: Math.random() < .3 ? '255, 150, 60' : RED });
+          if (Math.random() < .8) addPart({ kind: 'smoke', x: c.rect.left + rnd(0, c.W), y: lineY - rnd(0, 18), vx: rnd(-20, 20), vy: rnd(-90, -40), life: rnd(.7, 1.1), size: rnd(8, 15), grow: 1.5, rgb: '6, 0, 2', alpha: .92 });
+        } });
+      });
+      later(CLOSE * 1000, () => { // ตาหลับฉับ
+        buzz(20);
+        addDraw({ life: .3, draw(g, k) { flare(g, ex, ey, EW * 1.4 * (1 - k * .3), RED, 1 - k); } });
+      });
+      later(CLOSE * 1000 + 120, () => { // รอยแยกแสงแนวตั้ง (ล้อรูม่านตา) เปิดแล้วระเบิด
+        buzz(44); shake(true);
+        addDraw({ life: .5, draw(g, k) {
+          const w = c.W * .28 * (k < .35 ? easeOut(k / .35) : 1 - easeIn((k - .35) / .65)), h = c.H * .85;
+          if (w < .3) return;
+          g.globalCompositeOperation = 'lighter';
+          const gr = g.createRadialGradient(c.cx, c.cy, 0, c.cx, c.cy, h); gr.addColorStop(0, 'rgba(255,240,200,1)'); gr.addColorStop(.25, 'rgba(255,70,30,.95)'); gr.addColorStop(1, 'rgba(120,0,0,0)');
+          g.fillStyle = gr; g.beginPath(); g.ellipse(c.cx, c.cy, w, h, 0, 0, TAU); g.fill();
+        } });
+        later(150, () => {
+          spikeBurst(c.cx, c.cy, c.W * 1.4, RED, .42, 16, 0, '255, 210, 160');
+          groundRing(c.cx, c.rect.bottom, 4, c.W * 2.2, RED, .5);
+          for (let i = 0; i < 14 * c.n; i++) { const a = rnd(0, TAU); addPart({ kind: 'smoke', x: c.cx, y: c.cy, vx: Math.cos(a) * rnd(120, 220), vy: Math.sin(a) * rnd(60, 140), drag: 2.2, life: rnd(.6, .9), size: rnd(9, 15), grow: 1.6, rgb: '8, 0, 2', alpha: .85 }); }
+          for (let i = 0; i < 26 * c.n; i++) { const a = rnd(0, TAU), v = rnd(140, 380); addPart({ kind: 'glow', x: c.cx, y: c.cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80, g: 260, drag: 1.5, life: rnd(.5, .9), size: rnd(1.5, 3.2), rgb: Math.random() < .5 ? RED : '255, 160, 60' }); }
+          later(800, c.done);
         });
       });
     },
 
-    // ---------------- โอ๊ต: ระเบิดคอมิก ----------------
+    // ---------------- โอ๊ต: ไฟต์ติ้งเกม ----------------
+    // คอมโบ 4 ฮิต (ฟันโค้งชมพู/ฟ้าสลับทิศ + ประกายฮิต + การ์ดสะบัด + ตัวนับ HITS) → หมัดเสยค้างเฟรม การ์ดลอยหมุน → แตกเป็นพิกเซล + K.O.!
     oat(c) {
-      const WORDS = ['POOF!', 'BOOM!', 'ปั้ง!!', 'WHAM!', 'บึ้ม!!', 'KAPOW!'];
-      const pre = c.ghost.animate([
-        { transform: 'none' }, { transform: 'scale(1.18, .8) rotate(-4deg)' }, { transform: 'scale(.82, 1.22) rotate(5deg)' }, { transform: 'scale(1.12, .9)' }, { transform: 'scale(.6) rotate(-10deg)' },
-      ], { duration: 300, easing: 'ease-in-out', fill: 'forwards' });
-      accent(c.host, 'is-speed', '<i></i><i></i><i></i><i></i><i></i><i></i>');
+      const PINK = '255, 92, 180', CYAN = '80, 220, 255', YEL = '255, 226, 80', R = c.H * .55;
       const tex = cardTexture(c.el, c.W, c.H);
-      later(280, () => {
-        settle(pre);
-        c.ghost.style.visibility = 'hidden';
-        buzz(30); shake(c.lvl > .5);
-        const spikes = 14, poly = [...Array(spikes * 2)].map((_, i) => { const a = i / (spikes * 2) * Math.PI * 2, r = i % 2 ? rnd(30, 36) : rnd(44, 50); return `${(Math.cos(a) * r).toFixed(1)},${(Math.sin(a) * r).toFixed(1)}`; }).join(' ');
-        accent(c.host, 'is-kaboom', `<svg viewBox="-55 -55 110 110"><polygon class="b2" points="${poly}"/><polygon class="b1" points="${poly}"/></svg><b>${WORDS[Math.floor(Math.random() * WORDS.length)]}</b>`);
-        shardsOf(c.W, c.H, 3, 4).forEach(s => { // ชิ้นการ์ดขอบดำ หมุนปลิว
-          const ox = s.cx - c.W / 2, oy = s.cy - c.H / 2;
-          addPart({ kind: 'shard', x: c.rect.left + s.cx, y: c.rect.top + s.cy, vx: ox * rnd(4, 7), vy: oy * 4 - rnd(100, 260), g: 900, drag: .6, life: rnd(.8, 1.1), size: 1, poly: s.poly, cx: s.cx, cy: s.cy, tex, rot: 0, vr: rnd(-14, 14), sc: .9, edge: '#1a0010', edgeW: 3 });
+      const combo = accent(c.host, 'is-combo', '<b>1</b><small>HITS</small>'), num = combo.querySelector('b');
+      let pose = null;
+      const HITS = 4, GAP = 105;
+      for (let i = 0; i < HITS; i++) later(i * GAP, () => {
+        const dir = i % 2 ? -1 : 1, rot = dir > 0 ? -.5 + rnd(-.3, .3) : Math.PI + .5 + rnd(-.3, .3);
+        crescent({ cx: c.cx - Math.cos(rot) * R * .8, cy: c.cy - Math.sin(rot) * R * .8, r: R, a0: -1.1 * dir, a1: 1.1 * dir, rot, w: 12, rgb: i % 2 ? CYAN : PINK, life: .26 });
+        const hx = c.rect.left + c.W * rnd(.3, .7), hy = c.rect.top + c.H * rnd(.3, .7);
+        spikeBurst(hx, hy, c.W * .5, YEL, .2, 10);
+        flash(hx, hy, c.W * .35, '255, 255, 255', .15);
+        settle(pose);
+        pose = c.ghost.animate([
+          { transform: `translate(${dir * 10}px, -3px) rotate(${dir * 4}deg)`, filter: 'brightness(2)' },
+          { transform: `translate(${dir * 4}px, 0) rotate(${dir * 1.5}deg)`, filter: 'brightness(1)' },
+        ], { duration: 95, easing: 'ease-out', fill: 'forwards' });
+        num.textContent = i + 1; combo.classList.remove('is-bump'); void combo.offsetWidth; combo.classList.add('is-bump');
+        buzz(10);
+      });
+      later(HITS * GAP + 80, () => { // หมัดเสย: เฟรมค้าง การ์ดขาววาบ
+        settle(pose);
+        c.ghost.style.filter = 'brightness(2.6) saturate(0)';
+        flash(c.cx, c.cy, c.W * 1.3, '255, 255, 255', .25);
+        crescent({ cx: c.cx + c.W * .5, cy: c.cy + c.H * .2, r: c.H * .78, a0: Math.PI * .92, a1: Math.PI * 1.6, w: 24, rgb: PINK, life: .42 });
+        spikeBurst(c.cx, c.cy, c.W * (1.1 + c.lvl * .4), YEL, .36, 16);
+        shake(true); buzz(40);
+        later(110, () => {
+          c.ghost.style.filter = '';
+          const up = -c.H * .45, spin = rnd(420, 560) * (Math.random() < .5 ? 1 : -1);
+          c.ghost.animate([{ transform: 'none' }, { transform: `translate(${rnd(-20, 20)}px, ${up}px) rotate(${spin}deg) scale(.8)` }], { duration: 380, easing: 'cubic-bezier(.15,.8,.3,1)', fill: 'forwards' });
+          accent(c.host, 'is-speed', '<i></i><i></i><i></i><i></i><i></i><i></i>');
+          accent(c.host, 'is-ko', '<b>K.O.!</b>');
+          later(380, () => { // แตกเป็นพิกเซล
+            c.ghost.style.visibility = 'hidden';
+            buzz(30);
+            const px = c.cx, py = c.cy + up;
+            gridOf(c.W, c.H, small() ? 5 : 6, small() ? 7 : 8).forEach(s => addPart({ kind: 'shard', x: c.rect.left + s.cx, y: c.rect.top + s.cy + up, vx: (s.cx - c.W / 2) * rnd(4, 7), vy: (s.cy - c.H / 2) * rnd(3, 5) - rnd(60, 180), g: 900, life: rnd(.7, 1), size: 1, poly: s.poly, cx: s.cx, cy: s.cy, tex, rot: 0, vr: rnd(-4, 4), sc: 1, shrink: .4, edge: '#1a0010', edgeW: 1.5 }));
+            flash(px, py, c.W * 1.2, PINK, .35);
+            const fills = ['#ff5cb4', '#50dcff', '#ffe250', '#ffffff'];
+            for (let i = 0; i < 18 * c.n; i++) { const a = rnd(0, 7), v = rnd(160, 400); addPart({ kind: 'star', x: px, y: py, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, g: 480, drag: 1.6, life: rnd(.6, 1), size: rnd(4, 8), points: 4, inner: .35, fill: fills[i % 4], edge: '#1a0010', edgeW: 2, rot: rnd(0, 6), vr: rnd(-10, 10) }); }
+            later(720, c.done);
+          });
         });
-        const fills = ['#ff7ac2', '#ffd84a', '#7ee0ff', '#ffffff'];
-        for (let i = 0; i < 22 * c.n; i++) {
-          const a = rnd(0, Math.PI * 2), v = rnd(160, 420);
-          addPart({ kind: 'star', x: c.cx, y: c.cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80, g: 520, drag: 1.6, life: rnd(.7, 1.1), size: rnd(4, 9), points: Math.random() < .5 ? 4 : 5, fill: fills[i % 4], edge: '#1a0010', edgeW: 2, rot: rnd(0, 6), vr: rnd(-10, 10) });
-        }
-        const ring = Math.round(28 * c.n); // จุดฮาล์ฟโทนวงแหวนกระจาย
-        for (let i = 0; i < ring; i++) {
-          const a = i / ring * Math.PI * 2, v = rnd(220, 300);
-          addPart({ kind: 'dot', x: c.cx + Math.cos(a) * 10, y: c.cy + Math.sin(a) * 10, vx: Math.cos(a) * v, vy: Math.sin(a) * v, drag: 3.2, life: .55, size: rnd(2.5, 4.5), shrink: 1, fill: i % 2 ? '#ff4fa8' : '#1a0010' });
-        }
-        flash(c.cx, c.cy, c.W * 1.2, '255, 150, 210', .35);
-        later(1000, c.done);
       });
     },
   };
 
   // ============================================================================
-  function play(el, card, owner, power) {
+  // deck = ธีมของผู้ทำลาย (game.js ส่งมา) · ไม่ส่ง = ธีมของการ์ดเอง
+  function play(el, card, owner, power, deck) {
     if (!el || !el.isConnected) return;
     const rect = el.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
-    const key = deckOf(card, owner);
+    const key = SCENES[deck] ? deck : deckOf(card, owner);
     const { host, ghost } = makeGhost(el, rect, key);
     el.style.visibility = 'hidden'; // ช่องเดิมจะถูกวาดใหม่อยู่แล้ว · กันเห็นซ้อนสองใบระหว่างรอ
     let finished = false;
@@ -854,6 +1003,6 @@
     later(stagger, () => { try { SCENES[key](c); } catch (e) { console.warn('[card-dissolve]', e); done(); } });
   }
 
-  // _fx: ให้ js/deck-fx.js วาดบน canvas/rAF/โหมด lite เดียวกัน
-  window.BOFDissolve = { play, deckOf, levelOf, _engine: E, _fx: { addPart, addDraw, shockwave, flash, jagged, strokeBolt, starPath, glowSpr, kick, lite, small } };
+  // _fx: ให้ js/deck-fx.js (และหน้า mockup) วาดบน canvas/rAF/โหมด lite เดียวกัน · _scenes: เพิ่มฉากทดลองได้
+  window.BOFDissolve = { play, deckOf, levelOf, _engine: E, _fx: { addPart, addDraw, shockwave, flash, jagged, strokeBolt, starPath, glowSpr, kick, lite, small, crescent, spikeBurst, groundRing, flare, comet, holeDraw, eye, sparksAlong, makeFilter, applyFilter, runDissolve, shardsOf, gridOf, cardTexture, accent, settle, shake, buzz, later, vignette, rnd, easeOut, easeIn, clamp }, _scenes: SCENES };
 })();

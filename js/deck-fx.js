@@ -5,7 +5,7 @@
    DeckFx.strike(deck, a, b, heavy) — เส้นพุ่ง 0.1 วิ จาก a ไป b ({x,y} พิกัดจอ) แล้วปะทะที่ b · BOFFX.impact เรียกให้
    DeckFx.skill(el, deck)           — การ์ด/Leader ที่ใช้สกิลเรืองสีเด็ค + วงคลื่น + อนุภาคประจำเด็ค
    DeckFx.diff()                    — เรียกท้าย renderGame: เทียบพลัง/HP กับรอบก่อน → ลูกศรขึ้นลง +N/-N · ฟื้น HP
-   จิต สายฟ้าเขียว · เหนือ ดาบฟันไขว้ · วันสิ้นโลก รอยแยกเวลาม่วงทอง · ไดโน กรงเล็บอำพัน · ปีศาจ ไฟนรกดำแดง · โอ๊ต ระเบิดคอมิกชมพู
+   จิต สายฟ้าเขียว · เหนือ ฟันโค้งทอง · วันสิ้นโลก หลุมดำจิ๋ว 3 มิติ · ไดโน กรงเล็บอำพัน · ปีศาจ ตาซาตานกะพริบ · โอ๊ต คอมโบไฟต์ติ้งเกม
    reduced motion = ไม่มีเส้น/อนุภาค (ตัวเลขยังขึ้นแล้วจาง)
    ============================================================================ */
 (function () {
@@ -15,8 +15,8 @@
   const later = (ms, fn) => setTimeout(fn, ms);
   const PAL = {
     jit: { rgb: '62, 224, 143', core: '#e6fff2', glow: '#3ee08f' },
-    nuea: { rgb: '255, 179, 71', core: '#fffaf0', glow: '#ffb347' },
-    doom: { rgb: '168, 85, 247', core: '#f3e8ff', glow: '#a855f7', gold: '243, 201, 105' },
+    nuea: { rgb: '255, 196, 92', core: '#fffaf0', glow: '#ffc45c' },
+    doom: { rgb: '235, 240, 255', core: '#ffffff', glow: '#c9c2ff' },
     dino: { rgb: '255, 150, 50', core: '#fff1d6', glow: '#ff9632' },
     demon: { rgb: '230, 40, 40', core: '#ffd6c2', glow: '#dc2626' },
     oat: { rgb: '255, 105, 180', core: '#fff0f8', glow: '#ff69b4' },
@@ -46,28 +46,12 @@
         strokeBolt(g, pts.slice(0, m), p.core, 2.6, p.glow);
       } });
     },
-    nuea(a, b, p) {
-      F().addDraw({ life: TRAIL, draw(g, k) { g.globalCompositeOperation = 'lighter'; g.globalAlpha = fadeOut(k); beam(g, a, b, reach(k), 2.2, p.core, p.glow); } });
-    },
-    doom(a, b, p) {
-      F().addDraw({ life: TRAIL, draw(g, k) {
-        g.globalCompositeOperation = 'lighter'; g.globalAlpha = fadeOut(k);
-        g.setLineDash([14, 7]); g.lineDashOffset = -k * 90; beam(g, a, b, reach(k), 3, p.core, p.glow);
-      } });
-    },
+    nuea(a, b, p) { F().comet(a, b, p.rgb, 7); },
+    doom(a, b, p) { F().comet(a, b, p.rgb, 4.5); },
     dino(a, b, p) {
       F().addDraw({ life: TRAIL, draw(g, k) { g.globalCompositeOperation = 'lighter'; g.globalAlpha = fadeOut(k); beam(g, a, b, reach(k), 4.5, p.core, p.glow); } });
     },
-    demon(a, b, p) { // ไม่มีเส้น: ลูกไฟพุ่งทิ้งควันดำและไฟตามทาง
-      const { addPart, addDraw } = F(), n = amount();
-      addDraw({ life: .1, draw(g, k) {
-        const x = a.x + (b.x - a.x) * k, y = a.y + (b.y - a.y) * k;
-        for (let i = 0; i < 3 * n + 1; i++) {
-          addPart({ kind: 'glow', x: x + rnd(-5, 5), y: y + rnd(-5, 5), vx: rnd(-30, 30), vy: rnd(-90, -30), life: rnd(.25, .45), size: rnd(4, 8), rgb: Math.random() < .5 ? p.rgb : '255, 140, 40' });
-          if (Math.random() < .5) addPart({ kind: 'smoke', x, y, vx: rnd(-20, 20), vy: rnd(-50, -15), life: rnd(.4, .7), size: rnd(6, 11), grow: 1.2, rgb: '22, 6, 8', alpha: .7 });
-        }
-      } });
-    },
+    demon(a, b, p) { F().comet(a, b, '255, 50, 30', 6); },
     oat(a, b, p) {
       F().addDraw({ life: TRAIL, draw(g, k) { // เส้นการ์ตูนขอบดำ
         const m = reach(k), x = a.x + (b.x - a.x) * m, y = a.y + (b.y - a.y) * m;
@@ -89,26 +73,18 @@
       }
       for (let i = 0; i < 18 * n; i++) { const ang = rnd(0, Math.PI * 2), v = rnd(200, 480); addPart({ kind: 'streak', x: b.x, y: b.y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, drag: 4, life: rnd(.2, .4), size: rnd(1.2, 2.2), rgb: '200, 255, 225' }); }
     },
-    nuea(b, p, heavy) { // ดาบฟันไขว้ X ที่เป้า
-      const { addDraw, addPart, flash } = F(), n = amount(), R = heavy ? 52 : 38;
-      [[-1, 0], [1, .05]].forEach(([s, delay]) => {
-        const A = { x: b.x - R * s, y: b.y - R }, B = { x: b.x + R * s, y: b.y + R };
-        addDraw({ life: .26, delay, draw(g, k) { g.globalCompositeOperation = 'lighter'; g.globalAlpha = 1 - Math.max(0, (k - .3) / .7); beam(g, A, B, Math.min(1, k / .3), 2.6, p.core, p.glow); } });
-      });
-      flash(b.x, b.y, R * 1.3, p.rgb, .25, .05);
-      for (let i = 0; i < 16 * n; i++) { const ang = rnd(0, Math.PI * 2), v = rnd(120, 320); addPart({ kind: 'streak', x: b.x, y: b.y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v - 60, g: 500, drag: 1.5, life: rnd(.25, .45), size: rnd(1.2, 2), rgb: '255, 210, 130' }); }
+    nuea(b, p, heavy) { // ฟันโค้งใหญ่หนึ่งครั้ง + เส้นแสงขาวขวาง + ประกายทอง
+      const { crescent, addDraw, sparksAlong } = F(), R = heavy ? 54 : 46, rot = -.8;
+      crescent({ cx: b.x - Math.cos(rot) * R * .8, cy: b.y - Math.sin(rot) * R * .8, r: R, a0: -1.2, a1: 1.2, rot, w: heavy ? 17 : 14, rgb: p.rgb, life: .3 });
+      addDraw({ life: .22, draw(g, k) { g.globalCompositeOperation = 'lighter'; g.globalAlpha = 1 - k; g.fillStyle = '#fff'; g.fillRect(b.x - 70 * (1 + k), b.y - 1, 140 * (1 + k), 2); } });
+      sparksAlong(b.x - 30, b.y + 30, b.x + 30, b.y - 30, Math.round(14 * amount()), '255, 220, 150');
     },
-    doom(b, p, heavy) { // วงเวลาซ้อน ม่วง/ทอง + เข็มนาฬิกากวาดย้อน
-      const { addDraw, addPart, shockwave, flash } = F(), n = amount(), R = heavy ? 60 : 44;
-      flash(b.x, b.y, R * 1.2, p.rgb, .3);
-      shockwave(b.x, b.y, R * 1.4, 6, p.rgb, .3, 3); // หดเข้า = เวลาย้อน
-      shockwave(b.x, b.y, 6, R * 1.6, p.gold, .32, 3, .06);
-      addDraw({ life: .32, draw(g, k) {
-        g.globalCompositeOperation = 'lighter'; g.globalAlpha = 1 - k; g.strokeStyle = `rgb(${p.gold})`; g.lineWidth = 2.5; g.lineCap = 'round';
-        const ang = -Math.PI / 2 - k * Math.PI * 1.6;
-        g.beginPath(); g.moveTo(b.x, b.y); g.lineTo(b.x + Math.cos(ang) * R, b.y + Math.sin(ang) * R); g.stroke();
-      } });
-      for (let i = 0; i < 12 * n; i++) { const ang = rnd(0, Math.PI * 2), r = rnd(R * .6, R * 1.3); addPart({ kind: 'glow', x: b.x + Math.cos(ang) * r, y: b.y + Math.sin(ang) * r, vx: 0, vy: 0, pull: { x: b.x, y: b.y, k: 22 }, life: rnd(.25, .4), size: rnd(2.5, 4.5), rgb: Math.random() < .5 ? p.rgb : p.gold }); }
+    doom(b, p, heavy) { // หลุมดำจิ๋ว 3 มิติที่เป้า + ระลอกเวลาแบน
+      const { addDraw, shockwave, holeDraw, easeOut } = F(), R = heavy ? 50 : 40;
+      shockwave(b.x, b.y, R * 1.25, 6, p.rgb, .3, 1.6, 0, .32);
+      const orb = [...Array(10)].map(() => ({ a: rnd(0, Math.PI * 2), r: rnd(R * .5, R), sp: rnd(1, 1.6), sz: rnd(1, 2), rock: false }));
+      addDraw({ life: .42, draw(g, k, age, dt) { const s = k < .25 ? easeOut(k / .25) : 1 - Math.max(0, (k - .65) / .35); holeDraw(g, b.x, b.y, R, s, age, .32, orb, dt); } });
+      later(230, () => shockwave(b.x, b.y, 6, R * 1.75, p.rgb, .35, 1.4, 0, .32));
     },
     dino(b, p, heavy) { // กรงเล็บ 3 เส้นข่วนผ่านเป้า
       const { addDraw, addPart, shockwave } = F(), n = amount(), R = heavy ? 50 : 38, dir = Math.random() < .5 ? 1 : -1;
@@ -125,21 +101,22 @@
       shockwave(b.x, b.y, 10, R * 1.5, p.rgb, .3, 4);
       for (let i = 0; i < 14 * n; i++) addPart({ kind: 'chip', x: b.x + rnd(-12, 12), y: b.y + rnd(-12, 12), vx: rnd(-220, 220), vy: rnd(-300, -80), g: 1000, life: rnd(.35, .6), size: rnd(1.6, 3.4), fill: 'rgb(140, 84, 26)', edge: 'rgba(255, 190, 90, .9)', rot: rnd(0, 6), vr: rnd(-12, 12) });
     },
-    demon(b, p, heavy) { // ไฟนรกพุ่งขึ้นจากจุดปะทะ
-      const { addPart, flash, shockwave } = F(), n = amount();
-      flash(b.x, b.y, heavy ? 80 : 56, p.rgb, .3);
-      shockwave(b.x, b.y, 8, heavy ? 100 : 66, '120, 10, 10', .3, 5);
-      for (let i = 0; i < 22 * n; i++) addPart({ kind: 'glow', x: b.x + rnd(-14, 14), y: b.y + rnd(-6, 10), vx: rnd(-60, 60), vy: rnd(-260, -90), drag: 1.5, wob: rnd(0, 6), life: rnd(.3, .55), size: rnd(4, 9), shrink: .6, rgb: Math.random() < .6 ? p.rgb : '255, 150, 40' });
-      for (let i = 0; i < 8 * n; i++) addPart({ kind: 'smoke', x: b.x + rnd(-10, 10), y: b.y, vx: rnd(-40, 40), vy: rnd(-90, -30), life: rnd(.5, .8), size: rnd(8, 14), grow: 1.4, rgb: '18, 4, 6', alpha: .8 });
+    demon(b, p, heavy) { // ตาซาตานจิ๋วลืม-หลับที่เป้า + หนามแดง
+      const { addDraw, eye, spikeBurst, easeOut } = F(), W = heavy ? 42 : 34;
+      addDraw({ life: .38, draw(g, k) { const open = k < .3 ? easeOut(k / .3) : k < .65 ? 1 : 1 - (k - .65) / .35; eye(g, b.x, b.y - 8, W, 9, open, 1 - Math.min(1, k * 2) * .6, .6 * open); } });
+      spikeBurst(b.x, b.y, heavy ? 64 : 52, p.rgb, .28, 12, .05, '255, 200, 160');
     },
-    oat(b, p, heavy) { // ระเบิดหนามคอมิก + คำอุทาน
-      const { addDraw, addPart, starPath } = F(), n = amount(), R = heavy ? 46 : 34, word = ['POW!', 'BAM!', 'ปั้ง!', 'WHAM!'][Math.floor(rnd(0, 4))], rot = rnd(-.3, .3);
-      addDraw({ life: .3, draw(g, k) {
-        const s = k < .25 ? k / .25 * 1.15 : 1.15 - (k - .25) * .2;
-        g.globalAlpha = 1 - Math.max(0, (k - .6) / .4); g.translate(b.x, b.y); g.rotate(rot); g.scale(s, s);
-        starPath(g, R, 10, .62); g.fillStyle = p.glow; g.fill(); g.lineWidth = 3; g.strokeStyle = '#1a0010'; g.lineJoin = 'round'; g.stroke();
-        g.font = `900 ${Math.round(R * .5)}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.lineWidth = 4; g.strokeText(word, 0, 1); g.fillStyle = '#fff'; g.fillText(word, 0, 1);
+    oat(b, p, heavy) { // ไฟต์ติ้งเกม: ฟันโค้ง 2 ฮิต ชมพู/ฟ้า + ประกายฮิตเหลือง + "2 HITS"
+      const { addDraw, addPart, crescent, spikeBurst } = F(), n = amount(), R = heavy ? 46 : 36;
+      [[-.5, 0, 1, p.rgb], [Math.PI + .5, .08, -1, '80, 220, 255']].forEach(([rot, delay, d, rgb]) => {
+        crescent({ cx: b.x - Math.cos(rot) * R * .8, cy: b.y - Math.sin(rot) * R * .8, r: R, a0: -1.1 * d, a1: 1.1 * d, rot, w: 10, rgb, life: .24, delay });
+        spikeBurst(b.x + rnd(-10, 10), b.y + rnd(-10, 10), R * 1.1, '255, 226, 80', .2, 10, delay);
+      });
+      addDraw({ life: .45, delay: .08, draw(g, k) {
+        const s = k < .15 ? 1.6 - k / .15 * .6 : 1;
+        g.globalAlpha = 1 - Math.max(0, (k - .6) / .4); g.translate(b.x + R * .9, b.y - R * .9); g.rotate(-.12); g.scale(s, s);
+        g.font = `italic 900 ${Math.round(R * .55)}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+        g.lineWidth = 5; g.strokeStyle = '#1a0010'; g.strokeText('2 HITS', 0, 0); g.fillStyle = '#ffe14a'; g.fillText('2 HITS', 0, 0);
       } });
       for (let i = 0; i < 10 * n; i++) { const ang = rnd(0, Math.PI * 2), v = rnd(160, 320); addPart({ kind: 'star', x: b.x, y: b.y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, drag: 3, life: rnd(.3, .5), size: rnd(4, 7), fill: OAT_COLORS[i % OAT_COLORS.length], rot: rnd(0, 6), vr: rnd(-8, 8) }); }
     },
@@ -170,8 +147,8 @@
       for (let i = 0; i < 6 * n; i++) addPart({ kind: 'shred', x: c.cx + rnd(-c.w * .4, c.w * .4), y: c.t + c.h * .3, vx: rnd(-80, 80), vy: rnd(-160, -60), g: 220, life: rnd(.5, .8), size: rnd(4, 6), fill: ['#d33', '#f28c28', '#f6e7c8'][i % 3], rot: rnd(0, 6), vr: rnd(-6, 6), wob: rnd(0, 6) });
     },
     doom(c, p, n, { addPart, shockwave }) {
-      shockwave(c.cx, c.cy, c.R * 1.5, c.R * .2, p.gold, .45, 2.5, .05);
-      for (let i = 0; i < 16 * n; i++) { const ang = rnd(0, Math.PI * 2), r = c.R * rnd(1, 1.6); addPart({ kind: 'glow', x: c.cx + Math.cos(ang) * r, y: c.cy + Math.sin(ang) * r, vx: 0, vy: 0, pull: { x: c.cx, y: c.cy, k: 12 }, life: rnd(.35, .55), size: rnd(2.5, 4.5), rgb: Math.random() < .5 ? p.rgb : p.gold }); }
+      shockwave(c.cx, c.cy, c.R * 1.5, c.R * .2, '200, 185, 255', .45, 2.5, .05);
+      for (let i = 0; i < 16 * n; i++) { const ang = rnd(0, Math.PI * 2), r = c.R * rnd(1, 1.6); addPart({ kind: 'glow', x: c.cx + Math.cos(ang) * r, y: c.cy + Math.sin(ang) * r, vx: 0, vy: 0, pull: { x: c.cx, y: c.cy, k: 12 }, life: rnd(.35, .55), size: rnd(2.5, 4.5), rgb: Math.random() < .5 ? p.rgb : '200, 185, 255' }); }
     },
     dino(c, p, n, { addPart }) {
       for (let i = 0; i < 14 * n; i++) addPart({ kind: 'chip', x: c.l + rnd(0, c.w), y: c.t + c.h, vx: rnd(-90, 90), vy: rnd(-320, -140), g: 900, life: rnd(.4, .7), size: rnd(1.6, 3.2), fill: 'rgb(150, 92, 30)', edge: 'rgba(255, 190, 90, .9)', rot: rnd(0, 6), vr: rnd(-10, 10) });
