@@ -1293,7 +1293,9 @@
     { key: 'DOOM', label: 'สิ้นโลก', dir: 'วันสิ้นโลก', c: '#5fd0ff' },
     { key: 'DINO', label: 'ไดโน', dir: 'ไดโน', c: '#a3e635' },
     { key: 'DEMON', label: 'ปีศาจ', dir: 'เด็คปีศาจ', c: '#c084fc' },
-    { key: 'OAT', label: 'โอ๊ต', dir: 'เด็คโอ๊ต', c: '#fb923c' }
+    { key: 'OAT', label: 'โอ๊ต', dir: 'เด็คโอ๊ต', c: '#fb923c' },
+    { key: 'MADOKA', label: 'มาโดกะ', dir: 'มาโดกะ', c: '#f472b6' },
+    { key: 'KAGERO', label: 'คาเงโร่', dir: 'เด็คคาเงโร่', c: '#ef4444' }
   ];
   const RARITY_FILTERS = [
     { key: 'ALL', label: 'ทุกระดับ', c: '#f3c969' },

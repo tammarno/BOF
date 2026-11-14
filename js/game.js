@@ -220,16 +220,10 @@ function getEffectivePower(card, ownerContestant) {
       }
     }
 
-    // 0.2 ดราโกนิค โอเวอร์ลอร์ด The Rebirth (KG03): พลัง +1 ตามการ์ด "ดราโกนิค โอเวอร์ลอร์ด" ที่ชื่อไม่ซ้ำกัน
+    // 0.2 ดราโกนิค โอเวอร์ลอร์ด The Rebirth (KG03): พลัง +1 ตามการ์ด "ดราโกนิค โอเวอร์ลอร์ด" ที่ชื่อไม่ซ้ำกันในนรก
     if (card.id === 'KG03') {
       const uniqueOverlords = new Set();
-      const allZones = [
-        ...(ownerContestant.board || []).filter(Boolean),
-        ...(ownerContestant.graveyard || []),
-        ...(ownerContestant.hand || []),
-        ...(ownerContestant.darkDimension || [])
-      ];
-      allZones.forEach(c => {
+      (ownerContestant.graveyard || []).forEach(c => {
         if (c && c.name && c.name.includes('ดราโกนิค โอเวอร์ลอร์ด')) {
           uniqueOverlords.add(c.id || c.name);
         }
@@ -507,17 +501,71 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
     }
   }
 
-  // คาเงโร่: ดราโกนิค เบลดมาสเตอร์ "โคเอ็น" (KG06) ในนรก: เมื่อเบลดมาสเตอร์ (KG05) ถูกทำลาย อัญเชิญโคเอ็นลงสนาม
+  // คาเงโร่: ดราโกนิค เบลดมาสเตอร์ "โคเอ็น" (KG06) ในนรก: เมื่อเบลดมาสเตอร์ (KG05) ถูกทำลาย สามารถอัญเชิญโคเอ็นลงสนาม
   if (monster.id === 'KG05' && !boardOwner.kg06RevivedThisGame) {
     const kouenIdx = boardOwner.graveyard.findIndex(c => c && c.id === 'KG06');
     const emptySlot = boardOwner.board.findIndex(m => m === null);
-    if (kouenIdx !== -1 && emptySlot !== -1) {
-      boardOwner.kg06RevivedThisGame = true;
-      const kouen = boardOwner.graveyard.splice(kouenIdx, 1)[0];
-      resetCardStateForZoneChange(kouen);
-      kouen.state = 'Stand';
-      boardOwner.board[emptySlot] = kouen;
-      setLog(`🔥 [สกิลในนรก - ดราโกนิค เบลดมาสเตอร์ "โคเอ็น"] "ดราโกนิค เบลดมาสเตอร์" ถูกทำลาย -> อัญเชิญโคเอ็นลงสนามช่องที่ ${emptySlot + 1}!`);
+    if (kouenIdx !== -1) {
+      if (boardOwner !== gameState.player) {
+        if (emptySlot !== -1) {
+          boardOwner.kg06RevivedThisGame = true;
+          const kouen = boardOwner.graveyard.splice(kouenIdx, 1)[0];
+          resetCardStateForZoneChange(kouen);
+          kouen.state = 'Stand';
+          boardOwner.board[emptySlot] = kouen;
+          setLog(`🔥 [สกิลในนรก - ดราโกนิค เบลดมาสเตอร์ "โคเอ็น"] "ดราโกนิค เบลดมาสเตอร์" ถูกทำลาย -> AI อัญเชิญโคเอ็นลงสนามช่องที่ ${emptySlot + 1}!`);
+          renderGame();
+        } else {
+          // ถ้าสนาม AI เต็ม เลือกวางทับช่องแรก
+          boardOwner.kg06RevivedThisGame = true;
+          const kouen = boardOwner.graveyard.splice(kouenIdx, 1)[0];
+          resetCardStateForZoneChange(kouen);
+          kouen.state = 'Stand';
+          const overwritten = sendOverwrittenMonsterToGrave(boardOwner, 0);
+          boardOwner.board[0] = kouen;
+          setLog(`🔥 [สกิลในนรก - ดราโกนิค เบลดมาสเตอร์ "โคเอ็น"] "ดราโกนิค เบลดมาสเตอร์" ถูกทำลาย -> AI อัญเชิญโคเอ็นลงสนามวางทับ "${overwritten.name}"!`);
+          renderGame();
+        }
+      } else {
+        showChoiceModal(
+          '🔥 สั่งใช้งานในนรก: ดราโกนิค เบลดมาสเตอร์ "โคเอ็น"',
+          '"ดราโกนิค เบลดมาสเตอร์" บนสนามของคุณถูกทำลาย!\nต้องการสั่งใช้งาน "โคเอ็น" จากนรก เพื่ออัญเชิญลงสนาม (1 ครั้งต่อเกม) หรือไม่?',
+          [
+            {
+              label: '🔥 สั่งใช้งาน: อัญเชิญ "โคเอ็น" ลงสนาม!',
+              color: '#ef4444',
+              onSelect: () => {
+                const currentKouenIdx = boardOwner.graveyard.findIndex(c => c && c.id === 'KG06');
+                if (currentKouenIdx === -1 || boardOwner.kg06RevivedThisGame) return;
+                boardOwner.kg06RevivedThisGame = true;
+                const kouen = boardOwner.graveyard.splice(currentKouenIdx, 1)[0];
+                resetCardStateForZoneChange(kouen);
+                kouen.state = 'Stand';
+                const curEmpty = boardOwner.board.findIndex(m => m === null);
+                if (curEmpty !== -1) {
+                  boardOwner.board[curEmpty] = kouen;
+                  setLog(`🔥 [สกิลในนรก - ดราโกนิค เบลดมาสเตอร์ "โคเอ็น"] อัญเชิญโคเอ็นลงช่องที่ ${curEmpty + 1} สำเร็จ!`);
+                  renderGame();
+                } else {
+                  gameState.pendingAction = {
+                    type: 'CALL_FROM_EFFECT_SELECT_SLOT',
+                    targetContestant: boardOwner,
+                    cardToPlace: kouen,
+                    onAfterPlace: null
+                  };
+                  setLog('🔥 [โคเอ็น - ในนรก] สนามเต็ม 3 ช่อง — คลิกเลือกช่องบนสนามของคุณเพื่อวาง "โคเอ็น" ทับ!');
+                  renderGame();
+                }
+              }
+            },
+            {
+              label: 'ไม่ใช้ (เก็บไว้ในนรกก่อน)',
+              color: '#475569',
+              onSelect: () => renderGame()
+            }
+          ]
+        );
+      }
     }
   }
 
@@ -2175,9 +2223,19 @@ const EffectEngine = {
               EffectEngine.triggerCardEffects(foundCard, 'ON_SUMMON', {
                 caster, opponent, sourceCard: foundCard, sourceSlot: emptySlot, isAI
               }, next);
+            } else if (isAI) {
+              // ถ้าสนาม AI เต็ม ให้ AI วางทับยูนิทเดิมบนสนามของ AI เอง (ไม่ไปถามผู้เล่น)
+              const overwriteSlot = 0;
+              const overwritten = sendOverwrittenMonsterToGrave(caster, overwriteSlot);
+              caster.board[overwriteSlot] = foundCard;
+              setLog(`🌊 ${cardTitle} สนามเต็ม 3 ช่อง — AI วาง "${foundCard.name}" ทับ "${overwritten.name}" บนสนาม AI!`);
+              EffectEngine.triggerCardEffects(foundCard, 'ON_SUMMON', {
+                caster, opponent, sourceCard: foundCard, sourceSlot: overwriteSlot, isAI: true
+              }, next);
             } else {
               gameState.pendingAction = {
                 type: 'CALL_FROM_EFFECT_SELECT_SLOT',
+                targetContestant: caster,
                 cardToPlace: foundCard,
                 onAfterPlace: next
               };
@@ -3545,9 +3603,15 @@ function executeHybridSummon(contestant, hybridCardUid, matItemA, matItemB) {
     contestant.board[emptySlot] = hybridCard;
     setLog(`🦖 [ไฮบริด] ส่ง "${matItemA.card.name}" และ "${matItemB.card.name}" ไปมิติมืด -> อัญเชิญ "${hybridCard.name}" ลงช่องที่ ${emptySlot + 1} สำเร็จ!`);
     renderGame();
+  } else if (contestant !== gameState.player) {
+    const overwritten = sendOverwrittenMonsterToGrave(contestant, 0);
+    contestant.board[0] = hybridCard;
+    setLog(`🦖 [ไฮบริด] ส่ง "${matItemA.card.name}" และ "${matItemB.card.name}" ไปมิติมืด -> AI อัญเชิญ "${hybridCard.name}" วางทับ "${overwritten.name}" บนสนาม AI สำเร็จ!`);
+    renderGame();
   } else {
     gameState.pendingAction = {
       type: 'CALL_FROM_EFFECT_SELECT_SLOT',
+      targetContestant: contestant,
       cardToPlace: hybridCard,
       onAfterPlace: null
     };
@@ -4036,9 +4100,14 @@ function executeFutureSummon(caster, opponent, handIndex, baseSlotIndex) {
       if (emptySlot !== -1) {
         caster.board[emptySlot] = maya;
         setLog('🌌 [อนาคต - เด็กสาวขนมหวาน ซึรุรุ] ส่งซึรุรุไปมิติมืด คอล "มายอา" จากนรกลงสนาม และเพิ่มพลังให้มายอา +1!');
+      } else if (caster !== gameState.player) {
+        const overwritten = sendOverwrittenMonsterToGrave(caster, 0);
+        caster.board[0] = maya;
+        setLog(`🌌 [อนาคต - เด็กสาวขนมหวาน ซึรุรุ] ส่งซึรุรุไปมิติมืด AI วาง "มายอา" ทับ "${overwritten.name}" บนสนาม AI และเพิ่มพลังให้มายอา +1!`);
       } else {
         gameState.pendingAction = {
           type: 'CALL_FROM_EFFECT_SELECT_SLOT',
+          targetContestant: caster,
           cardToPlace: maya,
           onAfterPlace: null
         };
@@ -5102,6 +5171,11 @@ function handlePlayerSlotClick(slotIndex) {
     }
 
     if (action.type === 'CALL_FROM_EFFECT_SELECT_SLOT') {
+      const targetSide = action.targetContestant || player;
+      if (targetSide !== player) {
+        // ถ้าเป็นของ AI ไม่ให้คลิกช่องของผู้เล่น
+        return;
+      }
       const cardToPlace = action.cardToPlace;
       const callback = action.onAfterPlace;
       const skipDefaultOnSummon = !!action.skipDefaultOnSummon;
@@ -5761,6 +5835,48 @@ function executeAttack(attacker, defender, attackerSlot, targetType, targetSlot,
     }
   }
 
+  // 🐉 ออโต้ของ "ดราโกนิค โอเวอร์ลอร์ด The end" (KG02): เมื่อยูนิทนี้โจมตี สามารถทิ้งการ์ดบนมือ 1 ใบ สแตร์นยูนิทนี้
+  if (attackingMonster.id === 'KG02' && attacker.hand.length > 0) {
+    if (attacker !== gameState.player) {
+      if (aiConfig.difficulty !== 'EASY') {
+        const discarded = attacker.hand.pop();
+        resetCardStateForZoneChange(discarded);
+        attacker.graveyard.push(discarded);
+        attackingMonster.state = 'Stand';
+        showCardShowcaseBanner(attackingMonster, 'AI ใช้สกิล The End!', `🔥 ทิ้ง "${discarded.name}" 1 ใบ สแตร์น The End ทันที!`, '#ef4444', 1100);
+        setLog(`🔥 [AI The End] ทิ้งการ์ด "${discarded.name}" 1 ใบ -> สแตร์น "ดราโกนิค โอเวอร์ลอร์ด The end" พร้อมโจมตีต่อ!`);
+      }
+    } else {
+      const discardOptions = attacker.hand.map((c, hIdx) => ({
+        label: `ทิ้ง "${c.name}" (${c.rarity}) เพื่อสแตร์น The End`,
+        color: '#ef4444',
+        onSelect: () => {
+          const actualIdx = attacker.hand.findIndex(x => x.uid === c.uid);
+          if (actualIdx !== -1) {
+            const discarded = attacker.hand.splice(actualIdx, 1)[0];
+            resetCardStateForZoneChange(discarded);
+            attacker.graveyard.push(discarded);
+            attackingMonster.state = 'Stand';
+            setLog(`🔥 [ออโต้ The End] ทิ้งการ์ด "${discarded.name}" 1 ใบ -> สแตร์น "ดราโกนิค โอเวอร์ลอร์ด The end" สำเร็จ!`);
+            renderGame();
+          }
+          proceedWithAttackExecution(false);
+        }
+      }));
+      discardOptions.push({
+        label: 'ไม่ใช้สกิล (คงสภาพ Rest)',
+        color: '#475569',
+        onSelect: () => proceedWithAttackExecution(false)
+      });
+      showChoiceModal(
+        '🔥 ออโต้: ดราโกนิค โอเวอร์ลอร์ด The end',
+        '"The End" กำลังประกาศโจมตี! คุณต้องการทิ้งการ์ดบนมือ 1 ใบเพื่อสแตร์นยูนิทนี้หรือไม่?',
+        discardOptions
+      );
+      return;
+    }
+  }
+
   proceedWithAttackExecution(false);
 }
 
@@ -6333,6 +6449,79 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
   }
 
   continueNormalAttackFlow();
+}
+
+function checkLeaderDamagedTriggers(damagedContestant) {
+  if (!damagedContestant || !damagedContestant.graveyard) return;
+
+  // 🐉 ดราโกนิค โอเวอร์ลอร์ด The end (KG02): สั่งใช้งานในนรก/1 เทิร์น: เมื่อลีดเดอร์สูญเสียพลังชีวิต สามารถอัญเชิญยูนิทนี้ลงบนสนามได้
+  const theEndIdx = damagedContestant.graveyard.findIndex(c => c && c.id === 'KG02');
+  if (theEndIdx !== -1 && !damagedContestant.theEndRevivedThisTurn) {
+    if (damagedContestant !== gameState.player) {
+      if (aiConfig.difficulty !== 'EASY') {
+        const emptySlot = damagedContestant.board.findIndex(m => m === null);
+        if (emptySlot !== -1) {
+          damagedContestant.theEndRevivedThisTurn = true;
+          const theEnd = damagedContestant.graveyard.splice(theEndIdx, 1)[0];
+          resetCardStateForZoneChange(theEnd);
+          theEnd.state = 'Stand';
+          damagedContestant.board[emptySlot] = theEnd;
+          showCardShowcaseBanner(theEnd, 'AI ใช้สกิล The End จากนรก!', '🔥 ลีดเดอร์เสีย HP -> อัญเชิญ The End ลงสนาม!', '#ef4444', 1100);
+          setLog(`🔥 [AI The End - ในนรก] ลีดเดอร์สูญเสียพลังชีวิต -> อัญเชิญ "ดราโกนิค โอเวอร์ลอร์ด The end" ลงสนามช่องที่ ${emptySlot + 1}!`);
+          renderGame();
+        } else {
+          damagedContestant.theEndRevivedThisTurn = true;
+          const theEnd = damagedContestant.graveyard.splice(theEndIdx, 1)[0];
+          resetCardStateForZoneChange(theEnd);
+          theEnd.state = 'Stand';
+          const overwritten = sendOverwrittenMonsterToGrave(damagedContestant, 0);
+          damagedContestant.board[0] = theEnd;
+          showCardShowcaseBanner(theEnd, 'AI ใช้สกิล The End จากนรก!', `🔥 ลีดเดอร์เสีย HP -> อัญเชิญ The End วางทับ "${overwritten.name}"!`, '#ef4444', 1100);
+          setLog(`🔥 [AI The End - ในนรก] ลีดเดอร์สูญเสียพลังชีวิต -> อัญเชิญ "ดราโกนิค โอเวอร์ลอร์ด The end" วางทับ "${overwritten.name}"!`);
+          renderGame();
+        }
+      }
+    } else {
+      showChoiceModal(
+        '🔥 สั่งใช้งานในนรก: ดราโกนิค โอเวอร์ลอร์ด The end',
+        'ลีดเดอร์ของคุณสูญเสียพลังชีวิต!\nต้องการสั่งใช้งาน "The End" จากนรก เพื่ออัญเชิญลงบนสนาม (1 ครั้ง/เทิร์น) หรือไม่?',
+        [
+          {
+            label: '🔥 สั่งใช้งาน: อัญเชิญ "The End" ลงสนาม!',
+            color: '#ef4444',
+            onSelect: () => {
+              const curIdx = damagedContestant.graveyard.findIndex(c => c && c.id === 'KG02');
+              if (curIdx === -1 || damagedContestant.theEndRevivedThisTurn) return;
+              damagedContestant.theEndRevivedThisTurn = true;
+              const theEnd = damagedContestant.graveyard.splice(curIdx, 1)[0];
+              resetCardStateForZoneChange(theEnd);
+              theEnd.state = 'Stand';
+              const emptySlot = damagedContestant.board.findIndex(m => m === null);
+              if (emptySlot !== -1) {
+                damagedContestant.board[emptySlot] = theEnd;
+                setLog(`🔥 [The End - ในนรก] อัญเชิญ "ดราโกนิค โอเวอร์ลอร์ด The end" ลงช่องที่ ${emptySlot + 1} สำเร็จ!`);
+                renderGame();
+              } else {
+                gameState.pendingAction = {
+                  type: 'CALL_FROM_EFFECT_SELECT_SLOT',
+                  targetContestant: damagedContestant,
+                  cardToPlace: theEnd,
+                  onAfterPlace: null
+                };
+                setLog('🔥 [The End - ในนรก] สนามเต็ม 3 ช่อง — คลิกเลือกช่องบนสนามของคุณเพื่อวาง "The End" ทับ!');
+                renderGame();
+              }
+            }
+          },
+          {
+            label: 'ไม่ใช้ (เก็บไว้ในนรกก่อน)',
+            color: '#475569',
+            onSelect: () => renderGame()
+          }
+        ]
+      );
+    }
+  }
 }
 
 function checkWhenLeaderAttacked(attacker, defender, attackerSlot, onCompleteCallback) {
