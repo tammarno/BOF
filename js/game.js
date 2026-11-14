@@ -1500,6 +1500,7 @@ const EffectEngine = {
       case 'DAMAGE_LEADER': {
         const targetSide = step.side === 'OPPONENT' ? opponent : caster;
         targetSide.leader.hp = Math.max(0, targetSide.leader.hp - (step.amount || 1));
+        fxLeaderDamage(targetSide, step.amount || 1);
         setLog(`💥 ${cardTitle} ทำดาเมจใส่ Leader ของ ${targetSide.name} ${step.amount || 1} หน่วย!`);
         checkGameOver();
         next();
@@ -4878,15 +4879,27 @@ function playAttackVisualAnimation(attacker, defender, attackerSlot, targetType,
     );
   }
 
-  playSlotAnimation(isAttackerPlayer, attackerSlot, isAttackerPlayer ? 'fx-attack-player' : 'fx-attack-ai', 600);
+  // 680/700 แทน 600: เผื่อเวลา hit-stop ของ BOFFX.impact ไม่ให้คลาสโดนถอดก่อนแอนิเมชันจบ
+  playSlotAnimation(isAttackerPlayer, attackerSlot, isAttackerPlayer ? 'fx-attack-player' : 'fx-attack-ai', 680);
   const defTargetSlot = (targetType === 'leader') ? 'leader' : targetSlot;
   setTimeout(() => {
-    playSlotAnimation(isDefenderPlayer, defTargetSlot, 'fx-target-hit', 600);
+    playSlotAnimation(isDefenderPlayer, defTargetSlot, 'fx-target-hit', 700);
   }, 200);
+  // ปะทะตอนการ์ดพุ่งสุด (~250ms): เส้นพุ่ง 100ms เริ่มที่ 150ms
+  setTimeout(() => {
+    if (!window.BOFFX || !BOFFX.impact) return;
+    const animEl = (side, slot) => { const s = getSlotElement(side, slot); return s && slot !== 'leader' && s.querySelector('.card') || s; };
+    BOFFX.impact(animEl(isAttackerPlayer, attackerSlot), animEl(isDefenderPlayer, defTargetSlot), { heavy: targetType === 'leader', ai: !isAttackerPlayer });
+  }, 150);
 
   setTimeout(() => {
     if (onAnimDone) onAnimDone();
   }, 680);
+}
+
+// หน้าตาเท่านั้น: ตัวเลขดาเมจเด้งที่ Leader ของฝั่งที่เสีย HP (เรียกหลังบรรทัดที่ลด hp)
+function fxLeaderDamage(side, amount = 1) {
+  if (window.BOFFX && BOFFX.damage) BOFFX.damage(getSlotElement(side === gameState.player, 'leader'), '-' + amount);
 }
 
 function triggerBelphegorAttackSuccess(attacker, defender, attackingMonster) {
@@ -5526,6 +5539,7 @@ function proceedToStandardIntercept(attacker, defender, attackerSlot, onComplete
 
   const handleDirectLeaderHit = (logText) => {
     defender.leader.hp = Math.max(0, defender.leader.hp - 1);
+    fxLeaderDamage(defender);
     setLog(logText);
     renderGame();
     playSlotAnimation(isLocalDefender, 'leader', 'fx-target-hit');
@@ -5633,6 +5647,7 @@ function compareAndDestroyMonsters(contestantA, slotA, contestantB, slotB, onAft
     let burnMsg = '';
     if (resB.destroyed && hadBurn) {
       contestantB.leader.hp = Math.max(0, contestantB.leader.hp - 1);
+      fxLeaderDamage(contestantB);
       burnMsg = ` และสกิลออโต้ของ "${monsterA.name}" ทำดาเมจใส่ Leader อีกฝ่าย 1 หน่วย (เหลือ ${contestantB.leader.hp}/6)!`;
     }
     const msg = `"${monsterA.name}" (${totalA}) ชนะ "${monsterB.name}" (${totalB})!${luciferNote}${burnMsg}`;
@@ -5707,6 +5722,7 @@ function compareAndDestroyMonsters(contestantA, slotA, contestantB, slotB, onAft
     let burnMsg = '';
     if (resB.destroyed && hadBurn) {
       contestantB.leader.hp = Math.max(0, contestantB.leader.hp - 1);
+      fxLeaderDamage(contestantB);
       burnMsg = ` (สกิลออโต้ของ "${monsterA.name}" ทำดาเมจใส่ Leader อีกฝ่าย 1 หน่วย!)`;
     }
     const msg = `พลังเท่ากัน (${totalA})! ปะทะกันทั้งสองฝ่าย!${luciferNote}${burnMsg}`;
@@ -5755,6 +5771,7 @@ function resolvePlayerIntercept(chosenSlotIndex) {
     });
   } else {
     defender.leader.hp = Math.max(0, defender.leader.hp - 1);
+    fxLeaderDamage(defender);
     setLog(`💥 คุณเลือกไม่ป้องกัน! Leader ของคุณเสีย 1 HP (เหลือ ${defender.leader.hp}/6)`);
     playSlotAnimation(true, 'leader', 'fx-target-hit');
     triggerBelphegorAttackSuccess(attacker, defender, attackingMonster);

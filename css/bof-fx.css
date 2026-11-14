@@ -64,3 +64,37 @@
 }
 .fx-touch.is-press::after { animation: fx-ripple .5s ease-out; }
 @keyframes fx-ripple { from { opacity: 1; transform: scale(.4); } to { opacity: 0; transform: scale(1.3); } }
+
+/* เส้นพุ่งตอนโจมตี (BOFFX.impact): ดาวหาง หางเรียวไปหัวโต + หัวเรืองแสง · วางด้วยพิกัดจอ หมุนจากจุดซ้าย
+   ทอง = เราตี · .is-ai แดง = คู่แข่งตี · อยู่ใต้แบนเนอร์ cut-in (350) */
+.fx-trail {
+  --c1: 255, 227, 154; --c2: 255, 255, 255;
+  position: fixed; height: 14px; margin-top: -7px; transform-origin: 0 50%; pointer-events: none; z-index: 300; opacity: 0;
+  filter: drop-shadow(0 0 6px rgba(var(--c1), .95)) drop-shadow(0 0 16px rgba(var(--c1), .6));
+}
+.fx-trail.is-ai { --c1: 255, 96, 70; --c2: 255, 220, 200; }
+.fx-trail::before {
+  content: ''; position: absolute; inset: 0; clip-path: polygon(0 50%, 100% 8%, 100% 92%);
+  background: linear-gradient(90deg, rgba(var(--c1), 0), rgba(var(--c1), .7) 55%, rgb(var(--c2)));
+}
+.fx-trail::after {
+  content: ''; position: absolute; right: -9px; top: 50%; width: 22px; height: 22px; margin-top: -11px; border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 30%, rgba(var(--c1), .9) 45%, rgba(var(--c1), 0) 72%);
+}
+
+/* ตัวเลขดาเมจเด้งที่ Leader (BOFFX.damage) · พิกัดจอ ไม่หายตอนวาดกระดานใหม่ */
+.fx-dmg {
+  position: fixed; pointer-events: none; z-index: 320;
+  font: 900 clamp(28px, 6vmin, 46px)/1 system-ui, sans-serif; color: #ff5d73;
+  -webkit-text-stroke: 2px #2a0710; paint-order: stroke fill;
+  text-shadow: 0 3px 0 #2a0710, 0 0 14px rgba(255, 93, 115, .85);
+}
+
+/* จอสั่นสั้นตอนปะทะ (BOFFX.impact ใส่ให้ #bof-game-arena) · is-heavy = ตี Leader */
+.fx-shake { --amp: 3px; animation: fx-shake .18s linear; }
+.fx-shake.is-heavy { --amp: 7px; }
+@keyframes fx-shake {
+  25% { transform: translate(var(--amp), calc(var(--amp) * -.5)); }
+  50% { transform: translate(calc(var(--amp) * -1), calc(var(--amp) * .4)); }
+  75% { transform: translate(calc(var(--amp) * .5), 0); }
+}

@@ -12,6 +12,8 @@
    BOFFX.pop(el, value, up)      — ตัวเลขเด้งเปลี่ยนค่า (up=false เป็นสีแดง)
    BOFFX.touch(box)              — สร้างจุดแตะนิ้ว · BOFFX.tapAt(touch, x, y) แตะที่ % ของ box
    BOFFX.sparks(el, opts)        — ประกายเพชรทองที่กลาง el (ผ่าน BOFParticles.burst)
+   BOFFX.impact(from, to, opts)  — โจมตีปะทะ: เส้นดาวหาง + hit-stop + จอสั่น (opts.heavy = ตี Leader, opts.ai = สีแดง) · ไม่คืน timeline
+   BOFFX.damage(el, text)        — ตัวเลขดาเมจแดงเด้งแล้วลอยขึ้นเหนือ el
    ============================================================================ */
 (function () {
   if (typeof gsap === 'undefined') return;
@@ -136,5 +138,48 @@
       .to(t, { scale: 1, duration: .15 });
   }
 
-  window.BOFFX = { ease, seal, slam, shatter, beam, link, pop, touch, tapAt, sparks };
+  // โจมตีปะทะ: เส้นพุ่งจาก from ไป to → hit-stop (หยุดแอนิเมชัน CSS ของ from/to ชั่วครู่) + จอสั่น + ประกาย + สั่นมือถือ
+  // heavy = ตี Leader (สั่นแรงขึ้น หยุดนานขึ้น) · reduced motion = ไม่ทำอะไร
+  function impact(from, to, opts = {}) {
+    if (!from || !to || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const a = from.getBoundingClientRect(), b = to.getBoundingClientRect();
+    if (!a.width || !b.width) return;
+    const heavy = !!opts.heavy, stop = heavy ? 100 : 70;
+    const ax = a.left + a.width / 2, ay = a.top + a.height / 2, bx = b.left + b.width / 2, by = b.top + b.height / 2;
+
+    const trail = make('fx-trail' + (opts.ai ? ' is-ai' : ''), document.body);
+    gsap.set(trail, { left: ax, top: ay, width: Math.hypot(bx - ax, by - ay), rotate: Math.atan2(by - ay, bx - ax) * 180 / Math.PI });
+    gsap.timeline({ onComplete: () => trail.remove() })
+      .fromTo(trail, { scaleX: 0, opacity: 1 }, { scaleX: 1, duration: .1, ease: 'power3.in' })
+      .call(() => {
+        [from, to].forEach(el => { el.style.animationPlayState = 'paused'; });
+        setTimeout(() => [from, to].forEach(el => { el.style.animationPlayState = ''; }), stop);
+        sparks(to, { count: heavy ? 26 : 16, speed: heavy ? 320 : 240, rings: heavy ? 2 : 1, color: '255, 120, 80', color2: GOLD });
+        if (window.BOFHaptic) BOFHaptic(heavy ? 30 : 15);
+        const arena = opts.shake || document.getElementById('bof-game-arena');
+        // จอสั่นเป็นคลาส CSS ไม่ใช่ gsap: ถ้าถูกตัดกลางทาง กระดานจะไม่ค้างเยื้อง
+        if (arena) setTimeout(() => {
+          arena.classList.remove('fx-shake', 'is-heavy'); void arena.offsetWidth;
+          arena.classList.add('fx-shake'); arena.classList.toggle('is-heavy', heavy);
+          setTimeout(() => arena.classList.remove('fx-shake', 'is-heavy'), 260);
+        }, stop);
+      })
+      .to(trail, { opacity: 0, duration: .22 });
+  }
+
+  // ตัวเลขดาเมจเด้งเหนือ el (พิกัดจอ จึงไม่หายตอนวาดกระดานใหม่) · reduced motion = โผล่แล้วจางเฉยๆ
+  function damage(el, text) {
+    const r = el && el.getBoundingClientRect();
+    if (!r || !r.width) return;
+    const d = make('fx-dmg', document.body);
+    d.textContent = text;
+    gsap.set(d, { left: r.left + r.width / 2, top: r.top + r.height * .58, xPercent: -50, yPercent: -50 });
+    const tl = gsap.timeline({ onComplete: () => d.remove() });
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return tl.fromTo(d, { opacity: 1 }, { opacity: 0, duration: .4, delay: .7 });
+    return tl.fromTo(d, { scale: .3, opacity: 0 }, { scale: 1.45, opacity: 1, duration: .16, ease: ease.lift })
+      .to(d, { scale: 1, duration: .3, ease: ease.settle })
+      .to(d, { y: -26, opacity: 0, duration: .55, ease: 'power1.in' }, '+=.25');
+  }
+
+  window.BOFFX = { ease, seal, slam, shatter, beam, link, pop, touch, tapAt, sparks, impact, damage };
 })();
