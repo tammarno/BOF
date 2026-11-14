@@ -1,9 +1,9 @@
 /* ============================================================================
    SHOP, FOIL SHOWCASE & BOOSTER PACK SYSTEM (BOF)
-   - เรทการสุ่มต่อใบ (ซองละ 5 ใบ รวมการ์ด Leader SSR):
+   - เรทการสุ่มต่อใบ (ซองละ 1 ใบ รวมการ์ด Leader SSR):
      N = 40% | R = 30% | SR = 20% | SSR = 10%
-   - สุ่ม 1 ซอง (5 ใบ) = 200 Coins
-   - สุ่ม 10 ซอง (50 ใบ) = ลดราคา 10% เหลือ 1,800 Coins (จากปกติ 2,000 Coins)
+   - สุ่ม 1 ซอง (1 ใบ) = 200 Coins
+   - สุ่ม 10 ซอง (10 ใบ) = ลดราคา 10% เหลือ 1,800 Coins (จากปกติ 2,000 Coins)
    - เรียงลำดับการ์ดที่สุ่มได้จากความแรร์น้อยไปมาก (ซ้าย -> ขวา: N -> R -> SR -> SSR)
    - แอนิเมชันเปิดซองสุ่มการ์ด: 🌌 วงเวทมิติพลังงาน (Dimensional Portal Summon)
    - หลังจบแอนิเมชันจะเด้งหน้าต่างป๊อปอัปแสดงผลการเปิดซองขึ้นมากลางจอทันที
@@ -14,7 +14,7 @@
   const PACK_PRICE = 200;
   const TEN_PACK_DISCOUNT = 0.10; // ลด 10%
   const TEN_PACK_PRICE = Math.round(PACK_PRICE * 10 * (1 - TEN_PACK_DISCOUNT)); // 1,800 Coins
-  const CARDS_PER_PACK = 5;
+  const CARDS_PER_PACK = 1;
 
   // เรทการออกของแต่ละใบในซอง (รวม 100%)
   const RARITY_RATES = { N: 40, R: 30, SR: 20, SSR: 10 };
@@ -857,7 +857,7 @@
     }).then(done);
   }
 
-  // เปิดซองสุ่มตามสายเด็ค (รองรับทั้ง 1 ซอง = 5 ใบ และ 10 ซอง = 50 ใบ ลดราคา 10%)
+  // เปิดซองสุ่มตามสายเด็ค (รองรับทั้ง 1 ซอง = 1 ใบ และ 10 ซอง = 10 ใบ ลดราคา 10%)
   function openFactionPack(packId, packCount = 1) {
     const pack = FACTION_PACKS.find(p => p.id === packId);
     if (!pack || typeof CARD_DATABASE === 'undefined') return;
@@ -1208,7 +1208,7 @@
           <button type="button" role="radio" data-qty="1" aria-checked="${packQty === 1}">1 ซอง</button>
           <button type="button" role="radio" data-qty="10" aria-checked="${packQty === 10}">10 ซอง <span class="sh-save">−10%</span></button>
         </div>
-        <p class="sh-packs-info">ซองละ 5 ใบ · N 40% · R 30% · SR 20% · SSR 10% · สะสมแล้ว <b>${ownedUnique}/${totalUnique}</b> แบบ</p>
+        <p class="sh-packs-info">ซองละ 1 ใบ · N 40% · R 30% · SR 20% · SSR 10% · สะสมแล้ว <b>${ownedUnique}/${totalUnique}</b> แบบ</p>
       </div>
       <p class="sh-dupe-note">${SHARD_SVG}<span>การ์ดที่เกินจำนวนจัดเด็ค (ลีดเดอร์ 1 ใบ · การ์ดอื่น 2 ใบ) จะกลายเป็นชาร์ดให้อัตโนมัติ</span></p>
 
