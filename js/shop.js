@@ -82,6 +82,26 @@
       prefix: 'images/เด็คโอ๊ต/',
       price: PACK_PRICE,
       tenPrice: TEN_PACK_PRICE
+    },
+    {
+      id: 'pack_madoka',
+      name: 'ซองเด็คมาโดกะ',
+      sub: 'สุ่มการ์ดสายมาโดกะ (มีโอกาสออก Leader มาโดกะ SSR!)',
+      color: '#f472b6',
+      image: 'images/มาโดกะ/1.png',
+      prefix: 'images/มาโดกะ/',
+      price: PACK_PRICE,
+      tenPrice: TEN_PACK_PRICE
+    },
+    {
+      id: 'pack_kagero',
+      name: 'ซองเด็คคาเงโร่',
+      sub: 'สุ่มการ์ดสายคาเงโร่ (มีโอกาสออก Leader คาเงโร่ SSR!)',
+      color: '#ef4444',
+      image: 'images/เด็คคาเงโร่/1.png',
+      prefix: 'images/เด็คคาเงโร่/',
+      price: PACK_PRICE,
+      tenPrice: TEN_PACK_PRICE
     }
   ];
 
@@ -845,7 +865,7 @@
   }
 
   /* ---------------- ฉากเปิดซอง: ลากฉีกซองฟอยล์ (js/pack-open.js) ---------------- */
-  const PACK_LABEL = { pack_jit: ['จิต', 'JIT'], pack_nuea: ['เหนือ', 'NUEA'], pack_doom: ['สิ้นโลก', 'DOOM'], pack_dino: ['ไดโน', 'DINO'], pack_demon: ['ปีศาจ', 'DEMON'], pack_oat: ['โอ๊ต', 'OAT'] };
+  const PACK_LABEL = { pack_jit: ['จิต', 'JIT'], pack_nuea: ['เหนือ', 'NUEA'], pack_doom: ['สิ้นโลก', 'DOOM'], pack_dino: ['ไดโน', 'DINO'], pack_demon: ['ปีศาจ', 'DEMON'], pack_oat: ['โอ๊ต', 'OAT'], pack_madoka: ['มาโดกะ', 'MADOKA'], pack_kagero: ['คาเงโร่', 'KAGERO'] };
   function playPackOpeningAnimation(pack, packCount, highestRarity, onComplete) {
     const stage = document.getElementById('bof-pack-anim-stage');
     const done = () => { if (onComplete) onComplete(); };

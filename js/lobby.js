@@ -14,6 +14,8 @@
     { key: 'dino', leaderId: 'L04', name: 'เด็คไดโน', style: 'สะสมเผ่าไดโนและผสานร่างไฮบริดสุดแกร่งจากมิติมืด' },
     { key: 'demon', leaderId: 'L05', name: 'เด็คปีศาจ', style: 'สะสมการ์ดในมิติมืดและใช้พลังแห่งบาปทั้ง 7 พิชิตชัยชนะ' },
     { key: 'oat', leaderId: 'L06', name: 'เด็คโอ็ต', style: 'เปิดท็อปกองคอลพรรคพวกสายบ้าลงสนามและถล่มด้วยคอมโบสุดปั่น' },
+    { key: 'madoka', leaderId: 'L07', name: 'เด็คมาโดกะ', style: 'อัญเชิญสาวน้อยเวทมนตร์และปลดปล่อยพลังมิติมืด' },
+    { key: 'kagero', leaderId: 'L08', name: 'เด็คคาเงโร่', style: 'มังกรเพลิงทำลายล้างสนามและสแตนด์บุกโจมตีต่อเนื่อง' },
   ];
 
   const byId = id => CARD_DATABASE.find(c => c.id === id);
@@ -55,8 +57,8 @@
   /* ---------------- การแสดงผล (ล็อบบี้เกมหน้าจอเดียว v0.8) ---------------- */
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
-  const DECK_COLOURS = { L01: '#3ee08f', L02: '#f0a347', L03: '#5fd0ff', L04: '#a3e635', L05: '#c084fc', L06: '#fb923c' };
-  const STANDARD = ['L01', 'L02', 'L03', 'L04', 'L05', 'L06'];
+  const DECK_COLOURS = { L01: '#3ee08f', L02: '#f0a347', L03: '#5fd0ff', L04: '#a3e635', L05: '#c084fc', L06: '#fb923c', L07: '#f472b6', L08: '#ef4444' };
+  const STANDARD = ['L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08'];
   const small = () => matchMedia('(max-width: 767px)').matches;
   const wallSize = () => (small() ? { cols: 6, rows: 6 } : { cols: 12, rows: 5 });
 

@@ -9,6 +9,8 @@ const DEFAULT_DOOMSDAY_DECK_LIST = DECK_LISTS.L03;
 const DEFAULT_DINO_DECK_LIST = DECK_LISTS.L04;
 const DEFAULT_DEMON_DECK_LIST = DECK_LISTS.L05;
 const DEFAULT_OAT_DECK_LIST = DECK_LISTS.L06;
+const DEFAULT_MADOKA_DECK_LIST = DECK_LISTS.L07;
+const DEFAULT_KAGERO_DECK_LIST = DECK_LISTS.L08;
 
 function isSpellCard(card) {
   return !!(card && (card.type === 'NormalSpell' || card.type === 'ReactionSpell' || card.type === 'LandSpell'));
@@ -210,6 +212,39 @@ function getEffectivePower(card, ownerContestant) {
       }
     }
 
+    // 0.1 ดราโกนิค โอเวอร์ลอร์ด (KG01): เมื่อมือเราน้อยกว่าอีกฝ่าย พลัง +1
+    if (card.id === 'KG01' && typeof gameState !== 'undefined') {
+      const opp = (ownerContestant === gameState.player) ? gameState.ai : gameState.player;
+      if (opp && Array.isArray(opp.hand) && Array.isArray(ownerContestant.hand) && ownerContestant.hand.length < opp.hand.length) {
+        total += 1;
+      }
+    }
+
+    // 0.2 ดราโกนิค โอเวอร์ลอร์ด The Rebirth (KG03): พลัง +1 ตามการ์ด "ดราโกนิค โอเวอร์ลอร์ด" ที่ชื่อไม่ซ้ำกัน
+    if (card.id === 'KG03') {
+      const uniqueOverlords = new Set();
+      const allZones = [
+        ...(ownerContestant.board || []).filter(Boolean),
+        ...(ownerContestant.graveyard || []),
+        ...(ownerContestant.hand || []),
+        ...(ownerContestant.darkDimension || [])
+      ];
+      allZones.forEach(c => {
+        if (c && c.name && c.name.includes('ดราโกนิค โอเวอร์ลอร์ด')) {
+          uniqueOverlords.add(c.id || c.name);
+        }
+      });
+      total += uniqueOverlords.size;
+    }
+
+    // 0.3 ดราโกนิค เบิร์นเอาท์ (KG07): เมื่อมียูนิทในนรก >= 3 ใบ พลัง +2
+    if (card.id === 'KG07') {
+      const monsterGraveCount = (ownerContestant.graveyard || []).filter(c => c && c.type === 'Monster').length;
+      if (monsterGraveCount >= 3) {
+        total += 2;
+      }
+    }
+
     // 1. บล็อก CONTINUOUS_POWER ของตัวการ์ดเอง
     if (Array.isArray(card.effects)) {
       card.effects.filter(e => e.trigger === 'CONTINUOUS_POWER').forEach(eff => {
@@ -397,6 +432,52 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
     return { destroyed: false, reason: 'oat_shield', monster };
   }
 
+  // ดราโกนิค โอเวอร์ลอร์ด (KG01): ไม่ถูกทำลายจากความสามารถของการ์ด
+  if (monster.id === 'KG01' && !isFromBattle) {
+    setLog(`🛡️ [ออโต้ - ${monster.name}] ไม่ถูกทำลายจากความสามารถของการ์ด!`);
+    return { destroyed: false, reason: 'effect_immune', monster };
+  }
+
+  // Ultimate Madoka (MD09): การ์ดใบนี้ไม่สามารถถูกทำลาย
+  if (monster.id === 'MD09' || monster.isUltimateMadoka) {
+    setLog(`✨ [ออโต้ - ${monster.name}] ไม่สามารถถูกทำลายได้!`);
+    return { destroyed: false, reason: 'ultimate_madoka', monster };
+  }
+
+  // กฎแห่งวัฏจักร (MD12): ป้องกันไม่ออกจากสนาม 1 ครั้ง
+  if (monster.protectedOnce) {
+    delete monster.protectedOnce;
+    setLog(`🛡️ [กฎแห่งวัฏจักร] ป้องกันไม่ให้ "${monster.name}" ถูกนำออกจากสนาม 1 ครั้ง!`);
+    return { destroyed: false, reason: 'law_of_cycles', monster };
+  }
+
+  // คานาเมะ มาโดกะ (MD03): ทิ้งการ์ด 1 ใบเพื่อปกป้อง โฮมุระ หรือ มาโดกะ
+  if ((monster.id === 'MD03' || monster.id === 'MD04') && boardOwner.board.some(m => m && m.id === 'MD03') && !boardOwner.madokaProtectUsedThisTurn && boardOwner.hand.length > 0) {
+    boardOwner.madokaProtectUsedThisTurn = true;
+    const discarded = boardOwner.hand.pop();
+    resetCardStateForZoneChange(discarded);
+    boardOwner.graveyard.push(discarded);
+    setLog(`🏹 [สกิลคานาเมะ มาโดกะ] ทิ้ง "${discarded.name}" 1 ใบ เพื่อปกป้อง "${monster.name}" ไม่ให้ออกจากสนาม!`);
+    if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(boardOwner, discarded);
+    return { destroyed: false, reason: 'madoka_protect', monster };
+  }
+
+  // ดราโกนิค โอเวอร์ลอร์ด the rebirth (KG03): อีกฝ่ายต้องทิ้งการ์ด 2 ใบ ถ้าไม่ทำหรือไม่พอ ไม่ถูกทำลาย
+  if (monster.id === 'KG03') {
+    const oppContestant = (boardOwner === gameState.player) ? gameState.ai : gameState.player;
+    if (oppContestant.hand.length < 2) {
+      setLog(`🐉 [ออโต้ - The Rebirth] ฝ่ายตรงข้ามมีมือไม่ถึง 2 ใบ ไม่สามารถทิ้งได้ -> The Rebirth ไม่ถูกทำลาย!`);
+      return { destroyed: false, reason: 'rebirth_protect', monster };
+    }
+    for (let i = 0; i < 2; i++) {
+      const d = oppContestant.hand.pop();
+      resetCardStateForZoneChange(d);
+      oppContestant.graveyard.push(d);
+      if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(oppContestant, d);
+    }
+    setLog(`🐉 [ออโต้ - The Rebirth] ${oppContestant.name} ทิ้งการ์ด 2 ใบเพื่อทำลาย The Rebirth!`);
+  }
+
   fxCardDestroyed(boardOwner, slotIndex, monster, isFromBattle, isByEnemyEffect);
   boardOwner.board[slotIndex] = null;
   boardOwner.unitsDestroyedThisTurn = (boardOwner.unitsDestroyedThisTurn || 0) + 1;
@@ -405,6 +486,40 @@ function destroyBoardMonster(boardOwner, slotIndex, isFromBattle = false, isByEn
   const targetGraveContestant = getCardOriginalOwner(monster, boardOwner);
   resetCardStateForZoneChange(monster);
   targetGraveContestant.graveyard.push(monster);
+
+  // คาเงโร่: ดราโกนิค เบลดมาสเตอร์ (KG05) & เบิร์นเอาท์ (KG07) ฟื้นคืนชีพเทิร์นละ 1 ครั้งเมื่อถูกทำลาย
+  if ((monster.id === 'KG05' || monster.id === 'KG07') && !monster.revivedThisTurn) {
+    monster.revivedThisTurn = true;
+    const emptySlot = boardOwner.board.findIndex(m => m === null);
+    if (emptySlot !== -1) {
+      const gIdx = targetGraveContestant.graveyard.findIndex(c => c.uid === monster.uid);
+      if (gIdx !== -1) targetGraveContestant.graveyard.splice(gIdx, 1);
+      resetCardStateForZoneChange(monster);
+      monster.state = 'Stand';
+      boardOwner.board[emptySlot] = monster;
+      setLog(`🔥 [ออโต้/1 เทิร์น - ${monster.name}] ฟื้นคืนชีพอัญเชิญลงสนามช่องที่ ${emptySlot + 1} ทันที!`);
+    }
+    if (monster.id === 'KG05' && otherContestant.deck.length > 0) {
+      const milled = otherContestant.deck.pop();
+      resetCardStateForZoneChange(milled);
+      otherContestant.graveyard.push(milled);
+      setLog(`🔥 [ออโต้เบลดมาสเตอร์] ถูกทำลาย -> โม่ใบบนสุดกอง ${otherContestant.name} ("${milled.name}") ลงนรก!`);
+    }
+  }
+
+  // คาเงโร่: ดราโกนิค เบลดมาสเตอร์ "โคเอ็น" (KG06) ในนรก: เมื่อเบลดมาสเตอร์ (KG05) ถูกทำลาย อัญเชิญโคเอ็นลงสนาม
+  if (monster.id === 'KG05' && !boardOwner.kg06RevivedThisGame) {
+    const kouenIdx = boardOwner.graveyard.findIndex(c => c && c.id === 'KG06');
+    const emptySlot = boardOwner.board.findIndex(m => m === null);
+    if (kouenIdx !== -1 && emptySlot !== -1) {
+      boardOwner.kg06RevivedThisGame = true;
+      const kouen = boardOwner.graveyard.splice(kouenIdx, 1)[0];
+      resetCardStateForZoneChange(kouen);
+      kouen.state = 'Stand';
+      boardOwner.board[emptySlot] = kouen;
+      setLog(`🔥 [สกิลในนรก - ดราโกนิค เบลดมาสเตอร์ "โคเอ็น"] "ดราโกนิค เบลดมาสเตอร์" ถูกทำลาย -> อัญเชิญโคเอ็นลงสนามช่องที่ ${emptySlot + 1}!`);
+    }
+  }
 
   // รันบล็อกความสามารถเมื่อถูกทำลาย (ON_DESTROY)
   EffectEngine.triggerCardEffects(monster, 'ON_DESTROY', {
@@ -1108,11 +1223,94 @@ function openZoneViewerModal(titleText, cardArray, ownerContestant) {
     cardArray.forEach(card => {
       const cardEl = createCardElement(card, ownerContestant);
       cardEl.title = 'คลิกขวาเพื่อดูรายละเอียดของการ์ดใบนี้';
+      if (card.id === 'MD09' && ownerContestant === gameState.player && canActivateUltimateMadoka(ownerContestant) && gameState.phase === 'Main Phase' && gameState.activeTurn === 'player') {
+        cardEl.style.cursor = 'pointer';
+        cardEl.style.boxShadow = '0 0 16px #ec4899';
+        cardEl.title = '✨ คลิกเพื่ออัญเชิญ Ultimate Madoka ลงสนาม!';
+        cardEl.onclick = (e) => {
+          e.stopPropagation();
+          modal.style.display = 'none';
+          askCardUseConfirmation(card, 'อัญเชิญ Ultimate Madoka จากมิติมืดลงสนาม', () => {
+            executeSummonUltimateMadoka(ownerContestant);
+          });
+        };
+      }
       listEl.appendChild(cardEl);
     });
   }
 
   modal.style.display = 'flex';
+}
+
+// ✨ ตรวจสอบและอัญเชิญ Ultimate Madoka จากมิติมืด (เมื่อมีสาวน้อยเวทมนตร์ชื่อต่างกัน 6 ใบในนรก)
+function canActivateUltimateMadoka(contestant) {
+  if (!contestant || !Array.isArray(contestant.darkDimension)) return false;
+  if (!contestant.darkDimension.some(c => c && c.id === 'MD09')) return false;
+  const uniqueMG = new Set();
+  (contestant.graveyard || []).forEach(c => {
+    if (c && hasCardTribe(c, 'สาวน้อยเวทมนตร์')) {
+      uniqueMG.add(c.id || c.name);
+    }
+  });
+  return uniqueMG.size >= 6;
+}
+
+function executeSummonUltimateMadoka(contestant) {
+  const darkIdx = contestant.darkDimension.findIndex(c => c && c.id === 'MD09');
+  if (darkIdx === -1) return;
+  const madokaCard = contestant.darkDimension.splice(darkIdx, 1)[0];
+
+  let returnedCount = 0;
+  [gameState.player, gameState.ai].forEach(side => {
+    side.board.forEach((m, idx) => {
+      if (m) {
+        returnedCount++;
+        const targetOwner = getCardOriginalOwner(m, side);
+        side.board[idx] = null;
+        resetCardStateForZoneChange(m);
+        targetOwner.hand.push(m);
+      }
+    });
+  });
+
+  resetCardStateForZoneChange(madokaCard);
+  madokaCard.state = 'Stand';
+  madokaCard.permPowerMod = returnedCount;
+  madokaCard.isUltimateMadoka = true;
+  contestant.board[0] = madokaCard;
+
+  setLog(`✨🌸 [Ultimate Madoka] อัญเชิญลงสนามสำเร็จ! นำการ์ดบนสนามทั้งหมด ${returnedCount} ใบกลับขึ้นมือ และ Ultimate Madoka ได้รับพลังโจมตี ${returnedCount} หน่วย!`);
+  showCardShowcaseBanner(madokaCard, '✨ ULTIMATE MADOKA ✨', `อัญเชิญจากมิติมืด! ได้รับพลังโจมตี +${returnedCount}`, '#ec4899', 1500);
+  renderGame();
+}
+
+function handleUltimateMadokaBattleEnd(contestant) {
+  if (contestant.graveyard.length > 0) {
+    contestant.deck.push(...contestant.graveyard);
+    contestant.graveyard = [];
+    contestant.deck = shuffleDeck(contestant.deck);
+  }
+
+  const mIdx = contestant.board.findIndex(m => m && (m.isUltimateMadoka || m.id === 'MD09'));
+  if (mIdx !== -1) {
+    const card = contestant.board[mIdx];
+    contestant.board[mIdx] = null;
+    resetCardStateForZoneChange(card);
+    contestant.darkDimension.push(card);
+  }
+
+  let placed = 0;
+  while (contestant.hand.length > 0 && placed < 2) {
+    const emptySlot = contestant.board.findIndex(m => m === null);
+    if (emptySlot === -1) break;
+    const card = contestant.hand.shift();
+    resetCardStateForZoneChange(card);
+    card.state = 'Stand';
+    contestant.board[emptySlot] = card;
+    placed++;
+  }
+  setLog(`🌸 [Ultimate Madoka] จบการต่อสู้ นำการ์ดในนรกกลับเข้ากองทั้งหมด นำการ์ดบนมือ ${placed} ใบลงสนามในสภาพ Stand และ Ultimate Madoka กลับสู่มิติมืด!`);
+  renderGame();
 }
 
 
@@ -3022,6 +3220,155 @@ function initiatePlayerSpell(handIndex) {
     setLog('ℹ️ "เร็วขึ้นอีก!!!!!!" เป็นเวทรีแอคเมื่อ "ไอแบงค์บ้าเกม" โจมตี (ระบบจะเด้งถามอัตโนมัติเมื่อคุณสั่งไอแบงค์บ้าเกมโจมตี)');
     return;
   }
+  if (spell.id === 'MD12') {
+    setLog('ℹ️ "กฎแห่งวัฏจักร" เป็นเวทรีแอคเมื่ออีกฝ่ายโจมตี (ระบบจะเด้งถามอัตโนมัติเมื่ออีกฝ่ายโจมตี)');
+    return;
+  }
+  if (spell.id === 'KG09') {
+    setLog('ℹ️ "ไวเวอร์นการ์ด บาร์รี่" เป็นเวทรีแอคเมื่อถูกโจมตี (ระบบจะเด้งถามอัตโนมัติเมื่อถูกโจมตี)');
+    return;
+  }
+
+  // ✨ Soul Gem (MD11): เข้ามิติมืด ค้นหา Ultimate Madoka จากกองหรือนรก เข้ามิติมืด
+  if (spell.id === 'MD11') {
+    askCardUseConfirmation(spell, 'ใช้งานการ์ดเวทมนตร์ "Soul Gem"', () => {
+      gameState.selectedHandIndex = null;
+      const curIdx = player.hand.findIndex(c => c.uid === spell.uid);
+      if (curIdx === -1) return;
+      const usedSpell = player.hand.splice(curIdx, 1)[0];
+      player.spellQuota.normalUsed += 1;
+      resetCardStateForZoneChange(usedSpell);
+      player.darkDimension.push(usedSpell);
+
+      let ultimateCard = null;
+      const deckIdx = player.deck.findIndex(c => c && c.id === 'MD09');
+      if (deckIdx !== -1) {
+        ultimateCard = player.deck.splice(deckIdx, 1)[0];
+        player.deck = shuffleDeck(player.deck);
+      } else {
+        const graveIdx = player.graveyard.findIndex(c => c && c.id === 'MD09');
+        if (graveIdx !== -1) {
+          ultimateCard = player.graveyard.splice(graveIdx, 1)[0];
+        }
+      }
+      if (ultimateCard) {
+        resetCardStateForZoneChange(ultimateCard);
+        player.darkDimension.push(ultimateCard);
+        setLog(`✨ [Soul Gem] ส่ง "Soul Gem" เข้าสู่มิติมืด และนำ "Ultimate Madoka" จากกอง/นรกเข้าสู่มิติมืดเรียบร้อย!`);
+      } else {
+        setLog(`✨ [Soul Gem] ส่ง "Soul Gem" เข้าสู่มิติมืดเรียบร้อย!`);
+      }
+      renderGame();
+    });
+    return;
+  }
+
+  // 🦎 ลิซาร์ดโซลเจอร์ คอนโร (KG08): นำ Monster จากกองลงนรก 1 ใบ จั่ว 2 ใบ
+  if (spell.id === 'KG08') {
+    const monstersInDeck = player.deck.filter(c => c && c.type === 'Monster');
+    if (monstersInDeck.length === 0) {
+      setLog('❌ ไม่มี Monster ในกองการ์ดให้ส่งลงนรก!');
+      return;
+    }
+    askCardUseConfirmation(spell, 'ใช้งานการ์ดเวทมนตร์ "ลิซาร์ดโซลเจอร์ คอนโร"', () => {
+      gameState.selectedHandIndex = null;
+      const curIdx = player.hand.findIndex(c => c.uid === spell.uid);
+      if (curIdx !== -1) {
+        const usedSpell = player.hand.splice(curIdx, 1)[0];
+        player.spellQuota.normalUsed += 1;
+        resetCardStateForZoneChange(usedSpell);
+        player.graveyard.push(usedSpell);
+      }
+      const choices = monstersInDeck.map(m => ({
+        label: `💀 ส่ง "${m.name}" ลงนรก`,
+        color: '#dc2626',
+        onSelect: () => {
+          const dIdx = player.deck.findIndex(c => c.uid === m.uid);
+          if (dIdx !== -1) {
+            const sent = player.deck.splice(dIdx, 1)[0];
+            resetCardStateForZoneChange(sent);
+            player.graveyard.push(sent);
+            player.deck = shuffleDeck(player.deck);
+            drawCards(player, 2);
+            setLog(`🦎 [คอนโร] นำ "${sent.name}" จากกองลงนรก และจั่วการ์ด 2 ใบ!`);
+            renderGame();
+          }
+        }
+      }));
+      showChoiceModal('🦎 ลิซาร์ดโซลเจอร์ คอนโร: เลือกยูนิทจากกอง', 'เลือกยูนิท 1 ใบเพื่อส่งลงนรก:', choices);
+    });
+    return;
+  }
+
+  // 🔥 ลีเจี้ยน เมท (KG10): มี The X และ The End ในนรก -> อีกฝ่ายทิ้งมือ 2 ใบ หรือ เสียเลือด 1 HP
+  if (spell.id === 'KG10') {
+    const hasTheX = player.graveyard.some(c => c && (c.name.toLowerCase().includes('the x') || c.id === 'KG04'));
+    const hasTheEnd = player.graveyard.some(c => c && (c.name.toLowerCase().includes('the end') || c.id === 'KG02'));
+    if (!hasTheX || !hasTheEnd) {
+      setLog('❌ ต้องมีการ์ดที่มี "the x" และ "the end" ในนรกของคุณอย่างละ 1 ใบก่อน!');
+      return;
+    }
+    askCardUseConfirmation(spell, 'ใช้งานการ์ดเวทมนตร์ "ลีเจี้ยน เมท"', () => {
+      gameState.selectedHandIndex = null;
+      const curIdx = player.hand.findIndex(c => c.uid === spell.uid);
+      if (curIdx !== -1) {
+        const usedSpell = player.hand.splice(curIdx, 1)[0];
+        player.spellQuota.normalUsed += 1;
+        resetCardStateForZoneChange(usedSpell);
+        player.graveyard.push(usedSpell);
+      }
+      const opp = gameState.ai;
+      if (opp.hand.length >= 2) {
+        for (let i = 0; i < 2; i++) {
+          const d = opp.hand.pop();
+          resetCardStateForZoneChange(d);
+          opp.graveyard.push(d);
+          checkDiscardTriggers(opp, d);
+        }
+        setLog(`🔥 [ลีเจี้ยน เมท] ฝ่ายตรงข้ามเลือกทิ้งการ์ดบนมือ 2 ใบ!`);
+      } else {
+        opp.leader.hp = Math.max(0, opp.leader.hp - 1);
+        setLog(`🔥 [ลีเจี้ยน เมท] ฝ่ายตรงข้ามเสียพลังชีวิต 1 หน่วย (เหลือ ${opp.leader.hp}/6)!`);
+        if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(opp);
+        checkGameOver();
+      }
+      renderGame();
+    });
+    return;
+  }
+
+  // 🌪️ ฮีทช็อต ดราก้อน (KG11): ทั้งสองฝ่ายนำการ์ดบนสนามและมือกลับเข้ากอง แล้วจั่ว 2 ใบ
+  if (spell.id === 'KG11') {
+    askCardUseConfirmation(spell, 'ใช้งานการ์ดเวทมนตร์ "ฮีทช็อต ดราก้อน"', () => {
+      gameState.selectedHandIndex = null;
+      const curIdx = player.hand.findIndex(c => c.uid === spell.uid);
+      if (curIdx !== -1) {
+        const usedSpell = player.hand.splice(curIdx, 1)[0];
+        player.spellQuota.normalUsed += 1;
+        resetCardStateForZoneChange(usedSpell);
+        player.graveyard.push(usedSpell);
+      }
+      [gameState.player, gameState.ai].forEach(side => {
+        side.board.forEach((m, s) => {
+          if (m) {
+            side.board[s] = null;
+            resetCardStateForZoneChange(m);
+            side.deck.push(m);
+          }
+        });
+        while (side.hand.length > 0) {
+          const h = side.hand.pop();
+          resetCardStateForZoneChange(h);
+          side.deck.push(h);
+        }
+        side.deck = shuffleDeck(side.deck);
+        drawCards(side, 2);
+      });
+      setLog('🔥🌪️ [ฮีทช็อต ดราก้อน] ทั้งสองฝ่ายนำการ์ดบนสนามและบนมือกลับเข้ากอง สับกอง แล้วจั่วการ์ดคนละ 2 ใบ!');
+      renderGame();
+    });
+    return;
+  }
 
   const spellEffect = (spell.effects || []).find(e => e.trigger === 'CAST_SPELL');
   if (!spellEffect) return;
@@ -4161,6 +4508,305 @@ function triggerOatLeaderStartTurn(contestant, onComplete) {
   );
 }
 
+// ตรวจสอบความสามารถเมื่อการ์ดถูกทิ้งลงนรก (เช่น DM05, KG01, KG06)
+function checkDiscardTriggers(contestant, card) {
+  if (!card) return;
+  const other = (contestant === gameState.player) ? gameState.ai : gameState.player;
+
+  // DM05 (ซึรุรุ)
+  if (card.id === 'DM05' && other.hand.length > 0) {
+    const oppD = other.hand.pop();
+    resetCardStateForZoneChange(oppD);
+    other.graveyard.push(oppD);
+    setLog(`🍬 [ออโต้ซึรุรุ] ถูกทิ้งลงนรก -> ฝ่ายตรงข้ามต้องทิ้ง "${oppD.name}" 1 ใบ!`);
+    checkDiscardTriggers(other, oppD);
+  }
+
+  // KG01 (ดราโกนิค โอเวอร์ลอร์ด): เมื่อถูกทิ้ง สามารถอัญเชิญลงสนาม
+  if (card.id === 'KG01') {
+    const emptySlot = contestant.board.findIndex(m => m === null);
+    if (emptySlot !== -1) {
+      const graveIdx = contestant.graveyard.findIndex(c => c.uid === card.uid);
+      if (graveIdx !== -1) {
+        const summoned = contestant.graveyard.splice(graveIdx, 1)[0];
+        resetCardStateForZoneChange(summoned);
+        summoned.state = 'Stand';
+        contestant.board[emptySlot] = summoned;
+        setLog(`🐉 [ออโต้ - ดราโกนิค โอเวอร์ลอร์ด] ถูกทิ้ง -> อัญเชิญลงสนามช่องที่ ${emptySlot + 1} ทันที!`);
+        renderGame();
+      }
+    }
+  }
+
+  // KG06 (ดราโกนิค เบลดมาสเตอร์ "โคเอ็น"): เมื่อถูกทิ้ง ทำลายการ์ดบนสนาม 1 ใบ หรือ ทิ้งการ์ดบนมืออีกฝ่าย 1 ใบ
+  if (card.id === 'KG06') {
+    if (contestant !== gameState.player) {
+      const hasEnemyUnit = other.board.some(m => m !== null);
+      if (hasEnemyUnit) {
+        let bestSlot = -1, maxP = -1;
+        other.board.forEach((m, s) => {
+          if (m && (m.power || 0) > maxP) { maxP = m.power || 0; bestSlot = s; }
+        });
+        if (bestSlot !== -1) {
+          destroyBoardMonster(other, bestSlot, false, true);
+          setLog(`🔥 [AI ออโต้โคเอ็น] ถูกทิ้ง -> ทำลายยูนิทช่องที่ ${bestSlot + 1} ของคุณ!`);
+        }
+      } else if (other.hand.length > 0) {
+        const oppD = other.hand.pop();
+        resetCardStateForZoneChange(oppD);
+        other.graveyard.push(oppD);
+        setLog(`🔥 [AI ออโต้โคเอ็น] ถูกทิ้ง -> บังคับฝ่ายตรงข้ามทิ้งการ์ด "${oppD.name}" 1 ใบ!`);
+        checkDiscardTriggers(other, oppD);
+      }
+      renderGame();
+    } else {
+      const options = [];
+      const hasEnemyUnit = other.board.some(m => m !== null);
+      if (hasEnemyUnit) {
+        options.push({
+          label: '💥 ทำลายยูนิทบนสนามอีกฝ่าย 1 ใบ',
+          color: '#dc2626',
+          onSelect: () => {
+            const targets = [];
+            other.board.forEach((m, s) => {
+              if (m) {
+                targets.push({
+                  label: `ทำลาย "${m.name}" (ช่อง ${s + 1})`,
+                  color: '#b91c1c',
+                  onSelect: () => {
+                    destroyBoardMonster(other, s, false, true);
+                    setLog(`🔥 [ออโต้โคเอ็น] ทำลาย "${m.name}" ของฝ่ายตรงข้ามสำเร็จ!`);
+                    renderGame();
+                  }
+                });
+              }
+            });
+            showChoiceModal('🔥 โคเอ็น: เลือกยูนิทเป้าหมาย', 'เลือกยูนิทที่จะทำลาย:', targets);
+          }
+        });
+      }
+      if (other.hand.length > 0) {
+        options.push({
+          label: '🗑️ บังคับอีกฝ่ายทิ้งการ์ดบนมือ 1 ใบ',
+          color: '#7c3aed',
+          onSelect: () => {
+            const oppD = other.hand.pop();
+            resetCardStateForZoneChange(oppD);
+            other.graveyard.push(oppD);
+            setLog(`🔥 [ออโต้โคเอ็น] บังคับ ${other.name} ทิ้งการ์ด "${oppD.name}" 1 ใบ!`);
+            checkDiscardTriggers(other, oppD);
+            renderGame();
+          }
+        });
+      }
+      if (options.length > 0) {
+        showChoiceModal(
+          '🔥 ออโต้: ดราโกนิค เบลดมาสเตอร์ "โคเอ็น"',
+          'การ์ดใบนี้ถูกทิ้งลงนรก! เลือกผลความสามารถ 1 อย่าง:',
+          options
+        );
+      }
+    }
+  }
+}
+
+// 🔥 สกิลออโต้เข้าเทิร์นของ Leader คาเงโร่ (L08):
+// 1. สามารถทิ้งการ์ดบนมือ 1 ใบ เพื่อทำลายยูนิทฝั่งตรงข้าม 1 ใบ
+// 2. แต่ละฝั่งทิ้งการ์ดบนมือ 1 ใบ ถ้าไม่ทำ ลีดเดอร์ตนเองเสียพลังชีวิต 1 หน่วย
+function triggerKageroLeaderStartTurn(contestant, onComplete) {
+  if (!contestant.leader || contestant.leader.id !== 'L08') {
+    if (onComplete) onComplete();
+    return;
+  }
+
+  const other = (contestant === gameState.player) ? gameState.ai : gameState.player;
+
+  const runMandatoryDiscardStep = () => {
+    const handleActiveDiscard = (doneActive) => {
+      if (contestant.hand.length === 0) {
+        contestant.leader.hp = Math.max(0, contestant.leader.hp - 1);
+        setLog(`🔥 [ออโต้คาเงโร่] ${contestant.name} ไม่มีการ์ดบนมือให้ทิ้ง -> ลีดเดอร์เสียพลังชีวิต 1 หน่วย (เหลือ ${contestant.leader.hp}/6)!`);
+        if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(contestant);
+        renderGame();
+        checkGameOver();
+        doneActive();
+        return;
+      }
+      if (contestant !== gameState.player) {
+        const d = contestant.hand.pop();
+        resetCardStateForZoneChange(d);
+        contestant.graveyard.push(d);
+        setLog(`🔥 [AI ออโต้คาเงโร่] ทิ้งการ์ด "${d.name}" 1 ใบจากมือลงนรก`);
+        checkDiscardTriggers(contestant, d);
+        doneActive();
+        return;
+      }
+      const discardOptions = contestant.hand.map((card, idx) => ({
+        label: `🗑️ ทิ้ง "${card.name}"`,
+        color: '#dc2626',
+        onSelect: () => {
+          const discarded = contestant.hand.splice(idx, 1)[0];
+          resetCardStateForZoneChange(discarded);
+          contestant.graveyard.push(discarded);
+          setLog(`🔥 [ออโต้คาเงโร่] คุณเลือกทิ้ง "${discarded.name}" 1 ใบจากมือลงนรก`);
+          checkDiscardTriggers(contestant, discarded);
+          doneActive();
+        }
+      }));
+      discardOptions.push({
+        label: '💔 ไม่ทิ้งการ์ด (ยอมเสียเลือดลีดเดอร์ 1 HP)',
+        color: '#7f1d1d',
+        onSelect: () => {
+          contestant.leader.hp = Math.max(0, contestant.leader.hp - 1);
+          setLog(`🔥 [ออโต้คาเงโร่] คุณเลือกไม่ทิ้งการ์ด -> ลีดเดอร์เสียพลังชีวิต 1 หน่วย (เหลือ ${contestant.leader.hp}/6)!`);
+          if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(contestant);
+          renderGame();
+          checkGameOver();
+          doneActive();
+        }
+      });
+      showChoiceModal(
+        '🔥 คาเงโร่: แต่ละฝั่งต้องทิ้งการ์ดบนมือ 1 ใบ',
+        'เลือกการ์ด 1 ใบเพื่อทิ้งลงนรก หรือเลือกยอมเสียเลือดลีดเดอร์ 1 HP:',
+        discardOptions
+      );
+    };
+
+    const handleOpponentDiscard = (doneOpp) => {
+      if (other.hand.length === 0) {
+        other.leader.hp = Math.max(0, other.leader.hp - 1);
+        setLog(`🔥 [ออโต้คาเงโร่] ${other.name} ไม่มีการ์ดบนมือให้ทิ้ง -> ลีดเดอร์เสียพลังชีวิต 1 หน่วย (เหลือ ${other.leader.hp}/6)!`);
+        if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(other);
+        renderGame();
+        checkGameOver();
+        doneOpp();
+        return;
+      }
+      if (other !== gameState.player) {
+        const d = other.hand.pop();
+        resetCardStateForZoneChange(d);
+        other.graveyard.push(d);
+        setLog(`🔥 [AI ออโต้คาเงโร่] ฝ่ายตรงข้ามทิ้งการ์ด "${d.name}" 1 ใบจากมือลงนรก`);
+        checkDiscardTriggers(other, d);
+        doneOpp();
+        return;
+      }
+      const discardOptions = other.hand.map((card, idx) => ({
+        label: `🗑️ ทิ้ง "${card.name}"`,
+        color: '#dc2626',
+        onSelect: () => {
+          const discarded = other.hand.splice(idx, 1)[0];
+          resetCardStateForZoneChange(discarded);
+          other.graveyard.push(discarded);
+          setLog(`🔥 [ออโต้คาเงโร่] คุณเลือกทิ้ง "${discarded.name}" 1 ใบจากมือลงนรก`);
+          checkDiscardTriggers(other, discarded);
+          doneOpp();
+        }
+      }));
+      discardOptions.push({
+        label: '💔 ไม่ทิ้งการ์ด (ยอมเสียเลือดลีดเดอร์ 1 HP)',
+        color: '#7f1d1d',
+        onSelect: () => {
+          other.leader.hp = Math.max(0, other.leader.hp - 1);
+          setLog(`🔥 [ออโต้คาเงโร่] คุณเลือกไม่ทิ้งการ์ด -> ลีดเดอร์เสียพลังชีวิต 1 หน่วย (เหลือ ${other.leader.hp}/6)!`);
+          if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(other);
+          renderGame();
+          checkGameOver();
+          doneOpp();
+        }
+      });
+      showChoiceModal(
+        '🔥 ผลจากลีดเดอร์คาเงโร่: แต่ละฝั่งต้องทิ้งการ์ดบนมือ 1 ใบ',
+        'เลือกการ์ด 1 ใบเพื่อทิ้งลงนรก หรือเลือกยอมเสียเลือดลีดเดอร์ 1 HP:',
+        discardOptions
+      );
+    };
+
+    handleActiveDiscard(() => {
+      handleOpponentDiscard(() => {
+        renderGame();
+        if (onComplete) onComplete();
+      });
+    });
+  };
+
+  const hasEnemyUnits = other.board.some(m => m !== null);
+  if (contestant.hand.length === 0 || !hasEnemyUnits) {
+    runMandatoryDiscardStep();
+    return;
+  }
+
+  if (contestant !== gameState.player) {
+    if (contestant.hand.length > 1 && hasEnemyUnits) {
+      const d = contestant.hand.pop();
+      resetCardStateForZoneChange(d);
+      contestant.graveyard.push(d);
+      let bestSlot = -1, maxP = -1;
+      other.board.forEach((m, s) => {
+        if (m && (m.power || 0) > maxP) { maxP = m.power || 0; bestSlot = s; }
+      });
+      if (bestSlot !== -1) {
+        destroyBoardMonster(other, bestSlot, false, true);
+        setLog(`🔥 [AI คาเงโร่] ทิ้ง "${d.name}" 1 ใบ -> ทำลายยูนิทช่อง ${bestSlot + 1} ของคุณสำเร็จ!`);
+      }
+      checkDiscardTriggers(contestant, d);
+    }
+    runMandatoryDiscardStep();
+    return;
+  }
+
+  showChoiceModal(
+    '🔥 คาเงโร่: สกิลสั่งใช้งานเมื่อเข้าเทิร์น',
+    'คุณต้องการทิ้งการ์ดบนมือ 1 ใบ เพื่อทำลายยูนิทฝั่งตรงข้าม 1 ใบหรือไม่?',
+    [
+      {
+        label: '🔥 ใช้งาน: ทิ้งการ์ด 1 ใบเพื่อทำลายยูนิท',
+        color: '#dc2626',
+        onSelect: () => {
+          const discardChoices = contestant.hand.map((card, idx) => ({
+            label: `ทิ้ง "${card.name}"`,
+            color: '#dc2626',
+            onSelect: () => {
+              const discarded = contestant.hand.splice(idx, 1)[0];
+              resetCardStateForZoneChange(discarded);
+              contestant.graveyard.push(discarded);
+              setLog(`🔥 [คาเงโร่] ทิ้ง "${discarded.name}" จากมือลงนรก`);
+              checkDiscardTriggers(contestant, discarded);
+
+              const targetChoices = [];
+              other.board.forEach((unit, slotIdx) => {
+                if (unit) {
+                  targetChoices.push({
+                    label: `💥 ทำลาย "${unit.name}" (ช่อง ${slotIdx + 1})`,
+                    color: '#b91c1c',
+                    onSelect: () => {
+                      destroyBoardMonster(other, slotIdx, false, true);
+                      setLog(`🔥 [คาเงโร่] ทำลาย "${unit.name}" ของฝ่ายตรงข้ามสำเร็จ!`);
+                      renderGame();
+                      runMandatoryDiscardStep();
+                    }
+                  });
+                }
+              });
+              if (targetChoices.length > 0) {
+                showChoiceModal('🔥 คาเงโร่: เลือกยูนิทเป้าหมายที่จะทำลาย', 'คลิกเลือกยูนิทฝั่งตรงข้าม 1 ใบ:', targetChoices);
+              } else {
+                runMandatoryDiscardStep();
+              }
+            }
+          }));
+          showChoiceModal('🔥 คาเงโร่: เลือกการ์ดที่จะทิ้ง', 'คลิกเลือกการ์ดบนมือของคุณ 1 ใบที่จะทิ้งลงนรก:', discardChoices);
+        }
+      },
+      {
+        label: '⏩ ข้าม (ไม่ใช้สกิลทำลาย)',
+        color: '#475569',
+        onSelect: () => runMandatoryDiscardStep()
+      }
+    ]
+  );
+}
+
 function executeStartPhase(contestant, onStartEffectsComplete = null) {
   contestant.turnsTaken += 1;
   contestant.attacksThisTurn = 0;
@@ -4169,6 +4815,9 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
   contestant.leader.abilityUsedThisTurn = false;
   contestant.spellQuota.normalUsed = 0;
   contestant.spellQuota.reactionUsed = 0;
+  contestant.theEndRevivedThisTurn = false;
+  contestant.homuraUsedThisTurn = false;
+  contestant.madokaProtectUsedThisTurn = false;
 
   drawCards(contestant, 1);
 
@@ -4194,6 +4843,13 @@ function executeStartPhase(contestant, onStartEffectsComplete = null) {
 
   if (contestant.leader && contestant.leader.id === 'L06') {
     triggerOatLeaderStartTurn(contestant, () => {
+      triggerDoomsdayStartTurnQueue(contestant, onStartEffectsComplete);
+    });
+    return;
+  }
+
+  if (contestant.leader && contestant.leader.id === 'L08') {
+    triggerKageroLeaderStartTurn(contestant, () => {
       triggerDoomsdayStartTurnQueue(contestant, onStartEffectsComplete);
     });
     return;
@@ -4235,6 +4891,19 @@ function executeEndPhaseCleanup(activeContestant) {
       activeContestant.hand.push(recovered);
       setLog(`📜 [สัญญาปีศาจ - มิติมืด] เมื่อจบเทิร์น นำ "${recovered.name}" 1 ใบจากดรอปขึ้นมือของ ${activeContestant.name}!`);
       renderGame();
+    }
+  }
+
+  // มิกิ ซายากะ (MD02): ถ้ามี ซากุระ เคียวโกะ (MD05) บนสนาม เมื่อจบเทิร์น สแตร์นการ์ดใบนี้
+  if (Array.isArray(activeContestant.board)) {
+    const hasKyoko = activeContestant.board.some(m => m && (m.id === 'MD05' || (m.name && m.name.includes('ซากุระ เคียวโกะ'))));
+    if (hasKyoko) {
+      activeContestant.board.forEach(m => {
+        if (m && (m.id === 'MD02' || (m.name && m.name.includes('มิกิ ซายากะ'))) && m.state === 'Rest') {
+          m.state = 'Stand';
+          setLog(`🗡️ [ออโต้จบเทิร์น - มิกิ ซายากะ] มี "ซากุระ เคียวโกะ" อยู่บนสนาม -> เปลี่ยนเป็นสภาพ Stand!`);
+        }
+      });
     }
   }
 
@@ -4507,6 +5176,15 @@ function handlePlayerSlotClick(slotIndex) {
       return;
     }
 
+    if (selectedCard.id === 'MD08') {
+      if (player.attacksThisTurn < 2 || player.attacksThisTurn > 3) {
+        setLog('⚠️ "อาคุมะ โฮมุระ" อัญเชิญได้เมื่อบนสนามเราทำการโจมตี 2-3 ครั้งในเทิร์นนี้เท่านั้น!');
+        gameState.selectedHandIndex = null;
+        renderGame();
+        return;
+      }
+    }
+
     if (selectedCard.id === 'NM05' || selectedCard.isSpy) {
       setLog('🕵️ "สายลับไพร่เหนือ" ต้องคลิกวางลงบนช่องว่างของสนามฝ่ายตรงข้าม (ด้านบน)!');
       return;
@@ -4525,6 +5203,28 @@ function handlePlayerSlotClick(slotIndex) {
     gameState.selectedHandIndex = null;
 
     setLog(`✅ อัญเชิญ "${summoned.name}" ลงช่องที่ ${slotIndex + 1} สำเร็จ!${overwriteMsg}`);
+
+    // อาคุมะ โฮมุระ (MD08): เมื่ออัญเชิญสำเร็จ ทำลายการ์ดบนสนามอีกฝ่าย 1 ใบ
+    if (summoned.id === 'MD08') {
+      const oppUnits = [];
+      gameState.ai.board.forEach((m, s) => {
+        if (m) {
+          oppUnits.push({
+            label: `💥 ทำลาย "${m.name}" (ช่อง ${s + 1})`,
+            color: '#dc2626',
+            onSelect: () => {
+              destroyBoardMonster(gameState.ai, s, false, true);
+              setLog(`👿 [อาคุมะ โฮมุระ] ทำลาย "${m.name}" ของฝ่ายตรงข้ามสำเร็จ!`);
+              renderGame();
+            }
+          });
+        }
+      });
+      if (oppUnits.length > 0) {
+        showChoiceModal('👿 อาคุมะ โฮมุระ: ทำลายการ์ดบนสนามอีกฝ่าย', 'เลือกยูนิทฝ่ายตรงข้าม 1 ใบที่จะทำลาย:', oppUnits);
+      }
+    }
+
     EffectEngine.triggerCardEffects(summoned, 'ON_SUMMON', {
       caster: player,
       opponent: gameState.ai,
@@ -5108,11 +5808,65 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
     && (demonCountOnDefenderBoard >= 1)
     && (defender.spellQuota.reactionUsed < 1);
 
+  const canUseTheXInGrave = defender.graveyard.some(c => c && c.id === 'KG04')
+    && !defender.kg04UsedThisGame
+    && defender.board.some(m => m === null);
+
+  const canUseNagisa = defender.hand.some(c => c && c.id === 'MD07')
+    && attacker.attacksThisTurn === 2
+    && defender.board.some(m => m === null);
+
+  const canUseHomura = defender.board.some(m => m && m.id === 'MD04')
+    && !defender.homuraUsedThisTurn
+    && defender.hand.length > 0;
+
+  const md12InHandIdx = defender.hand.findIndex(c => c && c.id === 'MD12');
+  const canUseLawOfCycles = (md12InHandIdx !== -1)
+    && defender.board.some(m => m !== null)
+    && (defender.spellQuota.reactionUsed < 1);
+
+  const kg09InHandIdx = defender.hand.findIndex(c => c && c.id === 'KG09');
+  const canUseBarry = (kg09InHandIdx !== -1)
+    && (defender.spellQuota.reactionUsed < 1);
+
   // 🤖 กรณีฝ่ายตั้งรับเป็น AI: ให้ AI ตัดสินใจใช้สกิลเองพร้อมโชว์แบนเนอร์ให้ผู้เล่นเห็นชัดๆ (ระดับ EASY จะไม่ใช้เวทรีแอคซับซ้อน)
   if (!isLocalDefender) {
     if (aiConfig.difficulty === 'EASY') {
       continueNormalAttackFlow();
       return;
+    }
+
+    if (canUseTheXInGrave && (targetType === 'leader' || attackingMonster.power >= 2)) {
+      defender.kg04UsedThisGame = true;
+      const xIdx = defender.graveyard.findIndex(c => c && c.id === 'KG04');
+      const emptySlot = defender.board.findIndex(m => m === null);
+      if (xIdx !== -1 && emptySlot !== -1) {
+        const xCard = defender.graveyard.splice(xIdx, 1)[0];
+        resetCardStateForZoneChange(xCard);
+        xCard.state = 'Stand';
+        defender.board[emptySlot] = xCard;
+        destroyBoardMonster(attacker, attackerSlot, false, true);
+        showCardShowcaseBanner(xCard, 'AI ใช้สกิล The X จากนรก!', `🔥 ทำลาย "${attackingMonster.name}" และอัญเชิญ The X ลงสนาม!`, '#ef4444', 1200);
+        setLog(`🔥 [AI The X] สั่งใช้งานจากนรก -> ทำลาย "${attackingMonster.name}" และอัญเชิญ The X ลงสนาม!`);
+        renderGame();
+        if (onCompleteCallback) onCompleteCallback();
+        return;
+      }
+    }
+
+    if (canUseNagisa) {
+      const nIdx = defender.hand.findIndex(c => c && c.id === 'MD07');
+      const emptySlot = defender.board.findIndex(m => m === null);
+      if (nIdx !== -1 && emptySlot !== -1) {
+        const nCard = defender.hand.splice(nIdx, 1)[0];
+        resetCardStateForZoneChange(nCard);
+        nCard.state = 'Stand';
+        defender.board[emptySlot] = nCard;
+        attacker.board.forEach(m => { if (m && m.state === 'Stand') m.state = 'Rest'; });
+        showCardShowcaseBanner(nCard, 'AI สั่งใช้นางิสะจากบนมือ!', '🧀 อัญเชิญลงสนาม และเรสยูนิททั้งหมดของฝ่ายตรงข้าม!', '#f472b6', 1200);
+        setLog(`🧀 [AI นางิสะ] อัญเชิญลงสนามช่องที่ ${emptySlot + 1} และเปลี่ยนยูนิทของอีกฝ่ายที่ Stand ทั้งหมดเป็น Rest!`);
+        renderGame();
+      }
     }
     if (canUseForbiddenWarning && (targetType === 'leader' || defender.leader.hp <= 4)) {
       const spellCard = defender.hand.splice(dms02InHandIdx, 1)[0];
@@ -5252,7 +6006,7 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
   }
 
   // 👤 กรณีเราเป็นฝ่ายถูกโจมตี: เด้งถามเฉพาะการ์ดของเราเอง
-  if (canUseMayaOnce || canUseWeWillHelp || canUseMeteor || canUseForbiddenWarning) {
+  if (canUseMayaOnce || canUseWeWillHelp || canUseMeteor || canUseForbiddenWarning || canUseTheXInGrave || canUseNagisa || canUseHomura || canUseLawOfCycles || canUseBarry) {
     const options = [];
 
     if (canUseForbiddenWarning) {
@@ -5408,6 +6162,162 @@ function checkDefenderAttackReactions(attacker, defender, attackerSlot, targetTy
       });
     }
 
+    if (canUseTheXInGrave) {
+      options.push({
+        label: '🔥 สั่งใช้ "ดราโกนิค โอเวอร์ลอร์ด The X" จากนรก: ทำลายยูนิทที่โจมตี และอัญเชิญ The X ลงสนาม!',
+        color: '#ef4444',
+        onSelect: () => {
+          defender.kg04UsedThisGame = true;
+          const xIdx = defender.graveyard.findIndex(c => c && c.id === 'KG04');
+          const emptySlot = defender.board.findIndex(m => m === null);
+          if (xIdx !== -1 && emptySlot !== -1) {
+            const xCard = defender.graveyard.splice(xIdx, 1)[0];
+            resetCardStateForZoneChange(xCard);
+            xCard.state = 'Stand';
+            defender.board[emptySlot] = xCard;
+            destroyBoardMonster(attacker, attackerSlot, false, true);
+            setLog(`🔥 [The X - ในนรก] ทำลาย "${attackingMonster.name}" และอัญเชิญ The X ลงสนามสำเร็จ!`);
+            renderGame();
+            if (onCompleteCallback) onCompleteCallback();
+          }
+        }
+      });
+    }
+
+    if (canUseNagisa) {
+      options.push({
+        label: '🧀 สั่งใช้ "โมโมเอะ นางิสะ" จากบนมือ: อัญเชิญลงสนาม และเรสยูนิทที่ Stand ของอีกฝ่ายทั้งหมด!',
+        color: '#f472b6',
+        onSelect: () => {
+          const nIdx = defender.hand.findIndex(c => c && c.id === 'MD07');
+          const emptySlot = defender.board.findIndex(m => m === null);
+          if (nIdx !== -1 && emptySlot !== -1) {
+            const nCard = defender.hand.splice(nIdx, 1)[0];
+            resetCardStateForZoneChange(nCard);
+            nCard.state = 'Stand';
+            defender.board[emptySlot] = nCard;
+            attacker.board.forEach(m => { if (m && m.state === 'Stand') m.state = 'Rest'; });
+            setLog(`🧀 [โมโมเอะ นางิสะ] อัญเชิญลงสนามช่องที่ ${emptySlot + 1} และเปลี่ยนยูนิทของอีกฝ่ายที่ Stand ทั้งหมดเป็น Rest!`);
+            renderGame();
+            continueNormalAttackFlow();
+          }
+        }
+      });
+    }
+
+    if (canUseHomura) {
+      options.push({
+        label: '⏳ สั่งใช้ "อาเคมิ โฮมุระ": ทิ้งการ์ดบนมือเพื่อลดพลังยูนิทที่โจมตี',
+        color: '#6366f1',
+        onSelect: () => {
+          defender.homuraUsedThisTurn = true;
+          const discardChoices = defender.hand.map((card, idx) => ({
+            label: `ทิ้ง "${card.name}" (ลดพลัง 1 หน่วย)`,
+            color: '#6366f1',
+            onSelect: () => {
+              const discarded = defender.hand.splice(idx, 1)[0];
+              resetCardStateForZoneChange(discarded);
+              defender.graveyard.push(discarded);
+              attackingMonster.tempPowerMod -= 1;
+              setLog(`⏳ [อาเคมิ โฮมุระ] ทิ้ง "${discarded.name}" 1 ใบ -> ลดพลัง "${attackingMonster.name}" 1 หน่วย!`);
+              if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(defender, discarded);
+              renderGame();
+              continueNormalAttackFlow();
+            }
+          }));
+          showChoiceModal('⏳ อาเคมิ โฮมุระ: เลือกการ์ดที่จะทิ้ง', 'ทิ้งการ์ด 1 ใบเพื่อลดพลังตัวโจมตี 1 หน่วย:', discardChoices);
+        }
+      });
+    }
+
+    if (canUseLawOfCycles) {
+      options.push({
+        label: '🛡️ ร่าย "กฎแห่งวัฏจักร": สแตร์นยูนิทเรา 1 ใบ ได้รับเกราะไม่ออกจากสนาม 1 ครั้ง และบังคับโจมตีใส่ใบนั้น!',
+        color: '#ec4899',
+        onSelect: () => {
+          const spellCard = defender.hand.splice(md12InHandIdx, 1)[0];
+          defender.spellQuota.reactionUsed += 1;
+          resetCardStateForZoneChange(spellCard);
+          defender.graveyard.push(spellCard);
+
+          const allyChoices = [];
+          defender.board.forEach((m, s) => {
+            if (m) {
+              allyChoices.push({
+                label: `🛡️ เลือก "${m.name}" (ช่อง ${s + 1})`,
+                color: '#ec4899',
+                onSelect: () => {
+                  m.state = 'Stand';
+                  m.protectedOnce = true;
+                  targetType = 'monster';
+                  targetSlot = s;
+                  setLog(`🛡️ [กฎแห่งวัฏจักร] สแตร์น "${m.name}" ได้รับเกราะป้องกันไม่ออกจากสนาม 1 ครั้ง และเปลี่ยนเป้าหมายการโจมตีมาที่ยูนิทนี้!`);
+                  renderGame();
+                  continueNormalAttackFlow();
+                }
+              });
+            }
+          });
+          showChoiceModal('🛡️ กฎแห่งวัฏจักร: เลือกยูนิทเป้าหมาย', 'เลือกยูนิทฝั่งเราที่จะสแตร์นและรับการโจมตี:', allyChoices);
+        }
+      });
+    }
+
+    if (canUseBarry) {
+      options.push({
+        label: '🐉 ร่าย "ไวเวอร์นการ์ด บาร์รี่": เปลี่ยนเป้าหมายการโจมตีไปที่ยูนิทหรือลีดเดอร์ของฝ่ายตรงข้าม!',
+        color: '#ef4444',
+        onSelect: () => {
+          const spellCard = defender.hand.splice(kg09InHandIdx, 1)[0];
+          defender.spellQuota.reactionUsed += 1;
+          resetCardStateForZoneChange(spellCard);
+          defender.graveyard.push(spellCard);
+
+          const retargetChoices = [];
+          attacker.board.forEach((m, s) => {
+            if (m && s !== attackerSlot) {
+              retargetChoices.push({
+                label: `🎯 เปลี่ยนเป้าหมายไปที่ "${m.name}" (ช่อง ${s + 1})`,
+                color: '#ef4444',
+                onSelect: () => {
+                  compareAndDestroyMonsters(attacker, attackerSlot, attacker, s, (msg) => {
+                    setLog(`🐉 [บาร์รี่] เปลี่ยนเป้าหมายโจมตีไปที่ "${m.name}"! -> ${msg}`);
+                    renderGame();
+                    if (onCompleteCallback) onCompleteCallback();
+                  });
+                }
+              });
+            }
+          });
+          if (defender.hand.length > 0) {
+            retargetChoices.push({
+              label: '👑 เปลี่ยนเป้าหมายไปที่ Leader ของฝ่ายตรงข้าม (ต้องทิ้งการ์ดบนมือ 1 ใบ)',
+              color: '#dc2626',
+              onSelect: () => {
+                const discardChoices = defender.hand.map((card, idx) => ({
+                  label: `ทิ้ง "${card.name}"`,
+                  color: '#dc2626',
+                  onSelect: () => {
+                    const discarded = defender.hand.splice(idx, 1)[0];
+                    resetCardStateForZoneChange(discarded);
+                    defender.graveyard.push(discarded);
+                    attacker.leader.hp = Math.max(0, attacker.leader.hp - 1);
+                    setLog(`🐉 [บาร์รี่] ทิ้ง "${discarded.name}" 1 ใบ -> เปลี่ยนเป้าหมายโจมตีใส่ Leader ของ ${attacker.name} โดยตรง (เหลือ ${attacker.leader.hp}/6)!`);
+                    if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(attacker);
+                    checkGameOver();
+                    renderGame();
+                    if (onCompleteCallback) onCompleteCallback();
+                  }
+                }));
+                showChoiceModal('🐉 บาร์รี่: เลือกการ์ดที่จะทิ้ง', 'เลือกการ์ด 1 ใบที่จะทิ้งลงนรก:', discardChoices);
+              }
+            });
+          }
+          showChoiceModal('🐉 ไวเวอร์นการ์ด บาร์รี่: เลือกเป้าหมายใหม่', 'เลือกเป้าหมายที่จะเปลี่ยนการโจมตีไปหา:', retargetChoices);
+        }
+      });
+    }
+
     options.push({
       label: 'ไม่ใช้ (ดำเนินการป้องกันตามปกติ)',
       color: '#475569',
@@ -5548,7 +6458,8 @@ function applyInterceptSkillAndBattle(attacker, attackerSlot, defender, chosenSl
   }
 
   blocker.state = 'Rest';
-  const hasStandOnSurvive = Array.isArray(blocker.effects) && blocker.effects.some(e => e.trigger === 'ON_INTERCEPT' && e.standOnSurvive);
+  const hasStandOnSurvive = (Array.isArray(blocker.effects) && blocker.effects.some(e => e.trigger === 'ON_INTERCEPT' && e.standOnSurvive))
+    || blocker.id === 'KG07';
 
   EffectEngine.triggerCardEffects(blocker, 'ON_INTERCEPT', {
     caster: defender,
@@ -5585,15 +6496,32 @@ function proceedToStandardIntercept(attacker, defender, attackerSlot, onComplete
     defender.leader.hp = Math.max(0, defender.leader.hp - 1);
     fxLeaderDamage(defender);
     setLog(logText);
+    if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(defender);
     renderGame();
     playSlotAnimation(isLocalDefender, 'leader', 'fx-target-hit');
     if (checkGameOver()) {
+      if (attackingMonster.isUltimateMadoka && typeof handleUltimateMadokaBattleEnd === 'function') {
+        handleUltimateMadokaBattleEnd(attacker);
+      }
       if (onCompleteCallback) onCompleteCallback();
       return;
     }
     // 💤 ออโต้ของ "เบลเฟกอร์ บาปเกียจคร้าน" (DMM07): เมื่อโจมตีสำเร็จ นำการ์ดบนสุดของทั้ง 2 ฝั่งเข้ามิติมืดของตน
     triggerBelphegorAttackSuccess(attacker, defender, attackingMonster);
+
+    // 🏹 ออโต้ของ "คานาเมะ มาโดกะ" (MD03): ถ้ามี Soul Gem ในมิติมืด เมื่อโจมตีสำเร็จ บังคับอีกฝ่ายทิ้งการ์ดบนมือ 1 ใบ
+    if (attackingMonster.id === 'MD03' && Array.isArray(attacker.darkDimension) && attacker.darkDimension.some(c => c && (c.id === 'MD11' || (c.name && c.name.includes('Soul Gem')))) && defender.hand.length > 0) {
+      const oppD = defender.hand.pop();
+      resetCardStateForZoneChange(oppD);
+      defender.graveyard.push(oppD);
+      setLog(`🏹 [ออโต้ - คานาเมะ มาโดกะ] มี "Soul Gem" ในมิติมืด -> บังคับ ${defender.name} ทิ้งการ์ด "${oppD.name}" 1 ใบ!`);
+      if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(defender, oppD);
+    }
+
     if (gameState.gameOver) {
+      if (attackingMonster.isUltimateMadoka && typeof handleUltimateMadokaBattleEnd === 'function') {
+        handleUltimateMadokaBattleEnd(attacker);
+      }
       if (onCompleteCallback) onCompleteCallback();
       return;
     }
@@ -5605,6 +6533,9 @@ function proceedToStandardIntercept(attacker, defender, attackerSlot, onComplete
       sourceSlot: attackerSlot,
       isAI: attacker !== gameState.player
     }, () => {
+      if (attackingMonster.isUltimateMadoka && typeof handleUltimateMadokaBattleEnd === 'function') {
+        handleUltimateMadokaBattleEnd(attacker);
+      }
       renderGame();
       checkGameOver();
       if (onCompleteCallback) onCompleteCallback();
@@ -5694,11 +6625,43 @@ function compareAndDestroyMonsters(contestantA, slotA, contestantB, slotB, onAft
       contestantB.leader.hp = Math.max(0, contestantB.leader.hp - 1);
       fxLeaderDamage(contestantB);
       burnMsg = ` และสกิลออโต้ของ "${monsterA.name}" ทำดาเมจใส่ Leader อีกฝ่าย 1 หน่วย (เหลือ ${contestantB.leader.hp}/6)!`;
+      if (typeof checkLeaderDamagedTriggers === 'function') checkLeaderDamagedTriggers(contestantB);
     }
     const msg = `"${monsterA.name}" (${totalA}) ชนะ "${monsterB.name}" (${totalB})!${luciferNote}${burnMsg}`;
 
     // 💤 ออโต้ของ "เบลเฟกอร์ บาปเกียจคร้าน" (DMM07): เมื่อโจมตีชนะสำเร็จ นำการ์ดใบบนสุดของทั้ง 2 ฝั่งเข้ามิติมืดของตน
     triggerBelphegorAttackSuccess(contestantA, contestantB, monsterA);
+
+    // 🏹 ออโต้ของ "คานาเมะ มาโดกะ" (MD03): ถ้ามี Soul Gem ในมิติมืด เมื่อโจมตีสำเร็จ บังคับอีกฝ่ายทิ้งการ์ดบนมือ 1 ใบ
+    if (monsterA.id === 'MD03' && Array.isArray(contestantA.darkDimension) && contestantA.darkDimension.some(c => c && (c.id === 'MD11' || (c.name && c.name.includes('Soul Gem')))) && contestantB.hand.length > 0) {
+      const oppD = contestantB.hand.pop();
+      resetCardStateForZoneChange(oppD);
+      contestantB.graveyard.push(oppD);
+      setLog(`🏹 [ออโต้ - คานาเมะ มาโดกะ] มี "Soul Gem" ในมิติมืด -> บังคับ ${contestantB.name} ทิ้งการ์ด "${oppD.name}" 1 ใบ!`);
+      if (typeof checkDiscardTriggers === 'function') checkDiscardTriggers(contestantB, oppD);
+    }
+
+    // 🔥 ออโต้ของ "ดราโกนิค โอเวอร์ลอร์ด The X" (KG04): เมื่อทำลายยูนิทฝ่ายตรงข้ามได้ ทำลายยูนิทฝ่ายตรงข้ามที่พลัง <= The X สูงสุด 2 ใบ
+    if (monsterA.id === 'KG04' && resB.destroyed) {
+      const powerX = getEffectivePower(monsterA, contestantA);
+      const validTargets = [];
+      contestantB.board.forEach((m, s) => {
+        if (m && getEffectivePower(m, contestantB) <= powerX) {
+          validTargets.push(s);
+        }
+      });
+      const targetsToDestroy = validTargets.slice(0, 2);
+      targetsToDestroy.forEach(s => {
+        const destroyed = destroyBoardMonster(contestantB, s, false, true);
+        if (destroyed.destroyed) {
+          setLog(`🔥 [ออโต้ The X] ทำลาย "${destroyed.monster.name}" (พลัง <= ${powerX}) สำเร็จ!`);
+        }
+      });
+    }
+
+    if (monsterA.isUltimateMadoka && typeof handleUltimateMadokaBattleEnd === 'function') {
+      handleUltimateMadokaBattleEnd(contestantA);
+    }
 
     if (resB.destroyed) {
       EffectEngine.triggerCardEffects(monsterA, 'ON_KILL_UNIT', {
@@ -5855,14 +6818,14 @@ const AI_CONFIG_STORAGE_KEY = 'bof_ai_config_v1';
 
 const aiConfig = (function () {
   const defaults = {
-    deckChoice: 'RANDOM', // 'RANDOM' | 'L01' | 'L02' | 'L03' | 'L04' | 'L05' | 'L06'
+    deckChoice: 'RANDOM', // 'RANDOM' | 'L01' | 'L02' | 'L03' | 'L04' | 'L05' | 'L06' | 'L07' | 'L08'
     difficulty: 'NORMAL', // 'EASY' | 'NORMAL' | 'HARD'
     stepDelayMs: 1150
   };
   try {
     const saved = JSON.parse(localStorage.getItem(AI_CONFIG_STORAGE_KEY));
     if (saved) {
-      if (['RANDOM', 'L01', 'L02', 'L03', 'L04', 'L05', 'L06'].includes(saved.deckChoice)) {
+      if (['RANDOM', 'L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08'].includes(saved.deckChoice)) {
         defaults.deckChoice = saved.deckChoice;
       }
       if (['EASY', 'NORMAL', 'HARD'].includes(saved.difficulty)) {
@@ -5896,7 +6859,9 @@ const AI_DECK_CATALOG = [
   { id: 'L03', name: 'เด็ควันสิ้นโลก', leader: 'วันสิ้นโลก', desc: 'คู่หูประสานพลังและวิวัฒน์สู่ร่างอนาคต', color: '#5fd0ff', img: 'images/วันสิ้นโลก/1.png' },
   { id: 'L04', name: 'เด็คไดโน', leader: 'ศูนย์วิจัยไดโน', desc: 'สะสมเผ่าไดโนและผสานร่างไฮบริดสุดแกร่ง', color: '#a3e635', img: 'images/ไดโน/1.png' },
   { id: 'L05', name: 'เด็คปีศาจ', leader: 'ปีศาจ', desc: 'สะสมมิติมืดและใช้พลังบาปทั้ง 7 พิชิตชัย', color: '#c084fc', img: 'images/เด็คปีศาจ/1.png' },
-  { id: 'L06', name: 'เด็คโอ็ต', leader: 'ไอโอ๊ตบ้าทุกสิ่ง', desc: 'เปิดท็อปกองคอลพรรคพวกสายบ้าลงสนาม', color: '#fb923c', img: 'images/เด็คโอ๊ต/1.png' }
+  { id: 'L06', name: 'เด็คโอ็ต', leader: 'ไอโอ๊ตบ้าทุกสิ่ง', desc: 'เปิดท็อปกองคอลพรรคพวกสายบ้าลงสนาม', color: '#fb923c', img: 'images/เด็คโอ๊ต/1.png' },
+  { id: 'L07', name: 'เด็คมาโดกะ', leader: 'มาโดกะ', desc: 'ค้นหา Soul Gem และอัญเชิญสาวน้อยเวทมนตร์', color: '#f472b6', img: 'images/มาโดกะ/1.png' },
+  { id: 'L08', name: 'เด็คคาเงโร่', leader: 'คาเงโร่', desc: 'ทิ้งการ์ดทำลายยูนิทและบังคับสูญเสียพลังชีวิต', color: '#ef4444', img: 'images/เด็คคาเงโร่/1.png' }
 ];
 
 function openAISetupModal() {
@@ -7386,6 +8351,20 @@ function applyStartOfGameLeaderEffects(contestant) {
     drawCards(contestant, 2);
     setLog(`😈 [ออโต้เริ่มเกม - ${contestant.leader.name}] (${contestant.name}) นำ "ดินแดนปีศาจ" ไปยังมิติมืด จั่วการ์ด 2 ใบ และสับกอง!`);
   }
+
+  // ✨ สกิลออโต้เมื่อเริ่มเกมของลีดเดอร์ "มาโดกะ" (L07):
+  // "ออโต้: เมื่อเริ่มเกมค้นหา 'Soul Gem' จากกองขึ้นมือ"
+  if (contestant.leader.id === 'L07' && !contestant.madokaStartOfGameTriggered) {
+    contestant.madokaStartOfGameTriggered = true;
+    const gemIdx = contestant.deck.findIndex(c => c && (c.id === 'MD11' || (c.name && c.name.includes('Soul Gem'))));
+    if (gemIdx !== -1) {
+      const gemCard = contestant.deck.splice(gemIdx, 1)[0];
+      resetCardStateForZoneChange(gemCard);
+      contestant.hand.push(gemCard);
+      contestant.deck = shuffleDeck(contestant.deck);
+      setLog(`✨ [ออโต้เริ่มเกม - ${contestant.leader.name}] (${contestant.name}) ค้นหา "Soul Gem" จากกองการ์ดขึ้นมือและสับกอง!`);
+    }
+  }
 }
 
 function startAIFirstTurn() {
@@ -8148,7 +9127,7 @@ function initGame() {
   const scrollbox = document.getElementById('action-log-scrollbox');
   if (scrollbox) scrollbox.innerHTML = '';
 
-  const allLeaderIds = ['L01', 'L02', 'L03', 'L04', 'L05', 'L06'];
+  const allLeaderIds = ['L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08'];
   const chosenAiLeaderId = (aiConfig.deckChoice === 'RANDOM')
     ? allLeaderIds[Math.floor(Math.random() * allLeaderIds.length)]
     : aiConfig.deckChoice;

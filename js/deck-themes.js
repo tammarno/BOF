@@ -2,7 +2,7 @@
 // ไม่แตะตรรกะเกม: ห่อ renderGame / playAttackVisualAnimation / showEndMatchModal แล้วเทียบสถานะกระดานก่อน-หลัง
 // หน้าตาอยู่ใน css/deck-themes.css · เปิด index.html?fxpreview เพื่อกดดูทุกเอฟเฟกต์บนกระดานจริง
 (function () {
-  const COLORS = { L01: '#3ee08f', L02: '#f0a347', L03: '#e8c977', L04: '#a3e635', L05: '#c084fc', L06: '#fb923c' };
+  const COLORS = { L01: '#3ee08f', L02: '#f0a347', L03: '#e8c977', L04: '#a3e635', L05: '#c084fc', L06: '#fb923c', L07: '#f472b6', L08: '#ef4444' };
   const FULL_MATS = { L01: 'deku', L03: 'doom' }; // เด็คที่มีสนามเต็มรูปแบบ (ที่เหลือได้แค่ออร่าสีประจำเด็ค)
   const DOOM_PAIR = ['DM01', 'DM02']; // โอนามิ + โรเซเลีย (คู่หู)
   const GAUGE_STEP = 25;               // บัฟฮีโร่ 1 ครั้ง = เกจฟูลคาวล์ +25%
